@@ -1,0 +1,441 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, ScrollView, Platform, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '@react-navigation/native';
+import UIButton from '../components/Ui/Button';
+import { getSupabase } from '../lib/supabase';
+import { setAuthUser } from '../storage';
+import { MailIcon, LockIcon, EyeIcon, EyeOffIcon, AppleIcon, UserIcon } from '../components/Icons';
+import { colors, spacing, radius, typography, shadows } from '../theme';
+
+export default function SignUpScreen({ navigation }) {
+  const { colors: navColors } = useTheme();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSignUp = async () => {
+    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
+      Alert.alert('Missing Fields', 'Please fill in all fields.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Password Mismatch', 'Passwords do not match.');
+      return;
+    }
+
+    if (password.length < 8) {
+      Alert.alert('Weak Password', 'Password must be at least 8 characters long.');
+      return;
+    }
+
+    if (!agreeToTerms) {
+      Alert.alert('Terms Required', 'Please agree to the Terms of Service and Privacy Policy.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const supabase = getSupabase();
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+      if (error) throw error;
+      const user = data?.user || data?.session?.user;
+      if (data?.user && !data.session) {
+        Alert.alert('Check your email', 'We sent you a confirmation link to complete your registration.');
+        navigation.goBack();
+        return;
+      }
+      if (user) {
+        await setAuthUser({ id: user.id, email: user.email });
+        Alert.alert('Account Created', 'You are now signed in.');
+        navigation.navigate('Home');
+      } else {
+        Alert.alert('Sign Up', 'Please check your email to continue.');
+      }
+    } catch (e) {
+      Alert.alert('Sign Up Failed', e?.message || 'Unable to create account');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAppleSignUp = () => {
+    Alert.alert('Coming Soon', 'Sign up with Apple will be available soon.');
+  };
+
+  const handleGoogleSignUp = () => {
+    Alert.alert('Coming Soon', 'Sign up with Google will be available soon.');
+  };
+
+  const isValidEmail = (email) => {
+    return /\S+@\S+\.\S+/.test(email);
+  };
+
+  const getPasswordStrength = (password) => {
+    if (password.length < 6) return { strength: 'Weak', color: colors.destructive };
+    if (password.length < 8) return { strength: 'Fair', color: '#f59e0b' };
+    if (password.length >= 8 && /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      return { strength: 'Strong', color: '#10b981' };
+    }
+    return { strength: 'Good', color: colors.primary };
+  };
+
+  const passwordStrength = password ? getPasswordStrength(password) : null;
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: navColors.background }} edges={['bottom']}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={{ flex: 1 }} 
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Join FocusFlow to sync your data and unlock Premium features</Text>
+          </View>
+
+          {/* Form */}
+          <View style={styles.form}>
+            {/* Email Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>EMAIL</Text>
+              <View style={[
+                styles.inputWrapper,
+                email && !isValidEmail(email) && styles.inputError
+              ]}>
+                <MailIcon size={20} color={colors.mutedForeground} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Enter your email"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  autoCorrect={false}
+                />
+              </View>
+              {email && !isValidEmail(email) && (
+                <Text style={styles.errorText}>Please enter a valid email address</Text>
+              )}
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>PASSWORD</Text>
+              <View style={styles.inputWrapper}>
+                <LockIcon size={20} color={colors.mutedForeground} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.textInput, { flex: 1 }]}
+                  placeholder="Create a password"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoComplete="new-password"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity 
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeButton}
+                >
+                  {showPassword ? (
+                    <EyeOffIcon size={20} color={colors.mutedForeground} />
+                  ) : (
+                    <EyeIcon size={20} color={colors.mutedForeground} />
+                  )}
+                </TouchableOpacity>
+              </View>
+              {passwordStrength && (
+                <View style={styles.passwordStrength}>
+                  <Text style={[styles.strengthText, { color: passwordStrength.color }]}>
+                    Password strength: {passwordStrength.strength}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Confirm Password Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>CONFIRM PASSWORD</Text>
+              <View style={[
+                styles.inputWrapper,
+                confirmPassword && password !== confirmPassword && styles.inputError
+              ]}>
+                <LockIcon size={20} color={colors.mutedForeground} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.textInput, { flex: 1 }]}
+                  placeholder="Confirm your password"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  autoComplete="new-password"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity 
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  style={styles.eyeButton}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOffIcon size={20} color={colors.mutedForeground} />
+                  ) : (
+                    <EyeIcon size={20} color={colors.mutedForeground} />
+                  )}
+                </TouchableOpacity>
+              </View>
+              {confirmPassword && password !== confirmPassword && (
+                <Text style={styles.errorText}>Passwords do not match</Text>
+              )}
+            </View>
+
+            {/* Terms Agreement */}
+            <TouchableOpacity 
+              style={styles.termsRow} 
+              onPress={() => setAgreeToTerms(!agreeToTerms)}
+            >
+              <View style={[styles.checkbox, agreeToTerms && styles.checkboxChecked]}>
+                {agreeToTerms && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              <Text style={styles.termsText}>
+                I agree to the{' '}
+                <Text style={styles.termsLink} onPress={() => navigation.navigate('Terms')}>Terms of Service</Text>
+                {' '}and{' '}
+                <Text style={styles.termsLink} onPress={() => navigation.navigate('Privacy')}>Privacy Policy</Text>
+              </Text>
+            </TouchableOpacity>
+
+            {/* Sign Up Button */}
+            <UIButton
+              title={isLoading ? "Creating Account..." : "Create Account"}
+              onPress={handleSignUp}
+              disabled={isLoading}
+              style={styles.signUpButton}
+            />
+
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>Or sign up with</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Social Sign Up */}
+            <View style={styles.socialButtons}>
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity style={styles.socialButton} onPress={handleAppleSignUp}>
+                  <AppleIcon size={20} color={colors.foreground} />
+                  <Text style={styles.socialButtonText}>Apple</Text>
+                </TouchableOpacity>
+              )}
+              
+              <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignUp}>
+                <UserIcon size={20} color={colors.foreground} />
+                <Text style={styles.socialButtonText}>Google</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Sign In Link */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
+              <Text style={styles.footerLink}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flexGrow: 1,
+    padding: spacing.xl,
+    justifyContent: 'center',
+    minHeight: '100%',
+  },
+  header: {
+    marginBottom: spacing['2xl'],
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: typography['3xl'],
+    fontWeight: typography.bold,
+    color: colors.foreground,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+    marginBottom: spacing.sm,
+  },
+  subtitle: {
+    fontSize: typography.base,
+    color: colors.mutedForeground,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  form: {
+    marginBottom: spacing.xl,
+  },
+  inputGroup: {
+    marginBottom: spacing.lg,
+  },
+  inputLabel: {
+    fontSize: typography.sm,
+    fontWeight: typography.semibold,
+    color: colors.mutedForeground,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.sm,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    height: 56,
+    ...shadows.sm,
+  },
+  inputError: {
+    borderColor: colors.destructive,
+    borderWidth: 2,
+  },
+  inputIcon: {
+    marginRight: spacing.md,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: typography.base,
+    color: colors.foreground,
+    height: '100%',
+  },
+  eyeButton: {
+    padding: spacing.xs,
+    marginLeft: spacing.sm,
+  },
+  errorText: {
+    fontSize: typography.sm,
+    color: colors.destructive,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  passwordStrength: {
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  strengthText: {
+    fontSize: typography.sm,
+    fontWeight: typography.medium,
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.xl,
+    paddingHorizontal: spacing.sm,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+    marginTop: 2,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  checkmark: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: typography.bold,
+  },
+  termsText: {
+    flex: 1,
+    fontSize: typography.sm,
+    color: colors.mutedForeground,
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: colors.primary,
+    fontWeight: typography.medium,
+  },
+  signUpButton: {
+    marginBottom: spacing.xl,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+    opacity: 0.5,
+  },
+  dividerText: {
+    fontSize: typography.sm,
+    color: colors.mutedForeground,
+    marginHorizontal: spacing.lg,
+  },
+  socialButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  socialButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    height: 56,
+    backgroundColor: colors.card,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.sm,
+  },
+  socialButtonText: {
+    fontSize: typography.base,
+    fontWeight: typography.medium,
+    color: colors.foreground,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 'auto',
+    paddingTop: spacing.xl,
+  },
+  footerText: {
+    fontSize: typography.base,
+    color: colors.mutedForeground,
+  },
+  footerLink: {
+    fontSize: typography.base,
+    color: colors.primary,
+    fontWeight: typography.semibold,
+  },
+});
