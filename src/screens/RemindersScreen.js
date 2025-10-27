@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, Alert, Modal, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, Alert, Modal, ScrollView, TouchableOpacity, Platform, Linking } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import UIButton from '../components/Ui/Button';
 import * as Notifications from 'expo-notifications';
 import { getReminders, setReminders, getPremiumStatus } from '../storage';
@@ -7,6 +8,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { PlusIcon, TrashIcon, ChevronRightIcon, CrownIcon } from '../components/Icons';
 import { colors, spacing, radius, typography } from '../theme';
 import { FREE_REMINDER_LIMIT, canAddReminder } from '../utils/premium';
+import GradientBackground from '../components/GradientBackground';
+import GlassCard from '../components/Ui/GlassCard';
 
 export default function RemindersScreen({ navigation }) {
   const [items, setItems] = useState([]);
@@ -94,6 +97,15 @@ export default function RemindersScreen({ navigation }) {
     const cleanTitle = title.trim();
     if (!cleanTitle) return;
     try {
+      // Check notification permissions first
+      const { status } = await Notifications.getPermissionsAsync();
+  // Permission status available if needed: status
+      
+      if (status !== 'granted') {
+        console.warn('Notification permissions not granted');
+        alert('Please grant notification permissions in Settings');
+        return;
+      }
       await requestPermission();
       let identifier = null;
       let record = null;
@@ -106,7 +118,8 @@ export default function RemindersScreen({ navigation }) {
         }
         identifier = await Notifications.scheduleNotificationAsync({
           content: { title: 'Reminder', body: cleanTitle },
-          trigger: { date: triggerDate },
+          // Use structured date trigger to avoid deprecation warnings
+          trigger: { type: 'date', date: triggerDate },
         });
         record = {
           id: editingItem?.id || Date.now().toString(),
@@ -163,10 +176,39 @@ export default function RemindersScreen({ navigation }) {
       } else {
         // Interval for custom/location (simplified for free users)
         const minutes = parseInt(intervalMinutes, 10) || 60;
-        identifier = await Notifications.scheduleNotificationAsync({
-          content: { title: 'Reminder', body: cleanTitle },
-          trigger: { seconds: minutes * 60, repeats: true },
-        });
+        
+        // For intervals, we'll schedule multiple notifications (more reliable than repeating intervals)
+        const notificationIds = [];
+        const now = new Date();
+        const maxNotifications = 24; // Schedule notifications for the next 24 intervals
+        
+  // Scheduling notifications for next intervals
+        
+        for (let i = 1; i <= maxNotifications; i++) {
+          const triggerTime = new Date(now.getTime() + (minutes * 60 * 1000 * i));
+          // schedule each notification at computed triggerTime
+          try {
+            const id = await Notifications.scheduleNotificationAsync({
+              content: { 
+                title: 'FocusFlow Reminder', 
+                body: cleanTitle,
+                sound: true 
+              },
+              // Use structured date trigger to avoid deprecation warnings
+              trigger: { type: 'date', date: triggerTime },
+            });
+            // scheduled id available if needed: id
+            notificationIds.push(id);
+          } catch (e) {
+            console.error(`Failed to schedule notification ${i}:`, e);
+          }
+        }
+        
+  // total scheduled kept in notificationIds
+        
+        // Use the first notification ID as the main identifier
+        identifier = notificationIds[0];
+        
         record = {
           id: editingItem?.id || Date.now().toString(),
           type: 'interval',
@@ -174,6 +216,7 @@ export default function RemindersScreen({ navigation }) {
           recurrence: 'Custom',
           time: `Every ${minutes} minute${minutes !== 1 ? 's' : ''}`,
           notificationId: identifier,
+          notificationIds: notificationIds, // Store all IDs for cleanup
           enabled: true,
           intervalMinutes: minutes,
           updatedAt: Date.now(),
@@ -183,7 +226,16 @@ export default function RemindersScreen({ navigation }) {
       // If editing, cancel old notification and replace existing item
       if (editingItem) {
         try {
-          if (editingItem.notificationId) {
+          // Cancel all old notifications
+          if (editingItem.notificationIds && Array.isArray(editingItem.notificationIds)) {
+            for (const notifId of editingItem.notificationIds) {
+              try {
+                await Notifications.cancelScheduledNotificationAsync(notifId);
+              } catch (e) {
+                console.warn('Failed to cancel old notification:', notifId);
+              }
+            }
+          } else if (editingItem.notificationId) {
             await Notifications.cancelScheduledNotificationAsync(editingItem.notificationId);
           }
         } catch {}
@@ -202,8 +254,19 @@ export default function RemindersScreen({ navigation }) {
 
   const handleDeleteReminder = async (id) => {
     const item = items.find((r) => r.id === id);
-    if (item?.notificationId) {
-      await Notifications.cancelScheduledNotificationAsync(item.notificationId);
+    if (item) {
+      // For interval reminders, cancel all scheduled notifications
+      if (item.notificationIds && Array.isArray(item.notificationIds)) {
+        for (const notifId of item.notificationIds) {
+          try {
+            await Notifications.cancelScheduledNotificationAsync(notifId);
+          } catch (e) {
+            console.warn('Failed to cancel notification:', notifId, e);
+          }
+        }
+      } else if (item.notificationId) {
+        await Notifications.cancelScheduledNotificationAsync(item.notificationId);
+      }
     }
     const next = items.filter((r) => r.id !== id);
     await save(next);
@@ -407,51 +470,18 @@ export default function RemindersScreen({ navigation }) {
           />
         </View>
 
-        {/* Debug helpers (only shown in development builds) */}
-        {__DEV__ && (
+  {/* Debug helpers (toggled; previously dev-only). Keep visible to help QA on device */}
+  {(
           <View style={{ padding: spacing.lg, gap: spacing.md }}>
             <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>Notifications Debug</Text>
             <View style={{ flexDirection: 'row', gap: spacing.md }}>
-              <TouchableOpacity
-                style={[styles.debugBtn, { backgroundColor: colors.primary }]}
-                onPress={async () => {
-                  try {
-                    const ok = await requestPermission();
-                    if (!ok) return Alert.alert('Permission', 'Notifications permission is required.');
-                    const id = await Notifications.scheduleNotificationAsync({
-                      content: { title: 'FocusFlow Test', body: 'This is a 5s test notification.' },
-                      trigger: { seconds: 5 },
-                    });
-                    Alert.alert('Scheduled', `Test notification in 5s. ID: ${id}`);
-                  } catch (e) {
-                    Alert.alert('Error', String(e?.message || e));
-                  }
-                }}
-              >
-                <Text style={styles.debugBtnText}>Schedule 5s Test</Text>
-              </TouchableOpacity>
+              {/* Removed debug buttons: 5s Test and 1min Repeat Test */}
 
-              <TouchableOpacity
-                style={[styles.debugBtn, { backgroundColor: colors.muted }]}
-                onPress={async () => {
-                  const list = await Notifications.getAllScheduledNotificationsAsync();
-                  Alert.alert('Scheduled', `${list.length} notifications scheduled`);
-                  console.log('Scheduled notifications:', list);
-                }}
-              >
-                <Text style={[styles.debugBtnText, { color: colors.foreground }]}>List Scheduled</Text>
-              </TouchableOpacity>
+              {/* Removed debug buttons: List Scheduled, Clear All */}
+            </View>
 
-              <TouchableOpacity
-                style={[styles.debugBtn, { backgroundColor: '#ef4444' }]}
-                onPress={async () => {
-                  await Notifications.cancelAllScheduledNotificationsAsync();
-                  Alert.alert('Cleared', 'All scheduled notifications cancelled.');
-                  await loadReminders();
-                }}
-              >
-                <Text style={styles.debugBtnText}>Clear All</Text>
-              </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                {/* Removed debug buttons: Permission Status and Open Settings */}
             </View>
           </View>
         )}
@@ -483,7 +513,8 @@ export default function RemindersScreen({ navigation }) {
   );
 
   return (
-    <View style={styles.container}>
+    <GradientBackground>
+      <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
@@ -545,14 +576,14 @@ export default function RemindersScreen({ navigation }) {
           </View>
         </View>
       </Modal>
-    </View>
+      </SafeAreaView>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',

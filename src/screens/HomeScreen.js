@@ -4,9 +4,13 @@ import { useTheme, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import UIButton from '../components/Ui/Button';
 import PremiumModal from '../components/PremiumModal';
+import GlassCard from '../components/Ui/GlassCard';
+import GradientBackground from '../components/GradientBackground';
 import { getSession, getReminders, getPremiumStatus, setPremiumStatus } from '../storage';
 import { ClockIcon, BellIcon, BarChartIcon, SettingsIcon, CrownIcon } from '../components/Icons';
 import { colors, spacing, radius, typography, shadows } from '../theme';
+import { SkeletonListItem } from '../components/SkeletonLoader';
+import { withErrorHandling } from '../utils/errorHandling';
 
 // Normalize reminder records to a consistent shape, supporting legacy data
 function normalizeReminder(r) {
@@ -177,29 +181,42 @@ export default function HomeScreen({ navigation }) {
   const [session, setSession] = useState({ active: false, endAt: null, totalSeconds: null });
   const [remaining, setRemaining] = useState(null);
   const [reminders, setReminders] = useState([]);
+  const [isLoadingReminders, setIsLoadingReminders] = useState(true);
   const tickRef = useRef(null);
   const [isPremium, setIsPremium] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
+  // Periodic refresh so time labels update and one-time reminders disappear without navigation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadReminders();
+    }, 30000); // every 30s
+    return () => clearInterval(interval);
+  }, [loadReminders]);
 
-  const loadReminders = useCallback(async () => {
-    const list = await getReminders();
-    const enabledReminders = (list || []).filter(r => r.enabled);
-    // Normalize first to avoid in-place mutations when sorting
-    const normalized = enabledReminders.map(normalizeReminder);
-    
-    // For Home display: Hide one-time reminders that have already passed
-    const now = Date.now();
-    const activeForDisplay = normalized.filter(reminder => {
-      if (reminder.type === 'once' && reminder.scheduledDate) {
-        return reminder.scheduledDate > now;
-      }
-      return true; // Show all repeating reminders
-    });
-    
-    // Sort by next occurrence time
-    const sortedReminders = activeForDisplay.sort((a, b) => getNextOccurrenceTime(a) - getNextOccurrenceTime(b));
-    setReminders(sortedReminders);
-  }, []);
+  const loadReminders = useCallback(
+    withErrorHandling(async () => {
+      setIsLoadingReminders(true);
+      const list = await getReminders();
+      const enabledReminders = (list || []).filter(r => r.enabled);
+      // Normalize first to avoid in-place mutations when sorting
+      const normalized = enabledReminders.map(normalizeReminder);
+      
+      // For Home display: Hide one-time reminders that have already passed
+      const now = Date.now();
+      const activeForDisplay = normalized.filter(reminder => {
+        if (reminder.type === 'once' && reminder.scheduledDate) {
+          return reminder.scheduledDate > now;
+        }
+        return true; // Show all repeating reminders
+      });
+      
+      // Sort by next occurrence time
+      const sortedReminders = activeForDisplay.sort((a, b) => getNextOccurrenceTime(a) - getNextOccurrenceTime(b));
+      setReminders(sortedReminders);
+      setIsLoadingReminders(false);
+    }),
+    []
+  );
 
   useEffect(() => {
     (async () => {
@@ -235,8 +252,9 @@ export default function HomeScreen({ navigation }) {
   }, [session?.active, session?.endAt]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: navColors.background }} edges={['top']}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.container}>
+    <GradientBackground>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.container}>
         <View style={{ width: '100%', maxWidth: 520 }}>
           <View style={styles.header}>
           <View>
@@ -258,54 +276,92 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        <View style={[styles.mainButton, { backgroundColor: colors.primary }, shadows.sm]}>
-          <TouchableOpacity style={styles.btnInner} onPress={() => navigation.navigate('FocusSession')}>
+        <View style={[styles.mainButton, { 
+          backgroundColor: colors.primary,
+          shadowColor: colors.primary,
+          shadowOpacity: 0.3,
+          shadowRadius: 20,
+          shadowOffset: { width: 0, height: 8 },
+          elevation: 8,
+        }]}>
+          <TouchableOpacity 
+            style={styles.btnInner} 
+            onPress={() => navigation.navigate('FocusSession')}
+            accessibilityLabel="Start Focus Session"
+            accessibilityHint="Navigate to focus session setup"
+            accessibilityRole="button"
+          >
             <ClockIcon size={20} color="#fff" />
             <Text style={styles.mainBtnText}>Start Focus Session</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.mainButton, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}>
-          <TouchableOpacity style={styles.btnInner} onPress={() => navigation.navigate('Reminders')}>
+        <GlassCard tint="dark" intensity={70} style={styles.mainButton}>
+          <TouchableOpacity
+            style={styles.btnInner}
+            onPress={() => navigation.navigate('Reminders')}
+            accessibilityLabel="Manage Reminders"
+            accessibilityHint="Navigate to reminders setup"
+            accessibilityRole="button"
+          >
             <BellIcon size={20} color={colors.foreground} />
             <Text style={[styles.mainBtnText, { color: colors.foreground }]}>Manage Reminders</Text>
           </TouchableOpacity>
-        </View>
+        </GlassCard>
 
-        {reminders.length > 0 && (
+        {(reminders.length > 0 || isLoadingReminders) && (
           <View style={{ marginTop: spacing['2xl'] }}>
             <Text style={styles.sectionHeader}>UPCOMING</Text>
-            <View style={[styles.card, { backgroundColor: colors.card, maxHeight: 240 }, shadows.sm]}>
+            <GlassCard tint="dark" intensity={60} style={[styles.card, { maxHeight: 240 }]} contentStyle={{ padding: spacing.lg }}>
               <ScrollView style={{ maxHeight: 240 }} showsVerticalScrollIndicator={false}>
-                {reminders.map((item, idx) => (
-                  <View key={item.id}>
-                    <View style={styles.reminderRow}>
-                      <Text style={styles.reminderTitle}>{item.text || item.title || 'Reminder'}</Text>
-                      <Text style={styles.reminderTime}>{formatUpcomingTime(item)}</Text>
+                {isLoadingReminders ? (
+                  // Show skeleton loaders while loading
+                  <>
+                    <SkeletonListItem />
+                    <SkeletonListItem />
+                    <SkeletonListItem />
+                  </>
+                ) : (
+                  reminders.map((item, idx) => (
+                    <View key={item.id}>
+                      <View style={styles.reminderRow}>
+                        <Text style={styles.reminderTitle}>{item.text || item.title || 'Reminder'}</Text>
+                        <Text style={styles.reminderTime}>{formatUpcomingTime(item)}</Text>
+                      </View>
+                      {idx < reminders.length - 1 && <View style={styles.divider} />}
                     </View>
-                    {idx < reminders.length - 1 && <View style={styles.divider} />}
-                  </View>
-                ))}
+                  ))
+                )}
               </ScrollView>
-            </View>
+            </GlassCard>
           </View>
         )}
 
         <View style={styles.tilesRow}>
-          <TouchableOpacity
-            style={[styles.tile, { backgroundColor: colors.card }, shadows.sm]}
-            onPress={() => { isPremium ? navigation.navigate('Analytics') : setShowPremium(true); }}
-          >
-            <BarChartIcon size={24} color={colors.primary} />
-            <Text style={styles.tileLabel}>Analytics</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tile, { backgroundColor: colors.card }, shadows.sm]}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <SettingsIcon size={24} color={colors.foreground} />
-            <Text style={styles.tileLabel}>Settings</Text>
-          </TouchableOpacity>
+          <GlassCard tint="dark" intensity={60} style={styles.tile} contentStyle={styles.tileContent}>
+            <TouchableOpacity
+              style={styles.tilePressable}
+              onPress={() => { isPremium ? navigation.navigate('Analytics') : setShowPremium(true); }}
+              accessibilityLabel="Analytics"
+              accessibilityHint={isPremium ? "View your focus analytics" : "Upgrade to premium for analytics"}
+              accessibilityRole="button"
+            >
+              <BarChartIcon size={24} color={colors.primary} />
+              <Text style={styles.tileLabel}>Analytics</Text>
+            </TouchableOpacity>
+          </GlassCard>
+          <GlassCard tint="dark" intensity={60} style={styles.tile} contentStyle={styles.tileContent}>
+            <TouchableOpacity
+              style={styles.tilePressable}
+              onPress={() => navigation.navigate('Settings')}
+              accessibilityLabel="Settings"
+              accessibilityHint="Navigate to app settings"
+              accessibilityRole="button"
+            >
+              <SettingsIcon size={24} color={colors.foreground} />
+              <Text style={styles.tileLabel}>Settings</Text>
+            </TouchableOpacity>
+          </GlassCard>
         </View>
       </View>
       <PremiumModal
@@ -313,30 +369,131 @@ export default function HomeScreen({ navigation }) {
         onClose={() => setShowPremium(false)}
         onUpgrade={async () => { await setPremiumStatus(true); setIsPremium(true); setShowPremium(false); }}
       />
-    </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: spacing.xl, alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.xl },
-  title: { fontSize: typography['3xl'], fontWeight: typography.bold, letterSpacing: -0.5, color: colors.foreground },
-  subtitle: { fontSize: typography.sm, marginTop: 2, color: colors.mutedForeground },
-  activeBadge: { backgroundColor: colors.activeGreenBg, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.md },
-  activeBadgeText: { color: colors.activeGreen, fontSize: typography.xs, fontWeight: typography.semibold },
-  premiumBadge: { backgroundColor: colors.premium, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center' },
-  premiumText: { color: '#fff', fontSize: typography.xs, fontWeight: typography.semibold },
-  mainButton: { width: '100%', height: 56, borderRadius: radius.lg, marginBottom: spacing.md },
-  btnInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  mainBtnText: { fontSize: typography.base, fontWeight: typography.semibold, color: '#FFFFFF' },
-  sectionHeader: { fontSize: typography.xs, fontWeight: typography.semibold, color: colors.mutedForeground, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.sm },
-  card: { borderRadius: radius.xl, padding: spacing.lg },
-  reminderRow: { paddingVertical: 10 },
-  reminderTitle: { fontSize: typography.base, fontWeight: typography.semibold, marginBottom: 4, color: colors.foreground },
-  reminderTime: { fontSize: typography.sm, color: colors.mutedForeground },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: 4 },
-  tilesRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl },
-  tile: { flex: 1, height: 100, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center' },
-  tileLabel: { fontSize: typography.sm, fontWeight: typography.semibold, marginTop: 6, color: colors.foreground },
+  container: { 
+    padding: spacing.xl, 
+    alignItems: 'center',
+    paddingBottom: 100, // Extra space for tab bar
+  },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'flex-start', 
+    marginBottom: spacing.xl 
+  },
+  title: { 
+    fontSize: typography['3xl'], 
+    fontWeight: typography.bold, 
+    letterSpacing: -0.5, 
+    color: colors.foreground 
+  },
+  subtitle: { 
+    fontSize: typography.sm, 
+    marginTop: 2, 
+    color: colors.mutedForeground 
+  },
+  activeBadge: { 
+    backgroundColor: colors.activeGreenBg, 
+    paddingHorizontal: 10, 
+    paddingVertical: 5, 
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.activeGreen,
+  },
+  activeBadgeText: { 
+    color: colors.activeGreen, 
+    fontSize: typography.xs, 
+    fontWeight: typography.semibold 
+  },
+  premiumBadge: { 
+    backgroundColor: colors.premium, 
+    paddingHorizontal: 10, 
+    paddingVertical: 5, 
+    borderRadius: radius.md, 
+    flexDirection: 'row', 
+    alignItems: 'center' 
+  },
+  premiumText: { 
+    color: '#fff', 
+    fontSize: typography.xs, 
+    fontWeight: typography.semibold 
+  },
+  mainButton: { 
+    width: '100%', 
+    height: 56, 
+    borderRadius: radius.lg, 
+    marginBottom: spacing.md 
+  },
+  btnInner: { 
+    flex: 1, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: spacing.sm 
+  },
+  mainBtnText: { 
+    fontSize: typography.base, 
+    fontWeight: typography.semibold, 
+    color: '#FFFFFF' 
+  },
+  sectionHeader: { 
+    fontSize: typography.xs, 
+    fontWeight: typography.semibold, 
+    color: colors.mutedForeground, 
+    textTransform: 'uppercase', 
+    letterSpacing: 0.5, 
+    marginBottom: spacing.sm 
+  },
+  card: { 
+    borderRadius: radius.xl
+  },
+  reminderRow: { 
+    paddingVertical: 10 
+  },
+  reminderTitle: { 
+    fontSize: typography.base, 
+    fontWeight: typography.semibold, 
+    marginBottom: 4, 
+    color: colors.foreground 
+  },
+  reminderTime: { 
+    fontSize: typography.sm, 
+    color: colors.mutedForeground 
+  },
+  divider: { 
+    height: 1, 
+    backgroundColor: colors.glassBorder, 
+    marginVertical: 4 
+  },
+  tilesRow: { 
+    flexDirection: 'row', 
+    gap: spacing.md, 
+    marginTop: spacing.xl 
+  },
+  tile: { 
+    flex: 1, 
+    height: 100, 
+    borderRadius: radius.xl
+  },
+  tileLabel: { 
+    fontSize: typography.sm, 
+    fontWeight: typography.semibold, 
+    marginTop: 6, 
+    color: colors.foreground 
+  },
+  tileContent: { 
+    flex: 1, 
+    padding: 0 
+  },
+  tilePressable: { 
+    flex: 1, 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
 });

@@ -29,3 +29,8 @@ export function getSupabase() {
   });
   return _client;
 }
+
+// Test helper: allow injecting a Supabase client (e.g., in Node/Jest where SecureStore isn't available)
+export function setSupabaseClient(client) {
+  _client = client;
+}

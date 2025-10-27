@@ -1,13 +1,10 @@
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import HomeScreen from './src/screens/HomeScreen';
+import TabNavigator from './src/components/TabNavigator';
 import AppSelectionScreen from './src/screens/AppSelectionScreen';
 import FocusSessionScreen from './src/screens/FocusSessionScreen';
 import ActiveSessionScreen from './src/screens/ActiveSessionScreen';
-import RemindersScreen from './src/screens/RemindersScreen';
-import AnalyticsScreen from './src/screens/AnalyticsScreen';
-import SettingsScreen from './src/screens/SettingsScreen';
 import SignInScreen from './src/screens/SignInScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import TermsScreen from './src/screens/TermsScreen';
@@ -18,16 +15,30 @@ import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import theme from './src/theme';
 import { initializeAuth, setupAuthListener } from './src/lib/auth';
-import { getReminders, getAuthUser, getLastSyncAt } from './src/storage';
-import { mergeCloudToLocal } from './src/lib/sync';
+import { getReminders, getAuthUser, getLastSyncAt, getDirtySince, clearDirty, getSignInNudgeId, setSignInNudgeId, clearSignInNudgeId, getSignInNudgeOptOut, hasLocalData, getMigrationFlag, setMigrationFlag } from './src/storage';
+import { mergeCloudToLocal, performMigrationUpload, hasCloudData, pullCloudToLocal } from './src/lib/sync';
+import MigrationPrompt from './src/components/MigrationPrompt';
+import DataSyncPrompt from './src/components/DataSyncPrompt';
+import IAP from './src/lib/iap';
+import StoreKitTest from './src/lib/storekeittest';
+import { setPremiumStatus } from './src/storage';
+import ErrorBoundary from './src/components/ErrorBoundary';
+import { setupGlobalErrorHandling } from './src/utils/errorHandling';
+import PolicyScreen from './src/screens/PolicyScreen';
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [authUser, setAuthUser] = useState(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [showMigration, setShowMigration] = useState(false);
+  const [showSyncPrompt, setShowSyncPrompt] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
 
   useEffect(() => {
+    // Initialize global error handling
+    setupGlobalErrorHandling();
+
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
         shouldShowBanner: true,
@@ -42,11 +53,66 @@ export default function App() {
       const user = await initializeAuth();
       setAuthUser(user);
       setIsAuthLoading(false);
+      await manageSignInNudge(user);
+
+      // Configure IAP when enabled
+      try {
+        if (IAP.isReady()) {
+          await IAP.configure(user?.id || null);
+          const info = await IAP.getCustomerInfo();
+          if (info != null) {
+            const active = IAP.hasPremiumEntitlement(info);
+            await setPremiumStatus(!!active);
+          }
+        } else if (StoreKitTest.isReady()) {
+          await StoreKitTest.initConnection();
+          const purchases = await StoreKitTest.restorePurchases();
+          const active = StoreKitTest.hasActivePurchase(purchases);
+          await setPremiumStatus(!!active);
+        }
+      } catch {}
     })();
 
     // Set up auth state listener
-    const unsubscribe = setupAuthListener((user) => {
+    const unsubscribe = setupAuthListener(async (user) => {
       setAuthUser(user);
+      // Update sign-in nudge whenever auth state changes
+      manageSignInNudge(user);
+
+      // One-time migration flow on first sign-in
+      try {
+        if (user?.id) {
+          const [alreadyMigrated, local, cloud] = await Promise.all([
+            getMigrationFlag(user.id),
+            hasLocalData(),
+            hasCloudData(user.id).catch(() => false),
+          ]);
+
+          if (!alreadyMigrated && local && !cloud) {
+            // Offer to save local data to account
+            setShowMigration(true);
+          } else if (!alreadyMigrated && local && cloud) {
+            // Both exist: ask which to keep on this device
+            setShowSyncPrompt(true);
+          } else if (!local && cloud) {
+            // Auto-pull if no local data
+            try {
+              const pulled = await pullCloudToLocal(user.id);
+              if (pulled) {
+                // mark migrated implicitly to avoid re-prompts
+                await setMigrationFlag(user.id, true);
+              }
+            } catch {}
+          }
+        }
+      } catch {}
+
+      // Update IAP identity on auth changes
+      try {
+        if (IAP.isReady()) {
+          await IAP.configure(user?.id || null);
+        }
+      } catch {}
     });
 
     // Optional: On app start, ensure reminders scheduled are in a sane state
@@ -58,46 +124,171 @@ export default function App() {
     return unsubscribe;
   }, []);
 
+  // Listen for entitlement changes (e.g., refunds, renewals) and mirror to premium flag
+  useEffect(() => {
+    const remove = IAP.onCustomerInfoUpdate(async (info) => {
+      try {
+        const active = IAP.hasPremiumEntitlement(info);
+        await setPremiumStatus(!!active);
+      } catch {}
+    });
+    return () => { try { remove?.(); } catch {} };
+  }, []);
+
   // Background pull on app focus (signed-in only), with a minimal cooldown
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (state) => {
       if (state !== 'active') return;
       try {
         const user = await getAuthUser();
-        if (!user?.id) return;
-        const last = await getLastSyncAt();
-        const FIVE_MIN = 5 * 60 * 1000;
-        if (Date.now() - last < FIVE_MIN) return;
-        await mergeCloudToLocal(user.id);
+
+        // 1) Signed-in: push local changes to cloud if dirty
+        if (user?.id) {
+          const dirtySince = await getDirtySince();
+          if (dirtySince) {
+            try {
+              await performMigrationUpload(user.id);
+              await clearDirty();
+            } catch (e) {
+              // best-effort; will retry next foreground
+            }
+          }
+
+          // 2) Pull cloud → local periodically (5 min cooldown)
+          const last = await getLastSyncAt();
+          const FIVE_MIN = 5 * 60 * 1000;
+          if (Date.now() - last >= FIVE_MIN) {
+            await mergeCloudToLocal(user.id);
+          }
+        } else {
+          // 3) Signed-out: ensure weekly sign-in nudge is scheduled
+          await manageSignInNudge(null);
+        }
       } catch {}
     });
     return () => sub.remove();
   }, []);
+
+  // Manage weekly sign-in nudge (schedule when signed-out; cancel when signed-in)
+  async function manageSignInNudge(user) {
+    try {
+      const isSignedIn = !!user?.id;
+      const existingId = await getSignInNudgeId();
+      if (isSignedIn) {
+        if (existingId) {
+          try { await Notifications.cancelScheduledNotificationAsync(existingId); } catch {}
+          await clearSignInNudgeId();
+        }
+        return;
+      }
+
+      // Signed-out path: schedule if not opted out and not already scheduled
+      const optedOut = await getSignInNudgeOptOut();
+      if (optedOut || existingId) return;
+
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') return; // don't prompt; stay silent per "light app"
+
+      // Schedule every Monday at 9:00 local time
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Keep your FocusFlow data safe',
+          body: 'Sign in to back up your reminders and sessions across devices.',
+        },
+        trigger: { type: 'weekly', weekday: 2, hour: 9, minute: 0, repeats: true },
+      });
+      await setSignInNudgeId(id);
+    } catch {}
+  }
+  
+
+
   return (
-    <NavigationContainer theme={theme}>
-      <ExpoStatusBar style="dark" />
-      <Stack.Navigator
-        screenOptions={{
-          headerStyle: { backgroundColor: theme.colors.background },
-          headerShadowVisible: false,
-          headerTintColor: theme.colors.text,
-          headerTitleStyle: { fontWeight: '600' },
-          contentStyle: { backgroundColor: theme.colors.background },
+    <ErrorBoundary>
+      <NavigationContainer theme={theme}>
+        <ExpoStatusBar style="light" />
+        <Stack.Navigator
+          screenOptions={{
+            headerStyle: { backgroundColor: theme.colors.background },
+            headerShadowVisible: false,
+            headerTintColor: theme.colors.text,
+            headerTitleStyle: { fontWeight: '600' },
+            contentStyle: { backgroundColor: theme.colors.background },
+          }}
+        >
+          <Stack.Screen name="MainTabs" component={TabNavigator} options={{ headerShown: false }} />
+          <Stack.Screen name="AppSelection" component={AppSelectionScreen} options={{ title: 'Select Apps' }} />
+          <Stack.Screen name="FocusSession" component={FocusSessionScreen} options={{ title: 'Focus Session' }} />
+          <Stack.Screen name="ActiveSession" component={ActiveSessionScreen} options={{ title: 'Active Session', gestureEnabled: false }} />
+          <Stack.Screen name="SignIn" component={SignInScreen} options={{ title: 'Sign In' }} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} options={{ title: 'Sign Up' }} />
+          <Stack.Screen name="Terms" component={TermsScreen} options={{ title: 'Terms of Service' }} />
+          <Stack.Screen name="Privacy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy' }} />
+          <Stack.Screen name="Account" component={AccountScreen} options={{ title: 'Account' }} />
+          <Stack.Screen 
+            name="PolicyScreen" 
+            component={PolicyScreen} 
+            options={{ title: 'Policy' }} 
+          />
+        </Stack.Navigator>
+
+      {/* One-time migration prompt: only local data exists after sign-in */}
+      <MigrationPrompt
+        visible={!!authUser && showMigration}
+        loading={isMigrating}
+        onKeepLocal={async () => {
+          if (!authUser?.id) return;
+          await setMigrationFlag(authUser.id, true);
+          setShowMigration(false);
         }}
-      >
-        <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="AppSelection" component={AppSelectionScreen} options={{ title: 'Select Apps' }} />
-        <Stack.Screen name="FocusSession" component={FocusSessionScreen} options={{ title: 'Focus Session' }} />
-        <Stack.Screen name="ActiveSession" component={ActiveSessionScreen} options={{ title: 'Active Session', gestureEnabled: false }} />
-        <Stack.Screen name="Reminders" component={RemindersScreen} options={{ title: 'Smart Reminders' }} />
-        <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Analytics' }} />
-        <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
-        <Stack.Screen name="SignIn" component={SignInScreen} options={{ title: 'Sign In' }} />
-        <Stack.Screen name="SignUp" component={SignUpScreen} options={{ title: 'Sign Up' }} />
-        <Stack.Screen name="Terms" component={TermsScreen} options={{ title: 'Terms of Service' }} />
-        <Stack.Screen name="Privacy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy' }} />
-        <Stack.Screen name="Account" component={AccountScreen} options={{ title: 'Account' }} />
-      </Stack.Navigator>
+        onSaveToAccount={async () => {
+          if (!authUser?.id) return;
+          const ENABLE_MIGRATION_UPLOAD = process.env.EXPO_PUBLIC_ENABLE_MIGRATION_UPLOAD === 'true';
+          if (!ENABLE_MIGRATION_UPLOAD) {
+            await setMigrationFlag(authUser.id, true);
+            setShowMigration(false);
+            return;
+          }
+          try {
+            setIsMigrating(true);
+            await performMigrationUpload(authUser.id);
+            await setMigrationFlag(authUser.id, true);
+            setShowMigration(false);
+          } catch (e) {
+            // keep the prompt open for retry; consider surfacing a toast in future
+          } finally {
+            setIsMigrating(false);
+          }
+        }}
+        onClose={() => setShowMigration(false)}
+      />
+
+      {/* Data sync decision: both local and cloud exist after sign-in */}
+      <DataSyncPrompt
+        visible={!!authUser && showSyncPrompt}
+        loading={isMigrating}
+        onKeepLocal={async () => {
+          if (!authUser?.id) return;
+          await setMigrationFlag(authUser.id, true);
+          setShowSyncPrompt(false);
+        }}
+        onReplaceWithCloud={async () => {
+          if (!authUser?.id) return;
+          try {
+            setIsMigrating(true);
+            await pullCloudToLocal(authUser.id);
+            await setMigrationFlag(authUser.id, true);
+            setShowSyncPrompt(false);
+          } catch (e) {
+            // leave prompt for retry
+          } finally {
+            setIsMigrating(false);
+          }
+        }}
+        onLater={() => setShowSyncPrompt(false)}
+        onClose={() => setShowSyncPrompt(false)}
+      />
     </NavigationContainer>
+    </ErrorBoundary>
   );
 }

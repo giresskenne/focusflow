@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
 import { CrownIcon, XIcon, CheckIcon, ZapIcon, ShieldIcon, CloudIcon } from './Icons';
 import { colors, spacing, radius, typography, shadows } from '../theme';
+import GlassCard from './Ui/GlassCard';
 
 export default function PremiumModal({ visible, onClose, onUpgrade }) {
   const { colors: navColors } = useTheme();
@@ -86,41 +87,39 @@ export default function PremiumModal({ visible, onClose, onUpgrade }) {
               <Text style={styles.pricingHeader}>Choose Your Plan</Text>
               
               {/* Annual Plan (Recommended) */}
-              <TouchableOpacity 
-                style={[styles.pricingCard, styles.recommendedCard]} 
-                onPress={() => onUpgrade('annual')}
-              >
-                <View style={styles.recommendedBadge}>
-                  <Text style={styles.recommendedText}>BEST VALUE</Text>
-                </View>
-                <View style={styles.pricingContent}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.planName}>Annual</Text>
-                    <Text style={styles.planDescription}>Save 17% with yearly billing</Text>
+              <GlassCard tint="light" intensity={60} cornerRadius={20} style={[styles.pricingCard, styles.recommendedCard]}>
+                <TouchableOpacity onPress={() => onUpgrade('annual')}>
+                  <View style={styles.recommendedBadge}>
+                    <Text style={styles.recommendedText}>BEST VALUE</Text>
                   </View>
-                  <View style={styles.pricingRight}>
-                    <Text style={styles.planPrice}>$49.99</Text>
-                    <Text style={styles.planPeriod}>per year</Text>
+                  <View style={styles.pricingContent}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.planName}>Annual</Text>
+                      <Text style={styles.planDescription}>Save 17% with yearly billing</Text>
+                    </View>
+                    <View style={styles.pricingRight}>
+                      <Text style={styles.planPrice}>$49.99</Text>
+                      <Text style={styles.planPeriod}>per year</Text>
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              </GlassCard>
 
               {/* Monthly Plan */}
-              <TouchableOpacity 
-                style={styles.pricingCard} 
-                onPress={() => onUpgrade('monthly')}
-              >
-                <View style={styles.pricingContent}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.planName}>Monthly</Text>
-                    <Text style={styles.planDescription}>Flexible monthly billing</Text>
+              <GlassCard tint="light" intensity={50} cornerRadius={20} style={styles.pricingCard}>
+                <TouchableOpacity onPress={() => onUpgrade('monthly')}>
+                  <View style={styles.pricingContent}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.planName}>Monthly</Text>
+                      <Text style={styles.planDescription}>Flexible monthly billing</Text>
+                    </View>
+                    <View style={styles.pricingRight}>
+                      <Text style={styles.planPrice}>$4.99</Text>
+                      <Text style={styles.planPeriod}>per month</Text>
+                    </View>
                   </View>
-                  <View style={styles.pricingRight}>
-                    <Text style={styles.planPrice}>$4.99</Text>
-                    <Text style={styles.planPeriod}>per month</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              </GlassCard>
             </View>
 
             {/* Footer */}

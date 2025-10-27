@@ -53,6 +53,11 @@ Date: October 23, 2025
 - Real in-app purchases
 - Native app blocking (Screen Time API / UsageStats)
 
+## New (MVP Sync UX)
+- Silent background sync for signed-in users: auto-upload on foreground if local data changed; periodic cloud→local merge (5m cooldown)
+- Signed-out users: weekly “Sign in to keep data safe” local nudge; cancelled automatically after sign-in
+- No new UI settings; zero prompts unless destructive
+
 ## How to Verify Current Features
 ### Reminders
 - Open Smart Reminders → Add daily/weekly/custom reminders

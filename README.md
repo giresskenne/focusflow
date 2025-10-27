@@ -16,6 +16,7 @@ Minimalist focus sessions and smart reminders built with Expo + React Native.
 - `pnpm run android:expo` – open in Android Emulator via Expo Go.
 - `pnpm run web` – run in the browser.
 - `pnpm test` – run unit tests.
+	- Optional integration tests can be enabled with environment variables (see below).
 
 ## Getting Started
 
@@ -38,6 +39,64 @@ Implemented using `expo-notifications`.
 
 Note: On web, notification support depends on the browser; on iOS/Android, the Expo Notifications plugin configures required permissions.
 
+## Cloud Sync & Migration (Dev)
+
+FocusFlow supports an optional cloud backup/sync for signed-in users (Supabase). The app stays local‑first with a light UX:
+
+- Signed‑in: silent auto‑upload on foreground if local data changed; periodic cloud→local merge.
+- Signed‑out: weekly “Sign in” nudge (only if notification permission already granted).
+- First sign‑in: app‑level prompt to save local data to your account or replace local with cloud.
+
+### Configure environment variables
+
+1) Copy `.env.example` to `.env` and set your Supabase project credentials:
+
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR-ANON-KEY
+
+# Optional: enable dev uploads for the first-time migration prompt
+EXPO_PUBLIC_ENABLE_MIGRATION_UPLOAD=true
+```
+
+2) Restart the Expo server after changing `.env`.
+
+### Optional: run sync integration tests
+
+Provide a test user to exercise upload/download/merge using your Supabase project:
+
+```bash
+export EXPO_PUBLIC_SUPABASE_URL=... 
+export EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+export TEST_USER_EMAIL=...
+export TEST_USER_PASSWORD=...
+pnpm test
+```
+
+The suite will automatically skip if these variables are not set.
+
+## Monetization (RevenueCat)
+
+FocusFlow uses RevenueCat for in‑app subscriptions on iOS. This keeps the app compliant with App Store policies and offloads receipt validation and renewals.
+
+Quick setup:
+
+1) Configure products in App Store Connect (Monthly/Annual) and add them to a RevenueCat Offering (e.g., "default").
+2) Add keys to `.env` and enable IAP:
+
+```bash
+EXPO_PUBLIC_ENABLE_IAP=true
+REVENUECAT_IOS_API_KEY=rc_ios_...
+EXPO_PUBLIC_RC_ENTITLEMENT=premium
+```
+
+3) Restart the dev server. In Settings → Upgrade to Premium, the modal uses RevenueCat offerings/prices when available. A "Restore Purchases" action appears in Settings when IAP is enabled.
+
+Notes:
+- Code paths are guarded. If the native module isn’t present, the app falls back to a simulated upgrade for dev.
+- For production, install pods and run a dev client/TestFlight build.
+- Entitlement revocations (refund/expiration) are reflected automatically via the customer info listener.
+
 ## App Blocking (Placeholder)
 
 - JS interface in `components/AppBlocker/index.js` calls a native module if available; otherwise it’s a safe no‑op in Expo Go.
@@ -52,7 +111,7 @@ If you decide to ship true Screen Time/App Blocking:
 3. Android: Use UsageStatsManager/Accessibility Service with the required permissions.
 4. Keep the JS API the same so screens remain unchanged.
 
-Note: The `ios/` and `android/` folders were removed to keep the repo Expo-managed. They’re ignored by `.gitignore` and can be re-generated anytime via prebuild.
+Note: The native scaffolding is present under `ios/` for development builds. Real enforcement requires platform entitlements and will be shipped separately.
 
 ## Tests
 

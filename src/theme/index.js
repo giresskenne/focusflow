@@ -1,45 +1,54 @@
 import { DefaultTheme } from '@react-navigation/native';
 
-// Design system colors from deepfocus-design CSS
+// Liquid Glass Dark Theme - matching design2-liquidglass reference
 export const colors = {
-  // Base
-  background: '#F2F2F7',    // iOS systemGroupedBackground
-  foreground: '#000000',
-  card: '#FFFFFF',
-  cardForeground: '#000000',
+  // Dark base colors matching reference (#0a0514)
+  background: '#0a0514',
+  foreground: '#ffffff', 
+  card: 'rgba(255, 255, 255, 0.03)',
+  cardForeground: '#ffffff',
+
+  // Purple-Blue gradient primary colors (matching reference)
+  primary: '#8900f5', // Main purple from reference
+  primaryForeground: '#ffffff',
+  secondary: '#0072ff', // Blue from gradient
+  secondaryForeground: '#ffffff',
   
-  // Primary & Accent
-  primary: '#007AFF',       // iOS systemBlue
-  primaryForeground: '#FFFFFF',
-  destructive: '#FF3B30',   // iOS systemRed
-  destructiveForeground: '#FFFFFF',
+  // Destructive
+  destructive: '#d4183d',
+  destructiveForeground: '#ffffff',
+
+  // Text colors for dark theme
+  muted: 'rgba(255, 255, 255, 0.05)',
+  mutedForeground: '#9ca3af', // Gray-400 equivalent
+  text: '#ffffff',
+
+  // Glass morphism borders and surfaces
+  border: 'rgba(255, 255, 255, 0.08)', 
+  glassBorder: 'rgba(255, 255, 255, 0.1)',
+  glassBackground: 'rgba(255, 255, 255, 0.03)',
   
-  // Text
-  muted: '#F2F2F7',
-  mutedForeground: '#8E8E93',
-  
-  // Borders & Inputs
-  border: 'rgba(0, 0, 0, 0.08)',
-  inputBackground: '#FFFFFF',
-  
-  // Charts
-  chart1: '#007AFF',
-  chart2: '#34C759',
-  chart3: '#FF9500',
-  chart4: '#AF52DE',
-  chart5: '#FF2D55',
-  
-  // Semantic
-  success: '#34C759',       // iOS systemGreen
-  warning: '#FF9500',       // iOS systemOrange
-  
-  // Premium badge
-  premium: '#F59E0B',       // Amber-500
-  premiumLight: '#FEF3C7',
-  
-  // Active badge
-  activeGreen: '#059669',   // Emerald-600
-  activeGreenBg: '#D1FAE5', // Emerald-100
+  // Input styling
+  inputBackground: 'rgba(255, 255, 255, 0.05)',
+
+  // Chart colors (purple-blue theme)
+  chart1: '#8900f5', // Purple
+  chart2: '#0072ff', // Blue  
+  chart3: '#7c3aed', // Violet
+  chart4: '#06b6d4', // Cyan
+  chart5: '#8b5cf6', // Purple variant
+
+  // Semantic colors for dark theme
+  success: '#10b981', // Emerald-500
+  warning: '#f59e0b', // Amber-500
+
+  // Premium badge (golden)
+  premium: '#f59e0b',
+  premiumLight: 'rgba(245, 158, 11, 0.1)',
+
+  // Active badge (green)
+  activeGreen: '#10b981',
+  activeGreenBg: 'rgba(16, 185, 129, 0.1)',
 };
 
 export const spacing = {
@@ -103,10 +112,10 @@ export const shadows = {
   },
 };
 
-// React Navigation theme
+// React Navigation theme (dark liquid glass)
 export const theme = {
   ...DefaultTheme,
-  dark: false,
+  dark: true, // Enable dark theme
   colors: {
     ...DefaultTheme.colors,
     background: colors.background,

@@ -59,13 +59,27 @@ Remaining for Phase 7:
 - Migration prompt groundwork (guest → auth) with local flag ✅
 - .env/.env.example, URL polyfill, and tests ✅
 
-## Phase 9 — Cloud Sync & Data Migration (Next)
+## Phase 9 — Cloud Sync & Data Migration (Complete ✅)
 - Supabase schema and RLS policies for user data ✅ (sql added; applied externally)
 - Enable gated migration upload (feature flag) ✅
-- Implement cloud → local download and merge (latest‑wins with updated_at)
-- One‑time guest → account migration flow (replace/merge option)
-- Background sync on app focus (signed‑in only)
-- Integration tests for upload/download/merge
+- Implement cloud → local download and merge (latest‑wins with updated_at) ✅ (auto on foreground with 5m cooldown)
+- One‑time guest → account migration flow (replace/merge option) ✅
+- Background sync on app focus (signed‑in only) ✅ (silent auto‑upload when dirty)
+- Integration tests for upload/download/merge ✅ (comprehensive edge case coverage)
+
+Implemented MVP details:
+- Local‑first; zero new settings or prompts
+- Signed‑in: silent auto‑upload on foreground if local data changed; periodic cloud→local merge
+- Signed‑out: weekly sign‑in nudge (local notification), cancelled automatically when signed in
+- First sign‑in: app‑level prompt guides user to save local data to account or replace local with cloud data; settings screen also provides manual controls
+
+**Integration Test Coverage Added:**
+- ✅ Merge conflict resolution (latest-wins by updatedAt timestamp)  
+- ✅ Empty state handling (upload/download/merge with no data)
+- ✅ Error recovery (invalid user IDs, malformed data, network failures)
+- ✅ Rapid succession operations (concurrent sync calls) 
+- ✅ Data integrity validation (complex datasets through full sync cycle)
+- ✅ Real Supabase testing with local instance and test credentials
 
 ## Phase 10 — Real App Blocking (MVP priority) (Implementation Deferred ⚠️)
 - Native iOS module: request DeviceActivity authorization ✅
@@ -86,15 +100,81 @@ Note: PRD v2.0 elevates "technically unbreakable blocking" to MVP. The app deliv
 - Premium gating for unlimited reminders, advanced analytics, accountability
 - Subscription management and restore purchases
 
-## Phase 12 — Testing & Docs (Ongoing)
+## Phase 13 — Production Polish & App Store Preparation (In Progress 🔄)
+- **Error Handling & Resilience** ✅
+  - Global error boundary with fallback UI and retry functionality
+  - Comprehensive error handling system with categorization and retry logic
+  - Network error handling with offline support
+  - Storage error recovery and validation helpers
+- **Loading States & User Feedback** ✅
+  - Loading screens for async operations
+  - Skeleton loaders for content loading states
+  - Progress indicators and async operation feedback
+  - Enhanced user experience during data loading
+- **Accessibility & Compliance** ✅
+  - Screen reader support with proper semantic roles
+  - Accessibility labels, hints, and state management
+  - Navigation accessibility and keyboard support
+  - Focus management and live region announcements
+- **Performance Optimization** ✅
+  - Bundle size monitoring and analysis
+  - Memory leak detection and prevention
+  - Render performance tracking and optimization
+  - Component performance profiling tools
+- **App Store Assets & Metadata** (Pending)
+  - App icons in all required sizes
+  - Screenshot generation for App Store listing
+  - App Store description and keywords
+  - Privacy policy and terms of service links
+  - Metadata localization preparation
+
+**Current Status**: Core production infrastructure complete (error handling, loading states, accessibility, performance). Ready for App Store asset creation and final submission preparation.
+
+## Phase 12 — Testing & Docs (Complete ✅)
 - Unit tests (utils, storage, scheduling helpers) ✅
 - Premium storage normalization and gating tests ✅
-- Integration tests for auth and premium flows
+- Integration tests for auth and premium flows ✅
 - README/usage docs and progress log ✅
 
-## Phase 13 — Prebuild & Native Wiring (Ongoing)
+## Phase 14 — Prebuild & Native Wiring (Complete ✅)
 - Keep prebuild up to date for native modules and plugins ✅
 - iOS: add stub sources to Xcode target when building ✅
+
+## Phase 12 — Advanced Analytics & Insights (Complete ✅)
+- Enhanced analytics dashboard with tabbed interface ✅
+- Productivity scoring system with visual progress rings ✅
+- 30-day trend analysis with line charts ✅
+- Hourly focus patterns and peak productivity detection ✅
+- Time saved calculations per blocked app ✅
+- Interactive visualizations with multiple chart types ✅
+- Personalized recommendations based on usage patterns ✅
+- Export functionality (CSV and formatted reports) ✅
+- Share analytics via native sharing sheet ✅
+- Weekly digest generation with achievements ✅
+
+**Completed Features:**
+- **4-Tab Interface**: Overview, Trends, Apps, Patterns with smooth navigation
+- **Advanced Visualizations**: Bar charts, line charts, productivity rings, progress bars
+- **Smart Insights**: Peak productivity times, streak analysis, personalized tips
+- **Export Options**: Share formatted reports or export raw CSV data
+- **Productivity Scoring**: 0-100 score based on consistency and target achievement
+- **Time Tracking**: Calculate time "saved" by blocking distracting apps
+- **Pattern Detection**: Identify most productive days and hours automatically
+
+**Premium Ready**: Export functionality provides clear premium value proposition
+
+## Phase 14 — Intelligent Usage Analytics (Future Premium Feature)
+- DeviceActivity usage monitoring integration (leverages Phase 10 infrastructure)
+- Smart distraction detection algorithms based on real usage patterns
+- Proactive notification system for excessive app usage
+- Usage trend analysis and personalized intervention suggestions
+- Advanced premium analytics: weekly reports, usage scoring, habit insights
+
+**Implementation Notes:**
+- Builds on existing DeviceActivity framework (Phase 10)
+- Requires same iOS entitlements as app blocking
+- Perfect premium differentiator with clear user value
+- Privacy-focused: all processing local, optional cloud insights
 
 Notes
 - PRD v2.0 specifies: Free tier limits (3 apps per session, 5 sessions/day, 5 reminders), basic analytics, minimalist dashboard. We keep local‑first UX; signed‑in users can sync.

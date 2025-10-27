@@ -10,6 +10,9 @@ const KEYS = {
   authUser: 'ff:authUser', // cached auth user (supabase)
   migrationFlagPrefix: 'ff:migrated:', // ff:migrated:<userId>
   lastSyncAt: 'ff:lastSyncAt',
+  dirtySince: 'ff:dirtySince',
+  signInNudgeId: 'ff:signinNudgeId',
+  signInNudgeOptOut: 'ff:signinNudgeOptOut',
 };
 
 export async function getSelectedApps() {
@@ -19,6 +22,7 @@ export async function getSelectedApps() {
 
 export async function setSelectedApps(map) {
   await AsyncStorage.setItem(KEYS.selectedApps, JSON.stringify(map));
+  await markDirty();
 }
 
 export async function getReminders() {
@@ -28,6 +32,7 @@ export async function getReminders() {
 
 export async function setReminders(list) {
   await AsyncStorage.setItem(KEYS.reminders, JSON.stringify(list));
+  await markDirty();
 }
 
 export async function getSession() {
@@ -76,10 +81,12 @@ export async function appendSessionRecord(record) {
   const list = await getAnalyticsHistory();
   const next = [record, ...list].slice(0, 500); // cap to 500 recent sessions
   await AsyncStorage.setItem(KEYS.analytics, JSON.stringify(next));
+  await markDirty();
 }
 
 export async function setAnalyticsHistory(list) {
   await AsyncStorage.setItem(KEYS.analytics, JSON.stringify(Array.isArray(list) ? list : []));
+  await markDirty();
 }
 
 // ---- Settings ----
@@ -97,6 +104,7 @@ export async function updateSettings(newSettings) {
   const current = await getSettings();
   const updated = { ...current, ...newSettings };
   await AsyncStorage.setItem(KEYS.settings, JSON.stringify(updated));
+  await markDirty();
   return updated;
 }
 
@@ -161,6 +169,7 @@ export async function clearUserData() {
     KEYS.analytics,
     KEYS.settings,
   ]);
+  await markDirty();
 }
 
 // ---- Sync metadata ----
@@ -173,4 +182,43 @@ export async function getLastSyncAt() {
 export async function setLastSyncAt(ts) {
   const v = typeof ts === 'number' ? String(ts) : String(Date.now());
   await AsyncStorage.setItem(KEYS.lastSyncAt, v);
+}
+
+// ---- Dirty tracking for background upload ----
+export async function getDirtySince() {
+  const raw = await AsyncStorage.getItem(KEYS.dirtySince);
+  const n = raw ? parseInt(raw, 10) : 0;
+  return Number.isFinite(n) ? n : 0;
+}
+
+export async function markDirty() {
+  const now = Date.now();
+  await AsyncStorage.setItem(KEYS.dirtySince, String(now));
+}
+
+export async function clearDirty() {
+  await AsyncStorage.removeItem(KEYS.dirtySince);
+}
+
+// ---- Sign-in nudge helpers ----
+export async function getSignInNudgeId() {
+  return (await AsyncStorage.getItem(KEYS.signInNudgeId)) || null;
+}
+
+export async function setSignInNudgeId(id) {
+  if (!id) return;
+  await AsyncStorage.setItem(KEYS.signInNudgeId, id);
+}
+
+export async function clearSignInNudgeId() {
+  await AsyncStorage.removeItem(KEYS.signInNudgeId);
+}
+
+export async function getSignInNudgeOptOut() {
+  const raw = await AsyncStorage.getItem(KEYS.signInNudgeOptOut);
+  return raw === 'true';
+}
+
+export async function setSignInNudgeOptOut(value) {
+  await AsyncStorage.setItem(KEYS.signInNudgeOptOut, value ? 'true' : 'false');
 }

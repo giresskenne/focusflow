@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, Linking } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { getPremiumStatus, setPremiumStatus, getSettings, updateSettings, getAuthUser, clearAuthUser, hasLocalData, getMigrationFlag, setMigrationFlag, exportUserData, clearUserData } from '../storage';
 import MigrationPrompt from '../components/MigrationPrompt';
@@ -7,6 +8,8 @@ import DataSyncPrompt from '../components/DataSyncPrompt';
 import { performMigrationUpload, pullCloudToLocal, hasCloudData } from '../lib/sync';
 import { getSupabase } from '../lib/supabase';
 import PremiumModal from '../components/PremiumModal';
+import IAP from '../lib/iap';
+import StoreKitTest from '../lib/storekeittest';
 import {
   CrownIcon,
   BellIcon,
@@ -20,6 +23,8 @@ import {
 import Switch from '../components/Ui/Switch';
 import { colors, spacing, radius, typography } from '../theme';
 import AppBlocker from '../../components/AppBlocker';
+import GradientBackground from '../components/GradientBackground';
+import GlassCard from '../components/Ui/GlassCard';
 
 export default function SettingsScreen({ navigation }) {
   const [isPremium, setIsPremium] = useState(false);
@@ -169,7 +174,8 @@ export default function SettingsScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <GradientBackground>
+      <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -332,6 +338,8 @@ export default function SettingsScreen({ navigation }) {
             </View>
 
             <View style={styles.divider} />
+
+            {/* Manual cloud upload removed for MVP to reduce settings and prompts */}
 
             <TouchableOpacity style={styles.settingsItem} onPress={handleExportData}>
               <View style={styles.settingsItemContent}>
@@ -550,6 +558,46 @@ export default function SettingsScreen({ navigation }) {
           </View>
         </View>
 
+        {/* Legal & Privacy Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>LEGAL & PRIVACY</Text>
+          <View style={styles.groupCard}>
+            <TouchableOpacity 
+              style={styles.settingsItem} 
+              onPress={() => navigation.navigate('PolicyScreen', {
+                policyType: 'privacy'
+              })}
+            >
+              <View style={styles.settingsItemContent}>
+                <ShieldIcon color={colors.mutedForeground} size={20} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingsItemTitle}>Privacy Policy</Text>
+                  <Text style={styles.settingsItemSubtitle}>How we protect your data</Text>
+                </View>
+              </View>
+              <ChevronRightIcon color={colors.mutedForeground} size={20} />
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            <TouchableOpacity 
+              style={styles.settingsItem} 
+              onPress={() => navigation.navigate('PolicyScreen', {
+                policyType: 'terms'
+              })}
+            >
+              <View style={styles.settingsItemContent}>
+                <InfoIcon color={colors.mutedForeground} size={20} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingsItemTitle}>Terms of Service</Text>
+                  <Text style={styles.settingsItemSubtitle}>App usage terms</Text>
+                </View>
+              </View>
+              <ChevronRightIcon color={colors.mutedForeground} size={20} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Developer Section - Remove in production */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>DEVELOPER</Text>
@@ -577,6 +625,47 @@ export default function SettingsScreen({ navigation }) {
           </View>
         </View>
 
+        {(process.env.EXPO_PUBLIC_ENABLE_IAP === 'true' || process.env.EXPO_PUBLIC_ENABLE_STOREKIT_TEST === 'true') && (
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>PURCHASES</Text>
+            <View style={styles.groupCard}>
+              <TouchableOpacity
+                style={styles.settingsItem}
+                onPress={async () => {
+                  try {
+                    if (IAP.isReady()) {
+                      const info = await IAP.restorePurchases();
+                      const active = IAP.hasPremiumEntitlement(info);
+                      await setPremiumStatus(!!active);
+                      setIsPremium(!!active);
+                      Alert.alert('Restore', active ? 'Purchases restored.' : 'No active subscription found.');
+                    } else if (StoreKitTest.isReady()) {
+                      const purchases = await StoreKitTest.restorePurchases();
+                      const active = StoreKitTest.hasActivePurchase(purchases);
+                      await setPremiumStatus(!!active);
+                      setIsPremium(!!active);
+                      Alert.alert('Restore', active ? 'Purchases restored.' : 'No active subscription found.');
+                    } else {
+                      Alert.alert('Not available', 'In-app purchases are not enabled in this build.');
+                    }
+                  } catch (e) {
+                    Alert.alert('Restore Failed', e?.message || 'Could not restore purchases.');
+                  }
+                }}
+              >
+                <View style={styles.settingsItemContent}>
+                  <CrownIcon color={colors.mutedForeground} size={20} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingsItemTitle}>Restore Purchases</Text>
+                    <Text style={styles.settingsItemSubtitle}>Re-activate Premium on this device</Text>
+                  </View>
+                </View>
+                <ChevronRightIcon color={colors.mutedForeground} size={20} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Account / Sign In */}
         {authUser ? (
           <TouchableOpacity style={styles.signInCard} onPress={() => navigation.navigate('Account')}>
@@ -603,10 +692,27 @@ export default function SettingsScreen({ navigation }) {
         visible={showPremium}
         onClose={() => setShowPremium(false)}
         onUpgrade={async (plan) => {
-          // Simulate premium upgrade
-          await setPremiumStatus(true);
-          setIsPremium(true);
-          setShowPremium(false);
+          try {
+            if (IAP.isReady()) {
+              const info = await IAP.purchasePlan(plan === 'annual' ? 'annual' : 'monthly');
+              const active = IAP.hasPremiumEntitlement(info);
+              await setPremiumStatus(!!active);
+              setIsPremium(!!active);
+            } else if (StoreKitTest.isReady()) {
+              const result = await StoreKitTest.purchasePlan(plan);
+              if (result?.success) {
+                await setPremiumStatus(true);
+                setIsPremium(true);
+              }
+            } else {
+              // Dev fallback
+              await setPremiumStatus(true);
+              setIsPremium(true);
+            }
+            setShowPremium(false);
+          } catch (e) {
+            Alert.alert('Purchase', e?.message || 'Purchase was cancelled or failed.');
+          }
         }}
       />
 
@@ -674,14 +780,14 @@ export default function SettingsScreen({ navigation }) {
         onLater={() => setShowSyncPrompt(false)}
         onClose={() => setShowSyncPrompt(false)}
       />
-    </View>
+      </SafeAreaView>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   header: {
     paddingHorizontal: spacing.lg,

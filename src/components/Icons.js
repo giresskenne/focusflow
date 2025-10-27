@@ -34,3 +34,15 @@ export const EyeOffIcon = (props) => <Feather name="eye-off" size={20} {...props
 export const AppleIcon = (props) => <Feather name="smartphone" size={20} {...props} />; // Using smartphone as fallback for Apple
 export const ZapIcon = (props) => <Feather name="zap" size={20} {...props} />;
 export const CloudIcon = (props) => <Feather name="cloud" size={20} {...props} />;
+export const AlertTriangleIcon = (props) => <Feather name="alert-triangle" size={20} {...props} />;
+export const RefreshCcwIcon = (props) => <Feather name="refresh-ccw" size={20} {...props} />;
+export const AppsIcon = (props) => <Feather name="grid" size={20} {...props} />;
+export const CalendarIcon = (props) => <Feather name="calendar" size={20} {...props} />;
+export const CheckCircleIcon = (props) => <Feather name="check-circle" size={20} {...props} />;
+export const DownloadIcon = (props) => <Feather name="download" size={20} {...props} />;
+export const ExternalLinkIcon = (props) => <Feather name="external-link" size={20} {...props} />;
+export const PieChartIcon = (props) => <Feather name="pie-chart" size={20} {...props} />;
+export const SearchIcon = (props) => <Feather name="search" size={20} {...props} />;
+export const ShareIcon = (props) => <Feather name="share-2" size={20} {...props} />;
+export const TrendingUpIcon = (props) => <Feather name="trending-up" size={20} {...props} />;
+export const BarChart3Icon = (props) => <Feather name="bar-chart-2" size={20} {...props} />;

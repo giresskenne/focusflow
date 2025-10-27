@@ -28,6 +28,7 @@ const DURATIONS = [
 
 export default function FocusSessionScreen({ navigation, route }) {
   const theme = useTheme();
+  const { colors: navColors } = useTheme();
   const [selectedApps, setSelectedAppsState] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [installedApps, setInstalledApps] = useState([]);
@@ -42,7 +43,13 @@ export default function FocusSessionScreen({ navigation, route }) {
       try {
         // Load selected apps from storage
         const saved = await getSelectedApps();
-        setSelectedAppsState(saved || []);
+        // Normalize to an array of selected app IDs
+        const initialSelected = Array.isArray(saved)
+          ? saved
+          : Object.entries(saved || {})
+              .filter(([, on]) => !!on)
+              .map(([id]) => id);
+        setSelectedAppsState(initialSelected);
         
         // Load installed apps from device
         setIsLoadingApps(true);
