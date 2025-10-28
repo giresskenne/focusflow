@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useTheme, useFocusEffect } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import UIButton from '../components/Ui/Button';
 import PremiumModal from '../components/PremiumModal';
 import GlassCard from '../components/Ui/GlassCard';
@@ -19,13 +21,122 @@ function getReminderColor(item, index) {
   return colors[index % colors.length];
 }
 
+// Choose an Ionicons name based on reminder text content
 function getReminderIcon(item, index) {
-  const iconMap = {
-    0: '💧', // Water drop
-    1: '☕', // Coffee
-    2: '📖', // Book
-  };
-  return <Text style={{ fontSize: 20 }}>{iconMap[index] || '🔔'}</Text>;
+  try {
+    const text = String(item?.text || item?.title || '').toLowerCase();
+    if (!text) {
+      // Fallback to rotating set when no text
+      const fallback = ['water-outline', 'cafe-outline', 'book-outline'];
+      return fallback[index % fallback.length] || 'notifications-outline';
+    }
+
+    const includesAny = (arr) => arr.some((k) => text.includes(k));
+
+    // 1) Medication / health intake
+    if (includesAny(['medication', 'medicine', 'pill', 'pills', 'tablet', 'vitamin', 'supplement', 'insulin', 'drops', 'ointment'])) {
+      return 'medkit-outline';
+    }
+    // 2) Health measurement (bp, glucose)
+    if (includesAny(['blood pressure', 'bp', 'glucose', 'sugar level', 'oxygen', 'spo2', 'heartbeat'])) {
+      return 'pulse-outline';
+    }
+    // 3) Hydration
+    if (includesAny(['drink water', 'hydration', 'hydrate', 'water', 'h2o'])) {
+      return 'water-outline';
+    }
+    // 4) Coffee/Tea/Caffeine
+    if (includesAny(['coffee', 'espresso', 'latte', 'cappuccino', 'tea', 'caffeine'])) {
+      return 'cafe-outline';
+    }
+    // 5) Meals / Eating
+    if (includesAny(['breakfast', 'lunch', 'dinner', 'meal', 'snack', 'eat', 'protein'])) {
+      return 'restaurant-outline';
+    }
+    // 6) Cooking / Groceries specific
+    if (includesAny(['cook', 'recipe', 'prep', 'meal prep', 'grocery', 'groceries', 'supermarket', 'buy milk', 'shopping list'])) {
+      return includesAny(['grocery', 'groceries', 'supermarket', 'shopping']) ? 'cart-outline' : 'pizza-outline';
+    }
+    // 7) Sleep / Rest
+    if (includesAny(['sleep', 'bed', 'nap', 'bedtime', 'go to bed', 'wake up'])) {
+      return 'bed-outline';
+    }
+    // 8) Workout / Exercise
+    if (includesAny(['workout', 'exercise', 'gym', 'run', 'jog', 'yoga', 'swim', 'cycling', 'ride', 'pushup', 'push-ups', 'squats'])) {
+      return 'barbell-outline';
+    }
+    // 9) Stretch / Posture / Stand up
+    if (includesAny(['stretch', 'posture', 'stand up', 'mobility'])) {
+      return 'body-outline';
+    }
+    // 10) Study / Exam / Homework
+    if (includesAny(['study', 'exam', 'homework', 'learn', 'course', 'class', 'lecture', 'revision', 'revise', 'flashcards'])) {
+      return 'school-outline';
+    }
+    // 11) Reading
+    if (includesAny(['read', 'reading', 'book', 'novel', 'article', 'papers'])) {
+      return 'book-outline';
+    }
+    // 12) Focused work / Pomodoro
+    if (includesAny(['focus', 'deep work', 'pomodoro', 'concentrate', 'coding', 'code'])) {
+      return 'timer-outline';
+    }
+    // 13) Meeting (general)
+    if (includesAny(['meeting', 'meet', 'standup', 'stand-up', 'stand up meeting'])) {
+      return 'people-outline';
+    }
+    // 14) Call / Phone
+    if (includesAny(['call', 'phone', 'dial', 'ring'])) {
+      return 'call-outline';
+    }
+    // 15) Email / Inbox
+    if (includesAny(['email', 'inbox', 'reply', 'send mail', 'compose'])) {
+      return 'mail-outline';
+    }
+    // 16) Appointments (doctor, dentist, therapist)
+    if (includesAny(['appointment', 'doctor', 'dentist', 'therapist', 'physio', 'clinic', 'hospital'])) {
+      return text.includes('dentist') ? 'ear-outline' : 'calendar-outline';
+    }
+    // 17) Finance / Bills / Budget
+    if (includesAny(['bill', 'bills', 'rent', 'mortgage', 'loan', 'credit card', 'payment', 'pay bill', 'invoice', 'budget'])) {
+      return 'card-outline';
+    }
+    // 18) Chores / Cleaning
+    if (includesAny(['clean', 'tidy', 'vacuum', 'sweep', 'mop', 'dishes', 'dishwasher', 'trash', 'garbage', 'recycle'])) {
+      if (includesAny(['trash', 'garbage', 'recycle'])) return 'trash-outline';
+      return 'brush-outline';
+    }
+    // 19) Laundry / Clothes
+    if (includesAny(['laundry', 'wash clothes', 'wash clothing', 'dryer', 'fold clothes'])) {
+      return 'shirt-outline';
+    }
+    // 20) Transportation / Commute
+    if (includesAny(['commute', 'drive', 'driving', 'car', 'bus', 'train', 'subway', 'uber', 'lyft'])) {
+      return 'car-outline';
+    }
+    // 21) Social / Birthday / Anniversary
+    if (includesAny(['birthday', 'anniversary', 'party', 'celebration', 'gift'])) {
+      return 'gift-outline';
+    }
+    // 22) Mindfulness / Meditation / Breathing
+    if (includesAny(['meditate', 'meditation', 'breath', 'breathing', 'mindfulness'])) {
+      return 'leaf-outline';
+    }
+    // 23) Writing / Journal
+    if (includesAny(['journal', 'write', 'writing', 'notes'])) {
+      return 'create-outline';
+    }
+    // 24) Tech / Computer maintenance
+    if (includesAny(['backup', 'update', 'deploy', 'commit', 'push', 'git'])) {
+      return 'cloud-upload-outline';
+    }
+
+    // Fallback rotating set (keeps backward compatibility)
+    const fallback = ['notifications-outline', 'time-outline', 'alarm-outline'];
+    return fallback[index % fallback.length] || 'notifications-outline';
+  } catch {
+    return 'notifications-outline';
+  }
 }
 
 // Normalize reminder records to a consistent shape, supporting legacy data
@@ -197,6 +308,9 @@ export default function HomeScreen({ navigation }) {
   const { height: windowHeight } = useWindowDimensions();
   // Enable compact mode on smaller heights to avoid scrolling
   const compact = windowHeight < 800;
+  const insets = useSafeAreaInsets();
+  const [scrollEnabled, setScrollEnabled] = useState(true);
+  const tabBarHeight = useBottomTabBarHeight();
   const [session, setSession] = useState({ active: false, endAt: null, totalSeconds: null });
   const [remaining, setRemaining] = useState(null);
   const [reminders, setReminders] = useState([]);
@@ -275,9 +389,18 @@ export default function HomeScreen({ navigation }) {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView 
           style={{ flex: 1 }} 
-          contentContainerStyle={[styles.container, compact && { paddingBottom: 72 }]}
+          contentContainerStyle={[styles.container, compact && { paddingBottom: 24 }]}
+          scrollEnabled={scrollEnabled}
         >
-        <View style={{ width: '100%', maxWidth: 520 }}>
+        <View 
+          style={{ width: '100%', maxWidth: 520 }}
+          onLayout={(e) => {
+            const contentHeight = e.nativeEvent.layout.height;
+            // useBottomTabBarHeight already includes bottom inset
+            const available = windowHeight - insets.top - tabBarHeight;
+            setScrollEnabled(contentHeight > available);
+          }}
+        >
           <View style={[styles.header, compact && { marginBottom: spacing.lg }]}>
           <View>
             <Text style={[styles.title, compact && { fontSize: typography['2xl'] } ]}>FocusFlow</Text>
@@ -356,7 +479,7 @@ export default function HomeScreen({ navigation }) {
                 >
                   <View style={[styles.reminderIconWrapper, compact && { width: 40, height: 40 }]}>
                     <View style={[styles.reminderIcon, compact && { width: 40, height: 40, borderRadius: 20 }, { backgroundColor: getReminderColor(item, idx) }]}>
-                      {getReminderIcon(item, idx)}
+                      <Ionicons name={getReminderIcon(item, idx)} size={20} color="#fff" />
                     </View>
                   </View>
                   <View style={styles.reminderInfo}>
@@ -394,7 +517,7 @@ const styles = StyleSheet.create({
   container: { 
     padding: spacing.xl, 
     alignItems: 'center',
-    paddingBottom: 100, // Extra space for tab bar
+    paddingBottom: 24, // small cushion; tab bar height handled dynamically
   },
   header: { 
     flexDirection: 'row', 

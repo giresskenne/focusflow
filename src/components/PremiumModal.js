@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
@@ -6,31 +6,23 @@ import { CrownIcon, XIcon, CheckIcon, ZapIcon, ShieldIcon, CloudIcon } from './I
 import { colors, spacing, radius, typography, shadows } from '../theme';
 import GlassCard from './Ui/GlassCard';
 import GradientBackground from './GradientBackground';
+import GradientButton from './Ui/GradientButton';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function PremiumModal({ visible, onClose, onUpgrade }) {
   const { colors: navColors } = useTheme();
+  const [selectedPlan, setSelectedPlan] = useState('annual');
+
+  // Pricing constants (can be centralized later)
+  const annualPrice = 49.99;
+  const monthlyPrice = 5.99;
+  const savePercent = 30; // display badge only
 
   const features = [
-    {
-      icon: ZapIcon,
-      title: 'Unlimited Focus Sessions',
-      description: 'Block unlimited apps with custom durations',
-    },
-    {
-      icon: CheckIcon,
-      title: 'Advanced Reminders',
-      description: 'Location-based, custom intervals, unlimited reminders',
-    },
-    {
-      icon: ShieldIcon,
-      title: 'Premium Analytics',
-      description: 'Detailed insights and productivity trends',
-    },
-    {
-      icon: CloudIcon,
-      title: 'Cloud Sync',
-      description: 'Access your data across all devices',
-    },
+    { title: 'Unlimited Focus Sessions', description: 'Block unlimited apps with custom durations' },
+    { title: 'Advanced Reminders', description: 'Location-based, custom intervals, unlimited reminders' },
+    { title: 'Premium Analytics', description: 'Detailed insights and productivity trends' },
+    { title: 'Cloud Sync', description: 'Access your data across all devices' },
   ];
 
   return (
@@ -61,74 +53,72 @@ export default function PremiumModal({ visible, onClose, onUpgrade }) {
                   <CrownIcon size={28} color="#fff" />
                 </GlassCard>
                 <Text style={styles.heroTitle}>Unlock Premium</Text>
-                <Text style={styles.heroSubtitle}>
-                  Take your focus to the next level with advanced features and unlimited access
-                </Text>
+                <Text style={styles.heroSubtitle}>Advanced features. Unlimited access.</Text>
               </View>
 
-            {/* Features List */}
-              <View style={styles.features}>
-                {features.map((feature, index) => {
-                  const FeatureIcon = feature.icon;
-                  return (
-                    <GlassCard key={index} tint="dark" intensity={40} cornerRadius={16} contentStyle={styles.featureRow} style={styles.featureItemCard}>
-                      <View style={styles.featureIconWrapperGlass}>
-                        <FeatureIcon size={18} color={colors.primary} />
+            {/* Features List (green checks) */}
+              <GlassCard tint="dark" intensity={50} cornerRadius={20} style={{ marginBottom: spacing.md }} contentStyle={{ padding: spacing.md }}>
+                <View style={styles.features}>
+                  {features.map((feature, index) => (
+                    <View key={index} style={[styles.checkRow, index !== features.length - 1 && styles.checkDivider]}>
+                      <View style={styles.checkCircle}>
+                        <CheckIcon size={14} color="#fff" />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.featureTitle}>{feature.title}</Text>
                         <Text style={styles.featureDescription}>{feature.description}</Text>
                       </View>
-                    </GlassCard>
-                  );
-                })}
-              </View>
+                    </View>
+                  ))}
+                </View>
+              </GlassCard>
 
             {/* Pricing Cards */}
             <View style={styles.pricing}>
               <Text style={styles.pricingHeader}>Choose Your Plan</Text>
               
               {/* Annual Plan (Recommended) */}
-              <GlassCard tint="dark" intensity={60} cornerRadius={20} style={[styles.pricingCard, styles.recommendedCard]}>
-                <TouchableOpacity onPress={() => onUpgrade('annual')}>
-                  <View style={styles.recommendedBadge}>
-                    <Text style={styles.recommendedText}>BEST VALUE</Text>
+              <TouchableOpacity onPress={() => setSelectedPlan('annual')} activeOpacity={0.9}>
+                <LinearGradient
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  colors={selectedPlan === 'annual' ? ['#1f2a6b66', '#0072ff44'] : ['#ffffff08', '#ffffff05']}
+                  style={[styles.pricingCard, styles.linearCard, selectedPlan === 'annual' && styles.selectedOutline]}
+                >
+                  <View style={styles.badgeRow}>
+                    <View style={styles.planTitleWrap}><Text style={styles.planName}>Annual</Text></View>
+                    <View style={styles.savingsPill}><Text style={styles.savingsText}>Save {savePercent}%</Text></View>
                   </View>
-                  <View style={styles.pricingContent}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.planName}>Annual</Text>
-                      <Text style={styles.planDescription}>Save 17% with yearly billing</Text>
-                    </View>
-                    <View style={styles.pricingRight}>
-                      <Text style={styles.planPrice}>$49.99</Text>
+                  <View style={styles.pricingRow}>
+                    <Text style={styles.planSubText}>${annualPrice.toFixed(2)}/year</Text>
+                    <View style={styles.pricingRightBig}>
+                      <Text style={styles.planPriceBig}>${annualPrice.toFixed(2)}</Text>
                       <Text style={styles.planPeriod}>per year</Text>
                     </View>
                   </View>
-                </TouchableOpacity>
-              </GlassCard>
+                </LinearGradient>
+              </TouchableOpacity>
 
               {/* Monthly Plan */}
-              <GlassCard tint="dark" intensity={40} cornerRadius={20} style={styles.pricingCard}>
-                <TouchableOpacity onPress={() => onUpgrade('monthly')}>
+              <TouchableOpacity onPress={() => setSelectedPlan('monthly')} activeOpacity={0.9}>
+                <View style={[styles.pricingCard, styles.monthlyCard, selectedPlan === 'monthly' && styles.selectedOutline]}>
                   <View style={styles.pricingContent}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.planName}>Monthly</Text>
                       <Text style={styles.planDescription}>Flexible monthly billing</Text>
                     </View>
                     <View style={styles.pricingRight}>
-                      <Text style={styles.planPrice}>$4.99</Text>
+                      <Text style={styles.planPrice}>${monthlyPrice.toFixed(2)}</Text>
                       <Text style={styles.planPeriod}>per month</Text>
                     </View>
                   </View>
-                </TouchableOpacity>
-              </GlassCard>
+                </View>
+              </TouchableOpacity>
             </View>
 
-            {/* Footer */}
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>
-                Start your free trial today. Cancel anytime.
-              </Text>
+            {/* CTA */}
+            <View style={styles.ctaWrap}>
+              <GradientButton title={selectedPlan === 'annual' ? 'Start Annual' : 'Start Monthly'} onPress={() => onUpgrade?.(selectedPlan)} />
             </View>
             </ScrollView>
           </View>
@@ -147,8 +137,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   closeButton: {
     width: 36,
@@ -161,19 +151,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   content: {
-    padding: spacing.xl,
+    padding: spacing.lg,
     paddingTop: 0,
   },
   hero: {
     alignItems: 'center',
-    marginBottom: spacing['2xl'],
+    marginBottom: spacing.lg,
   },
   crownWrapper: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignSelf: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   crownContent: {
     alignItems: 'center',
@@ -181,23 +171,39 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   heroTitle: {
-    fontSize: typography['3xl'],
+    fontSize: typography.xl,
     fontWeight: typography.bold,
     color: colors.foreground,
     textAlign: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     letterSpacing: -0.5,
   },
   heroSubtitle: {
-    fontSize: typography.base,
+    fontSize: typography.sm,
     color: colors.mutedForeground,
     textAlign: 'center',
-    lineHeight: 24,
-    maxWidth: 280,
+    lineHeight: 20,
+    maxWidth: 260,
   },
-  features: {
-    marginBottom: spacing['2xl'],
-    gap: spacing.sm,
+  features: { gap: spacing.xs },
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  checkDivider: {
+    borderBottomColor: 'rgba(255,255,255,0.12)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  checkCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10b981',
   },
   featureItemCard: {
     padding: 0,
@@ -229,9 +235,7 @@ const styles = StyleSheet.create({
     color: colors.mutedForeground,
     lineHeight: 20,
   },
-  pricing: {
-    marginBottom: spacing['2xl'],
-  },
+  pricing: { marginBottom: spacing.lg },
   pricingHeader: {
     fontSize: typography.xl,
     fontWeight: typography.bold,
@@ -241,9 +245,16 @@ const styles = StyleSheet.create({
   },
   pricingCard: {
     borderRadius: radius.xl,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     position: 'relative',
+  },
+  linearCard: {
+    overflow: 'hidden',
+  },
+  selectedOutline: {
+    borderColor: colors.primary,
+    borderWidth: 2,
   },
   recommendedCard: {
     borderColor: colors.primary,
@@ -265,6 +276,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     letterSpacing: 0.5,
   },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  planTitleWrap: { flexDirection: 'row', alignItems: 'center' },
+  savingsPill: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    backgroundColor: '#10b981',
+    borderRadius: radius.full,
+  },
+  savingsText: { color: '#fff', fontSize: 12, fontWeight: typography.bold },
+  pricingRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: spacing.xs },
+  planSubText: { color: colors.mutedForeground, fontSize: typography.sm },
+  pricingRightBig: { alignItems: 'flex-end' },
+  planPriceBig: { fontSize: 28, fontWeight: typography.bold, color: colors.foreground, lineHeight: 32 },
   pricingContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -292,10 +316,7 @@ const styles = StyleSheet.create({
     fontSize: typography.sm,
     color: colors.mutedForeground,
   },
-  footer: {
-    alignItems: 'center',
-    paddingTop: spacing.lg,
-  },
+  ctaWrap: { gap: spacing.sm },
   footerText: {
     fontSize: typography.sm,
     color: colors.mutedForeground,

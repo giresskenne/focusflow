@@ -4,7 +4,11 @@
 **Document Version:** 1.0  
 **Date:** October 28, 2025  
 **Author:** Manus AI  
-**Target Audience:** Solo founder with limited network, self-funded, no camera presence  
+**Target Audience:** 
+- Students struggling to focus
+- Professionals avoiding social media
+- Anyone wanting to build better digital habits
+- People aged 18-45 in North America
 **Geographic Focus:** North America (US & Canada)  
 
 ---

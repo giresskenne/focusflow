@@ -11,6 +11,7 @@ import { colors, spacing, radius, typography } from '../theme';
 import { FREE_REMINDER_LIMIT, canAddReminder } from '../utils/premium';
 import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
+import PremiumModal from '../components/PremiumModal';
 
 export default function RemindersScreen({ navigation }) {
   const [items, setItems] = useState([]);
@@ -504,6 +505,13 @@ export default function RemindersScreen({ navigation }) {
             </View>
           </View>
         )}
+
+        {/* Premium Page (modal) while in Add/Edit view */}
+        <PremiumModal
+          visible={showPremium}
+          onClose={() => setShowPremium(false)}
+          onUpgrade={() => setShowPremium(false)}
+        />
         </SafeAreaView>
       </GradientBackground>
     );
@@ -581,22 +589,12 @@ export default function RemindersScreen({ navigation }) {
         )}
       </View>
 
-      {/* Premium Modal */}
-      <Modal visible={showPremium} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <GlassCard tint="dark" intensity={60} style={styles.modalCard}>
-            <Text style={styles.modalTitle}>✨ Upgrade for More</Text>
-            <Text style={styles.modalDescription}>
-              Free plan allows up to {FREE_REMINDER_LIMIT} reminders. Upgrade to Premium for unlimited reminders and location-based alerts.
-            </Text>
-            <TouchableOpacity onPress={() => setShowPremium(false)} activeOpacity={0.9} style={{ borderRadius: radius.xl, overflow: 'hidden' }}>
-              <LinearGradient colors={[ '#8900f5', '#0072ff' ]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.gradientButton, { alignSelf: 'stretch' }]}>
-                <Text style={styles.gradientButtonText}>Upgrade to Premium</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </GlassCard>
-        </View>
-      </Modal>
+      {/* Premium Page (modal) */}
+      <PremiumModal
+        visible={showPremium}
+        onClose={() => setShowPremium(false)}
+        onUpgrade={() => setShowPremium(false)}
+      />
       </SafeAreaView>
     </GradientBackground>
   );
