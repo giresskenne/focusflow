@@ -39,6 +39,13 @@ export default function App() {
   const [isMigrating, setIsMigrating] = useState(false);
   const [showBrandSplash, setShowBrandSplash] = useState(true);
 
+  // Auto-hide splash overlay after the animation completes as a fallback
+  useEffect(() => {
+    if (!showBrandSplash) return;
+    const t = setTimeout(() => setShowBrandSplash(false), 1400);
+    return () => clearTimeout(t);
+  }, [showBrandSplash]);
+
   useEffect(() => {
     // Initialize global error handling
     setupGlobalErrorHandling();
@@ -302,7 +309,15 @@ export default function App() {
         />
 
         {showBrandSplash && (
-          <AnimatedSplashParticles variant="bubbles" count={38} />
+          <AnimatedSplashParticles 
+            variant="bubbles"
+            count={18}
+            total={1100}
+            primary="#8900f5"
+            accent="#0072ff"
+            showLogo
+            onDone={() => setShowBrandSplash(false)}
+          />
         )}
         </NavigationContainer>
       </SafeAreaProvider>

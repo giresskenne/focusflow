@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
 import { useTheme, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import UIButton from '../components/Ui/Button';
@@ -15,7 +15,7 @@ import { withErrorHandling } from '../utils/errorHandling';
 // Helper functions for reminder styling
 function getReminderColor(item, index) {
   // Cycle through colors based on reminder type or index
-  const colors = ['#3b82f6', '#f59e0b', '#a855f7', '#ec4899', '#06b6d4'];
+  const colors = ['#3b82f6', '#f59e0b', '#8900f5', '#ec4899', '#06b6d4'];
   return colors[index % colors.length];
 }
 
@@ -194,6 +194,9 @@ function getNextOccurrenceTime(raw) {
 
 export default function HomeScreen({ navigation }) {
   const { colors: navColors } = useTheme();
+  const { height: windowHeight } = useWindowDimensions();
+  // Enable compact mode on smaller heights to avoid scrolling
+  const compact = windowHeight < 800;
   const [session, setSession] = useState({ active: false, endAt: null, totalSeconds: null });
   const [remaining, setRemaining] = useState(null);
   const [reminders, setReminders] = useState([]);
@@ -270,12 +273,15 @@ export default function HomeScreen({ navigation }) {
   return (
     <GradientBackground>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.container}>
+        <ScrollView 
+          style={{ flex: 1 }} 
+          contentContainerStyle={[styles.container, compact && { paddingBottom: 72 }]}
+        >
         <View style={{ width: '100%', maxWidth: 520 }}>
-          <View style={styles.header}>
+          <View style={[styles.header, compact && { marginBottom: spacing.lg }]}>
           <View>
-            <Text style={styles.title}>FocusFlow</Text>
-            <Text style={styles.subtitle}>Stay focused, stay productive</Text>
+            <Text style={[styles.title, compact && { fontSize: typography['2xl'] } ]}>FocusFlow</Text>
+            <Text style={[styles.subtitle, compact && { fontSize: typography.sm } ]}>Stay focused, stay productive</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             {session.active && (
@@ -293,34 +299,34 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* Hero Card - Ready to Focus */}
-        <GlassCard tint="dark" intensity={50} style={styles.heroCard} contentStyle={styles.heroContent}>
-          <View style={styles.heroTextSection}>
+        <View style={[styles.heroCard, compact && { marginBottom: spacing.lg, paddingVertical: spacing.lg }]}>
+          <View style={[styles.heroTextSection, compact && { marginBottom: spacing.md }]}>
             <Text style={styles.heroTitle}>Ready to Focus?</Text>
             <Text style={styles.heroSubtitle}>Start a session to boost your productivity</Text>
           </View>
           
           <TouchableOpacity 
-            style={styles.playButtonWrapper}
+            style={[styles.playButtonWrapper, compact && { marginVertical: spacing.md }]}
             onPress={() => navigation.navigate('FocusSession')}
             accessibilityLabel="Start Focus Session"
             accessibilityRole="button"
           >
-            <View style={styles.playButtonOuter}>
-              <View style={styles.playButton}>
+            <View style={[styles.playButtonOuter, compact && { width: 96, height: 96, borderRadius: 48 }]}>
+              <View style={[styles.playButton, compact && { width: 64, height: 64, borderRadius: 32 }]}>
                 <View style={styles.playIcon} />
               </View>
             </View>
           </TouchableOpacity>
-        </GlassCard>
+        </View>
 
         {/* Quick Start Section */}
-        <View style={styles.quickStartSection}>
+        <View style={[styles.quickStartSection, compact && { marginBottom: spacing.lg }]}>
           <Text style={styles.sectionTitle}>Quick Start</Text>
           <View style={styles.quickStartGrid}>
             {[15, 25, 30, 45].map((minutes) => (
               <TouchableOpacity 
                 key={minutes}
-                style={styles.quickStartButton}
+                style={[styles.quickStartButton, compact && { paddingVertical: spacing.sm }]}
                 onPress={() => navigation.navigate('FocusSession', { presetDuration: minutes })}
               >
                 <Text style={styles.quickStartText}>{minutes} min</Text>
@@ -330,7 +336,7 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* Upcoming Reminders Section */}
-        <View style={styles.remindersSection}>
+        <View style={[styles.remindersSection, compact && { marginBottom: spacing.lg }]}>
           <Text style={styles.sectionTitle}>Upcoming Reminders</Text>
           <View style={styles.remindersList}>
             {isLoadingReminders ? (
@@ -346,10 +352,10 @@ export default function HomeScreen({ navigation }) {
                   tint="dark" 
                   intensity={40} 
                   style={[styles.reminderCard, idx < reminders.length - 1 && idx < 2 && { marginBottom: spacing.md }]}
-                  contentStyle={styles.reminderCardContent}
+                  contentStyle={[styles.reminderCardContent, compact && { padding: spacing.md, gap: spacing.sm }]}
                 >
-                  <View style={styles.reminderIconWrapper}>
-                    <View style={[styles.reminderIcon, { backgroundColor: getReminderColor(item, idx) }]}>
+                  <View style={[styles.reminderIconWrapper, compact && { width: 40, height: 40 }]}>
+                    <View style={[styles.reminderIcon, compact && { width: 40, height: 40, borderRadius: 20 }, { backgroundColor: getReminderColor(item, idx) }]}>
                       {getReminderIcon(item, idx)}
                     </View>
                   </View>
@@ -360,7 +366,7 @@ export default function HomeScreen({ navigation }) {
                 </GlassCard>
               ))
             ) : (
-              <GlassCard tint="dark" intensity={40} style={styles.reminderCard} contentStyle={styles.reminderCardContent}>
+              <GlassCard tint="dark" intensity={40} style={styles.reminderCard} contentStyle={[styles.reminderCardContent, compact && { padding: spacing.md }]}>
                 <Text style={styles.noRemindersText}>No upcoming reminders</Text>
               </GlassCard>
             )}
@@ -368,7 +374,7 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* Motivational Quote */}
-        <View style={styles.quoteSection}>
+        <View style={[styles.quoteSection, compact && { paddingVertical: spacing.md, marginTop: spacing.md }]}>
           <Text style={styles.quoteText}>"The secret of getting ahead is getting started."</Text>
           <Text style={styles.quoteAuthor}>— Mark Twain</Text>
         </View>
@@ -438,10 +444,7 @@ const styles = StyleSheet.create({
   heroCard: {
     width: '100%',
     marginBottom: spacing.xl,
-    borderRadius: radius['2xl'],
-  },
-  heroContent: {
-    padding: spacing.xl,
+    paddingVertical: spacing.xl,
     alignItems: 'center',
   },
   heroTextSection: {
@@ -468,7 +471,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 2,
-    borderColor: '#a855f7',
+    borderColor: '#0072ff',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -476,7 +479,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(168, 85, 247, 0.2)',
+    backgroundColor: 'rgba(0, 114, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -487,7 +490,7 @@ const styles = StyleSheet.create({
     borderRightWidth: 0,
     borderTopWidth: 12,
     borderBottomWidth: 12,
-    borderLeftColor: '#a855f7',
+    borderLeftColor: '#0072ff',
     borderRightColor: 'transparent',
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',

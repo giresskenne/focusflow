@@ -139,7 +139,7 @@ export default function SignUpScreen({ navigation }) {
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: spacing.md,
-      backgroundColor: '#7c3aed',
+      backgroundColor: '#8900f5',
     },
     form: {
       paddingHorizontal: spacing.lg,
@@ -501,7 +501,7 @@ export default function SignUpScreen({ navigation }) {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#8900f5',
   },
   form: {
     paddingHorizontal: spacing.lg,

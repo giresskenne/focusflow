@@ -112,7 +112,7 @@ export default function ActiveSessionScreen({ navigation, route }) {
         <ScrollView contentContainerStyle={styles.container}>
         <View style={{ width: '100%', maxWidth: 520 }}>
           {/* Large Timer Card with Circular Progress */}
-          <GlassCard tint="dark" intensity={60} cornerRadius={28} contentStyle={styles.timerContent} style={styles.timerCardOuter}>
+          <View style={styles.timerCard}>
             <Text style={styles.timerLabel}>TIME REMAINING</Text>
             
             {/* Circular Progress */}
@@ -146,7 +146,7 @@ export default function ActiveSessionScreen({ navigation, route }) {
                 <Text style={styles.timerDisplay}>{minutes}:{secs}</Text>
               </View>
             </View>
-          </GlassCard>
+          </View>
 
           {/* Build capability notice (shows in Expo Go or non-native builds) */}
           {!blockingAvailable && (
@@ -240,8 +240,6 @@ const styles = StyleSheet.create({
   container: { padding: spacing.xl, alignItems: 'center' },
   timerCard: {
     width: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: radius['2xl'],
     paddingVertical: spacing['3xl'],
     paddingHorizontal: spacing['2xl'],
     alignItems: 'center',
@@ -412,12 +410,6 @@ const styles = StyleSheet.create({
     fontSize: typography.sm,
     color: colors.foreground,
     lineHeight: 20,
-  },
-  timerCardOuter: { width: '100%' },
-  timerContent: {
-    paddingVertical: spacing['3xl'],
-    paddingHorizontal: spacing['2xl'],
-    alignItems: 'center',
   },
   circularProgressContainer: {
     position: 'relative',

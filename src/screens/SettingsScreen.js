@@ -269,8 +269,8 @@ export default function SettingsScreen({ navigation }) {
           <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
             <View style={styles.settingsItem}>
               <View style={styles.settingsItemContent}>
-                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
-                  <BellIcon color="#a855f7" size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
+                  <BellIcon color="#0072ff" size={20} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Reminder Notifications</Text>
@@ -290,8 +290,8 @@ export default function SettingsScreen({ navigation }) {
 
             <View style={styles.settingsItem}>
               <View style={styles.settingsItemContent}>
-                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
-                  <BellIcon color="#a855f7" size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
+                  <BellIcon color="#0072ff" size={20} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Session Notifications</Text>
@@ -311,8 +311,8 @@ export default function SettingsScreen({ navigation }) {
 
             <View style={styles.settingsItem}>
               <View style={styles.settingsItemContent}>
-                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
-                  <BellIcon color="#a855f7" size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
+                  <BellIcon color="#0072ff" size={20} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Motivation Messages</Text>
@@ -346,8 +346,8 @@ export default function SettingsScreen({ navigation }) {
             style={[styles.settingsCard, !isPremium && styles.disabledCard]}
             onPress={isPremium ? () => Alert.alert('Theme & Colors', 'Theme customization coming soon!') : handlePremiumPress}
           >
-            <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
-              <PaletteIcon color="#a855f7" size={20} />
+            <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
+              <PaletteIcon color="#0072ff" size={20} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.settingsItemTitle}>Theme & Colors</Text>
@@ -366,8 +366,8 @@ export default function SettingsScreen({ navigation }) {
           <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
             <View style={styles.settingsItem}>
               <View style={styles.settingsItemContent}>
-                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
-                  <ShieldIcon color="#a855f7" size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
+                  <ShieldIcon color="#0072ff" size={20} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Anonymous Analytics</Text>
@@ -389,8 +389,8 @@ export default function SettingsScreen({ navigation }) {
 
             <TouchableOpacity style={styles.settingsItem} onPress={handleExportData}>
               <View style={styles.settingsItemContent}>
-                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
-                  <ShieldIcon color="#a855f7" size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
+                  <ShieldIcon color="#0072ff" size={20} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Export Data</Text>
@@ -404,8 +404,8 @@ export default function SettingsScreen({ navigation }) {
 
             <TouchableOpacity style={styles.settingsItem} onPress={handleWipeData}>
               <View style={styles.settingsItemContent}>
-                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
-                  <ShieldIcon color="#a855f7" size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
+                  <ShieldIcon color="#0072ff" size={20} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Wipe Local Data</Text>
@@ -419,8 +419,8 @@ export default function SettingsScreen({ navigation }) {
 
             <TouchableOpacity style={styles.settingsItem} onPress={handleExportData}>
               <View style={styles.settingsItemContent}>
-                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
-                  <HelpCircleIcon color="#a855f7" size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
+                  <HelpCircleIcon color="#0072ff" size={20} />
                 </View>
                 <Text style={styles.settingsItemTitle}>Help Center</Text>
               </View>
@@ -431,8 +431,8 @@ export default function SettingsScreen({ navigation }) {
 
             <TouchableOpacity style={styles.settingsItem} onPress={handleContactSupport}>
               <View style={styles.settingsItemContent}>
-                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
-                  <HelpCircleIcon color="#a855f7" size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
+                  <HelpCircleIcon color="#0072ff" size={20} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Contact Support</Text>

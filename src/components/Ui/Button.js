@@ -12,7 +12,7 @@ export default function Button({ title, onPress, variant = 'primary', disabled =
       ? '#10b981' 
       : isOutline 
         ? 'rgba(255,255,255,0.08)'
-        : '#a855f7'; // Bright purple from screenshots
+        : '#8900f5'; // Unified purple
   const borderColor = isOutline ? 'rgba(255,255,255,0.15)' : 'transparent';
   const textColor = isOutline ? '#ffffff' : '#ffffff';
   return (

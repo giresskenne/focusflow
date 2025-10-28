@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { radius, typography } from '../../theme';
 
 // Primary CTA button with purple→blue gradient fill
-export default function GradientButton({ title, onPress, disabled = false, style, colors = ['#a855f7', '#0072ff'] }) {
+export default function GradientButton({ title, onPress, disabled = false, style, colors = ['#8900f5', '#0072ff'] }) {
   return (
     <Pressable
       accessibilityRole="button"

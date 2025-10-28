@@ -28,7 +28,7 @@ export default function Switch({ value, onValueChange, ...props }) {
       <View style={styles.track}>
         {value ? (
           <LinearGradient
-            colors={['#a855f7', '#0072ff']}
+            colors={['#8900f5', '#0072ff']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={StyleSheet.absoluteFill}
@@ -72,5 +72,4 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 });
-
 

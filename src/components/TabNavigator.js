@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,33 @@ import SettingsScreen from '../screens/SettingsScreen';
 import { useTheme } from '@react-navigation/native';
 
 const Tab = createBottomTabNavigator();
+
+// Custom Tab Bar Button with liquid glass effect
+function CustomTabBarButton({ children, onPress, accessibilityState }) {
+  const focused = accessibilityState?.selected || false;
+  
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[
+        styles.tabButton,
+        focused && styles.tabButtonActive,
+      ]}
+      activeOpacity={0.7}
+    >
+      {focused && (
+        <View style={styles.activeIndicator}>
+          <BlurView 
+            intensity={20} 
+            tint="light"
+            style={styles.activeBlur}
+          />
+        </View>
+      )}
+      {children}
+    </TouchableOpacity>
+  );
+}
 
 export default function TabNavigator() {
   const { colors } = useTheme();
@@ -23,7 +50,7 @@ export default function TabNavigator() {
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Analytics') {
-            iconName = focused ? 'bar-chart' : 'bar-chart-outline';
+            iconName = focused ? 'stats-chart' : 'stats-chart-outline';
           } else if (route.name === 'Reminders') {
             iconName = focused ? 'notifications' : 'notifications-outline';
           } else if (route.name === 'Settings') {
@@ -31,44 +58,44 @@ export default function TabNavigator() {
           }
 
           return (
-            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name={iconName} size={size} color={color} />
+            <View style={styles.iconContainer}>
+              <Ionicons 
+                name={iconName} 
+                size={focused ? 26 : 24} 
+                color={color}
+                style={[
+                  focused && {
+                    shadowColor: '#8900f5',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.6,
+                    shadowRadius: 8,
+                  }
+                ]}
+              />
               {focused && (
-                <View
-                  style={{
-                    width: 4,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: '#a855f7',
-                    marginTop: 6,
-                  }}
-                />
+                <View style={styles.activeDot} />
               )}
             </View>
           );
         },
-        tabBarActiveTintColor: '#a855f7', // Bright purple from screenshots
-        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.4)', // Dimmed white
-        tabBarStyle: {
-          backgroundColor: 'rgba(10, 5, 20, 0.95)',
-          borderTopColor: 'rgba(255, 255, 255, 0.1)',
-          position: 'absolute',
-          paddingBottom: 24,
-          paddingTop: 12,
-          height: 90, // Increased height for better visual presence
-        },
+        tabBarButton: (props) => (
+          <CustomTabBarButton {...props} />
+        ),
+        tabBarActiveTintColor: '#8900f5',
+        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.4)',
+        tabBarStyle: styles.tabBar,
         tabBarShowLabel: false,
         tabBarBackground: () => (
-          <BlurView 
-            tint="dark" 
-            intensity={80} 
-            style={{ 
-              flex: 1,
-              backgroundColor: 'rgba(10, 5, 20, 0.7)' 
-            }} 
-          />
+          <View style={styles.tabBarBackground}>
+            <BlurView 
+              tint="dark" 
+              intensity={100} 
+              style={styles.blurView}
+            >
+              <View style={styles.glassOverlay} />
+            </BlurView>
+          </View>
         ),
-        // labels hidden to match reference design (icon + active dot)
         headerStyle: {
           backgroundColor: colors.background,
         },
@@ -115,3 +142,91 @@ export default function TabNavigator() {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'transparent',
+    borderTopWidth: 0,
+    elevation: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.5,
+    shadowRadius: 40,
+    paddingBottom: 0,
+    paddingTop: 0,
+  },
+  tabBarBackground: {
+    flex: 1,
+    borderRadius: 32,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: 'rgba(137, 0, 245, 0.3)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+  },
+  blurView: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 10, 30, 0.5)',
+  },
+  glassOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 100%)',
+    borderRadius: 32,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.3)',
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0, 0, 0, 0.2)',
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    position: 'relative',
+  },
+  tabButtonActive: {
+    transform: [{ scale: 1.1 }],
+  },
+  activeIndicator: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(137, 0, 245, 0.25)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(137, 0, 245, 0.4)',
+    shadowColor: '#8900f5',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.7,
+    shadowRadius: 20,
+    overflow: 'hidden',
+  },
+  activeBlur: {
+    flex: 1,
+    backgroundColor: 'rgba(137, 0, 245, 0.2)',
+  },
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#8900f5',
+    marginTop: 8,
+    shadowColor: '#8900f5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+  },
+});

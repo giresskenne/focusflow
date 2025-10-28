@@ -9,7 +9,7 @@ export const colors = {
   cardForeground: '#ffffff',
 
   // Purple-Blue gradient primary colors (matching reference)
-  primary: '#a855f7', // Brighter purple matching screenshots
+  primary: '#8900f5', // Unified purple
   primaryForeground: '#ffffff',
   secondary: '#0072ff', // Blue from gradient
   secondaryForeground: '#ffffff',
@@ -20,7 +20,8 @@ export const colors = {
 
   // Text colors for dark theme
   muted: 'rgba(255, 255, 255, 0.08)',
-  mutedForeground: '#c4b5fd', // Lighter purple-tinted gray
+  // Revert purple-tinted secondary text to original
+  mutedForeground: '#c4b5fd',
   text: '#ffffff',
 
   // Glass morphism borders and surfaces
@@ -32,19 +33,19 @@ export const colors = {
   inputBackground: 'rgba(255, 255, 255, 0.08)',
 
   // Chart colors (purple-blue theme)
-  chart1: '#a855f7', // Purple
+  chart1: '#8900f5', // Purple
   chart2: '#0072ff', // Blue  
-  chart3: '#7c3aed', // Violet
+  chart3: '#8900f5', // Violet unified
   chart4: '#06b6d4', // Cyan
-  chart5: '#8b5cf6', // Purple variant
+  chart5: '#8900f5', // Purple variant unified
 
   // Semantic colors for dark theme
   success: '#10b981', // Emerald-500
   warning: '#f59e0b', // Amber-500
 
-  // Premium badge (golden)
-  premium: '#a855f7',
-  premiumLight: 'rgba(168, 85, 247, 0.15)',
+  // Premium badge (purple)
+  premium: '#8900f5',
+  premiumLight: 'rgba(137, 0, 245, 0.15)',
 
   // Active badge (green)
   activeGreen: '#10b981',
