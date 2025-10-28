@@ -2,37 +2,37 @@ import { DefaultTheme } from '@react-navigation/native';
 
 // Liquid Glass Dark Theme - matching design2-liquidglass reference
 export const colors = {
-  // Dark base colors matching reference (#0a0514)
-  background: '#0a0514',
+  // Dark base colors matching reference
+  background: 'transparent', // Let background image show through
   foreground: '#ffffff', 
-  card: 'rgba(255, 255, 255, 0.03)',
+  card: 'rgba(255, 255, 255, 0.05)',
   cardForeground: '#ffffff',
 
   // Purple-Blue gradient primary colors (matching reference)
-  primary: '#8900f5', // Main purple from reference
+  primary: '#a855f7', // Brighter purple matching screenshots
   primaryForeground: '#ffffff',
   secondary: '#0072ff', // Blue from gradient
   secondaryForeground: '#ffffff',
   
   // Destructive
-  destructive: '#d4183d',
+  destructive: '#ef4444',
   destructiveForeground: '#ffffff',
 
   // Text colors for dark theme
-  muted: 'rgba(255, 255, 255, 0.05)',
-  mutedForeground: '#9ca3af', // Gray-400 equivalent
+  muted: 'rgba(255, 255, 255, 0.08)',
+  mutedForeground: '#c4b5fd', // Lighter purple-tinted gray
   text: '#ffffff',
 
   // Glass morphism borders and surfaces
-  border: 'rgba(255, 255, 255, 0.08)', 
-  glassBorder: 'rgba(255, 255, 255, 0.1)',
-  glassBackground: 'rgba(255, 255, 255, 0.03)',
+  border: 'rgba(255, 255, 255, 0.1)', 
+  glassBorder: 'rgba(255, 255, 255, 0.15)',
+  glassBackground: 'rgba(255, 255, 255, 0.05)',
   
   // Input styling
-  inputBackground: 'rgba(255, 255, 255, 0.05)',
+  inputBackground: 'rgba(255, 255, 255, 0.08)',
 
   // Chart colors (purple-blue theme)
-  chart1: '#8900f5', // Purple
+  chart1: '#a855f7', // Purple
   chart2: '#0072ff', // Blue  
   chart3: '#7c3aed', // Violet
   chart4: '#06b6d4', // Cyan
@@ -43,8 +43,8 @@ export const colors = {
   warning: '#f59e0b', // Amber-500
 
   // Premium badge (golden)
-  premium: '#f59e0b',
-  premiumLight: 'rgba(245, 158, 11, 0.1)',
+  premium: '#a855f7',
+  premiumLight: 'rgba(168, 85, 247, 0.15)',
 
   // Active badge (green)
   activeGreen: '#10b981',
@@ -72,20 +72,21 @@ export const radius = {
 
 export const typography = {
   // Sizes (based on 17px base from design)
-  xs: 13,
-  sm: 15,
+  xs: 11,
+  sm: 14,
   base: 17,
   lg: 20,
   xl: 24,
-  '2xl': 28,
-  '3xl': 32,
+  '2xl': 32,
+  '3xl': 40,
   '4xl': 48,
   
   // Weights
   normal: '400',
-  medium: '600',
+  medium: '500',
   semibold: '600',
   bold: '700',
+  extrabold: '800',
 };
 
 export const shadows = {

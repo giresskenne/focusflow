@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, ScrollView, Platform, TouchableOpacity, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
-import UIButton from '../components/Ui/Button';
+import GradientButton from '../components/Ui/GradientButton';
 import { getSupabase } from '../lib/supabase';
 import { setAuthUser } from '../storage';
 import { MailIcon, LockIcon, EyeIcon, EyeOffIcon, AppleIcon, UserIcon } from '../components/Icons';
 import { colors, spacing, radius, typography, shadows } from '../theme';
+import GradientBackground from '../components/GradientBackground';
+import GlassCard from '../components/GlassCard';
 
 export default function SignUpScreen({ navigation }) {
   const { colors: navColors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -87,355 +90,381 @@ export default function SignUpScreen({ navigation }) {
 
   const passwordStrength = password ? getPasswordStrength(password) : null;
 
+  const styles = StyleSheet.create({
+    container: {
+      flexGrow: 1,
+      padding: spacing.lg,
+      justifyContent: 'flex-start',
+      paddingTop: insets.top + spacing.lg,
+    },
+    backButton: {
+      position: 'absolute',
+      top: insets.top + spacing.md,
+      left: spacing.lg,
+      zIndex: 10,
+      paddingVertical: spacing.sm,
+    },
+    backText: {
+      color: colors.mutedForeground,
+      fontSize: typography.base,
+      fontWeight: typography.medium,
+    },
+    header: {
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+      marginTop: spacing.xl,
+    },
+    card: {
+      marginBottom: spacing.md,
+    },
+    title: {
+      fontSize: typography['2xl'],
+      fontWeight: typography.bold,
+      color: colors.foreground,
+      textAlign: 'center',
+      letterSpacing: -0.5,
+      marginBottom: spacing.xs,
+    },
+    subtitle: {
+      fontSize: typography.base,
+      color: colors.mutedForeground,
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+    lockBadge: {
+      height: 60,
+      width: 60,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.md,
+      backgroundColor: '#7c3aed',
+    },
+    form: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.lg,
+    },
+    inputGroup: {
+      marginBottom: spacing.lg,
+    },
+    inputLabel: {
+      fontSize: typography.base,
+      fontWeight: typography.medium,
+      color: colors.foreground,
+      marginBottom: spacing.md,
+    },
+    inputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      borderRadius: radius.xl,
+      paddingHorizontal: spacing.lg,
+      height: 56,
+    },
+    inputError: {
+      borderColor: colors.destructive,
+      borderWidth: 2,
+    },
+    inputIcon: {
+      marginRight: spacing.md,
+    },
+    textInput: {
+      flex: 1,
+      fontSize: typography.base,
+      color: colors.foreground,
+      height: '100%',
+    },
+    eyeButton: {
+      padding: spacing.xs,
+      marginLeft: spacing.sm,
+    },
+    errorText: {
+      fontSize: typography.sm,
+      color: colors.destructive,
+      marginTop: spacing.xs,
+      paddingHorizontal: spacing.sm,
+    },
+    passwordStrength: {
+      marginTop: spacing.xs,
+      paddingHorizontal: spacing.sm,
+    },
+    strengthText: {
+      fontSize: typography.sm,
+      fontWeight: typography.medium,
+    },
+    termsRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: spacing['2xl'],
+      paddingHorizontal: spacing.sm,
+    },
+    checkbox: {
+      width: 20,
+      height: 20,
+      borderRadius: 4,
+      borderWidth: 2,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: spacing.md,
+      marginTop: 2,
+    },
+    checkboxChecked: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    checkmark: {
+      color: colors.primaryForeground,
+      fontSize: 12,
+      fontWeight: typography.bold,
+    },
+    termsText: {
+      flex: 1,
+      fontSize: typography.sm,
+      color: colors.mutedForeground,
+      lineHeight: 20,
+    },
+    termsLink: {
+      color: colors.primary,
+      textDecorationLine: 'underline',
+    },
+    signUpButton: {
+      marginBottom: spacing.lg,
+    },
+    divider: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: spacing.lg,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.border,
+      opacity: 0.3,
+    },
+    dividerText: {
+      fontSize: typography.sm,
+      color: colors.mutedForeground,
+      paddingHorizontal: spacing.md,
+    },
+    socialButtons: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+    },
+    socialButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      borderRadius: radius.xl,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      gap: spacing.sm,
+    },
+    socialButtonText: {
+      fontSize: typography.base,
+      color: colors.foreground,
+      fontWeight: typography.medium,
+    },
+    footer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.md,
+    },
+    footerText: {
+      fontSize: typography.base,
+      color: colors.mutedForeground,
+    },
+    footerLink: {
+      fontSize: typography.base,
+      color: colors.primary,
+      fontWeight: typography.medium,
+    },
+  });
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: navColors.background }} edges={['bottom']}>
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      >
-        <ScrollView 
+    <GradientBackground>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+        <KeyboardAvoidingView 
           style={{ flex: 1 }} 
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join FocusFlow to sync your data and unlock Premium features</Text>
-          </View>
-
-          {/* Form */}
-          <View style={styles.form}>
-            {/* Email Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>EMAIL</Text>
-              <View style={[
-                styles.inputWrapper,
-                email && !isValidEmail(email) && styles.inputError
-              ]}>
-                <MailIcon size={20} color={colors.mutedForeground} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your email"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  autoCorrect={false}
-                />
-              </View>
-              {email && !isValidEmail(email) && (
-                <Text style={styles.errorText}>Please enter a valid email address</Text>
-              )}
-            </View>
-
-            {/* Password Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>PASSWORD</Text>
-              <View style={styles.inputWrapper}>
-                <LockIcon size={20} color={colors.mutedForeground} style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.textInput, { flex: 1 }]}
-                  placeholder="Create a password"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoComplete="new-password"
-                  autoCorrect={false}
-                />
-                <TouchableOpacity 
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeButton}
-                >
-                  {showPassword ? (
-                    <EyeOffIcon size={20} color={colors.mutedForeground} />
-                  ) : (
-                    <EyeIcon size={20} color={colors.mutedForeground} />
-                  )}
-                </TouchableOpacity>
-              </View>
-              {passwordStrength && (
-                <View style={styles.passwordStrength}>
-                  <Text style={[styles.strengthText, { color: passwordStrength.color }]}>
-                    Password strength: {passwordStrength.strength}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Confirm Password Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>CONFIRM PASSWORD</Text>
-              <View style={[
-                styles.inputWrapper,
-                confirmPassword && password !== confirmPassword && styles.inputError
-              ]}>
-                <LockIcon size={20} color={colors.mutedForeground} style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.textInput, { flex: 1 }]}
-                  placeholder="Confirm your password"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showConfirmPassword}
-                  autoComplete="new-password"
-                  autoCorrect={false}
-                />
-                <TouchableOpacity 
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={styles.eyeButton}
-                >
-                  {showConfirmPassword ? (
-                    <EyeOffIcon size={20} color={colors.mutedForeground} />
-                  ) : (
-                    <EyeIcon size={20} color={colors.mutedForeground} />
-                  )}
-                </TouchableOpacity>
-              </View>
-              {confirmPassword && password !== confirmPassword && (
-                <Text style={styles.errorText}>Passwords do not match</Text>
-              )}
-            </View>
-
-            {/* Terms Agreement */}
-            <TouchableOpacity 
-              style={styles.termsRow} 
-              onPress={() => setAgreeToTerms(!agreeToTerms)}
-            >
-              <View style={[styles.checkbox, agreeToTerms && styles.checkboxChecked]}>
-                {agreeToTerms && <Text style={styles.checkmark}>✓</Text>}
-              </View>
-              <Text style={styles.termsText}>
-                I agree to the{' '}
-                <Text style={styles.termsLink} onPress={() => navigation.navigate('Terms')}>Terms of Service</Text>
-                {' '}and{' '}
-                <Text style={styles.termsLink} onPress={() => navigation.navigate('Privacy')}>Privacy Policy</Text>
-              </Text>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.container}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Back Button */}
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+              <Text style={styles.backText}>← Back</Text>
             </TouchableOpacity>
 
-            {/* Sign Up Button */}
-            <UIButton
-              title={isLoading ? "Creating Account..." : "Create Account"}
-              onPress={handleSignUp}
-              disabled={isLoading}
-              style={styles.signUpButton}
-            />
-
-            {/* Divider */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Or sign up with</Text>
-              <View style={styles.dividerLine} />
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.lockBadge}>
+                <LockIcon size={20} color="#fff" />
+              </View>
+              <Text style={styles.title}>Create Account</Text>
+              <Text style={styles.subtitle}>Start your focus journey today</Text>
             </View>
 
-            {/* Social Sign Up */}
-            <View style={styles.socialButtons}>
-              {Platform.OS === 'ios' && (
-                <TouchableOpacity style={styles.socialButton} onPress={handleAppleSignUp}>
-                  <AppleIcon size={20} color={colors.foreground} />
-                  <Text style={styles.socialButtonText}>Apple</Text>
+            <GlassCard style={styles.card}>
+              <View style={styles.form}>
+                {/* Email Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Email</Text>
+                  <View style={[
+                    styles.inputWrapper,
+                    email && !isValidEmail(email) && styles.inputError
+                  ]}>
+                    <MailIcon size={20} color={colors.mutedForeground} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="your@email.com"
+                      placeholderTextColor={colors.mutedForeground}
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      autoCorrect={false}
+                    />
+                  </View>
+                  {email && !isValidEmail(email) && (
+                    <Text style={styles.errorText}>Please enter a valid email address</Text>
+                  )}
+                </View>
+
+                {/* Password Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Password</Text>
+                  <View style={styles.inputWrapper}>
+                    <LockIcon size={20} color={colors.mutedForeground} style={styles.inputIcon} />
+                    <TextInput
+                      style={[styles.textInput, { flex: 1 }]}
+                      placeholder="••••••••"
+                      placeholderTextColor={colors.mutedForeground}
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPassword}
+                      autoComplete="new-password"
+                      autoCorrect={false}
+                    />
+                    <TouchableOpacity 
+                      onPress={() => setShowPassword(!showPassword)}
+                      style={styles.eyeButton}
+                    >
+                      {showPassword ? (
+                        <EyeOffIcon size={20} color={colors.mutedForeground} />
+                      ) : (
+                        <EyeIcon size={20} color={colors.mutedForeground} />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  {passwordStrength && (
+                    <View style={styles.passwordStrength}>
+                      <Text style={[styles.strengthText, { color: passwordStrength.color }]}>
+                        Password strength: {passwordStrength.strength}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Confirm Password Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Confirm Password</Text>
+                  <View style={[
+                    styles.inputWrapper,
+                    confirmPassword && password !== confirmPassword && styles.inputError
+                  ]}>
+                    <LockIcon size={20} color={colors.mutedForeground} style={styles.inputIcon} />
+                    <TextInput
+                      style={[styles.textInput, { flex: 1 }]}
+                      placeholder="••••••••"
+                      placeholderTextColor={colors.mutedForeground}
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      secureTextEntry={!showConfirmPassword}
+                      autoComplete="new-password"
+                      autoCorrect={false}
+                    />
+                    <TouchableOpacity 
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={styles.eyeButton}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOffIcon size={20} color={colors.mutedForeground} />
+                      ) : (
+                        <EyeIcon size={20} color={colors.mutedForeground} />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  {confirmPassword && password !== confirmPassword && (
+                    <Text style={styles.errorText}>Passwords do not match</Text>
+                  )}
+                </View>
+
+                {/* Terms Agreement */}
+                <TouchableOpacity 
+                  style={styles.termsRow} 
+                  onPress={() => setAgreeToTerms(!agreeToTerms)}
+                >
+                  <View style={[styles.checkbox, agreeToTerms && styles.checkboxChecked]}>
+                    {agreeToTerms && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.termsText}>
+                    I agree to the{' '}
+                    <Text style={styles.termsLink} onPress={() => navigation.navigate('Terms')}>Terms of Service</Text>
+                    {' '}and{' '}
+                    <Text style={styles.termsLink} onPress={() => navigation.navigate('Privacy')}>Privacy Policy</Text>
+                  </Text>
                 </TouchableOpacity>
-              )}
-              
-              <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignUp}>
-                <UserIcon size={20} color={colors.foreground} />
-                <Text style={styles.socialButtonText}>Google</Text>
+
+                {/* Sign Up Button */}
+                <GradientButton
+                  title={isLoading ? 'Creating Account...' : 'Create Account'}
+                  onPress={handleSignUp}
+                  disabled={isLoading}
+                  style={styles.signUpButton}
+                />
+
+                {/* Divider */}
+                <View style={styles.divider}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>or sign up with</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                {/* Social Sign Up */}
+                <View style={styles.socialButtons}>
+                  <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignUp}>
+                    <UserIcon size={20} color={colors.foreground} />
+                    <Text style={styles.socialButtonText}>Google</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity style={styles.socialButton} onPress={handleAppleSignUp}>
+                    <AppleIcon size={20} color={colors.foreground} />
+                    <Text style={styles.socialButtonText}>Apple</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </GlassCard>
+
+            {/* Sign In Link */}
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
+                <Text style={styles.footerLink}>Sign In</Text>
               </TouchableOpacity>
             </View>
-          </View>
-
-          {/* Sign In Link */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
-              <Text style={styles.footerLink}>Sign In</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </GradientBackground>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: spacing.xl,
-    justifyContent: 'center',
-    minHeight: '100%',
-  },
-  header: {
-    marginBottom: spacing['2xl'],
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: typography['3xl'],
-    fontWeight: typography.bold,
-    color: colors.foreground,
-    textAlign: 'center',
-    letterSpacing: -0.5,
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    fontSize: typography.base,
-    color: colors.mutedForeground,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  form: {
-    marginBottom: spacing.xl,
-  },
-  inputGroup: {
-    marginBottom: spacing.lg,
-  },
-  inputLabel: {
-    fontSize: typography.sm,
-    fontWeight: typography.semibold,
-    color: colors.mutedForeground,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.sm,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    height: 56,
-    ...shadows.sm,
-  },
-  inputError: {
-    borderColor: colors.destructive,
-    borderWidth: 2,
-  },
-  inputIcon: {
-    marginRight: spacing.md,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: typography.base,
-    color: colors.foreground,
-    height: '100%',
-  },
-  eyeButton: {
-    padding: spacing.xs,
-    marginLeft: spacing.sm,
-  },
-  errorText: {
-    fontSize: typography.sm,
-    color: colors.destructive,
-    marginTop: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  passwordStrength: {
-    marginTop: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  strengthText: {
-    fontSize: typography.sm,
-    fontWeight: typography.medium,
-  },
-  termsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.xl,
-    paddingHorizontal: spacing.sm,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-    marginTop: 2,
-  },
-  checkboxChecked: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  checkmark: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: typography.bold,
-  },
-  termsText: {
-    flex: 1,
-    fontSize: typography.sm,
-    color: colors.mutedForeground,
-    lineHeight: 20,
-  },
-  termsLink: {
-    color: colors.primary,
-    fontWeight: typography.medium,
-  },
-  signUpButton: {
-    marginBottom: spacing.xl,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-    opacity: 0.5,
-  },
-  dividerText: {
-    fontSize: typography.sm,
-    color: colors.mutedForeground,
-    marginHorizontal: spacing.lg,
-  },
-  socialButtons: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  socialButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    height: 56,
-    backgroundColor: colors.card,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.sm,
-  },
-  socialButtonText: {
-    fontSize: typography.base,
-    fontWeight: typography.medium,
-    color: colors.foreground,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 'auto',
-    paddingTop: spacing.xl,
-  },
-  footerText: {
-    fontSize: typography.base,
-    color: colors.mutedForeground,
-  },
-  footerLink: {
-    fontSize: typography.base,
-    color: colors.primary,
-    fontWeight: typography.semibold,
-  },
-});

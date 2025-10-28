@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
 import UIButton from '../components/Ui/Button';
 import AppBlocker from '../../components/AppBlocker';
@@ -7,6 +9,8 @@ import { getSelectedApps, setSession, appendSessionRecord } from '../storage';
 import { formatSeconds } from '../utils/time';
 import { XIcon, AlertCircleIcon, TargetIcon, CameraIcon, MessageIcon, UserIcon, MusicIcon, PlayIcon } from '../components/Icons';
 import { colors, spacing, radius, typography, shadows } from '../theme';
+import GradientBackground from '../components/GradientBackground';
+import GlassCard from '../components/Ui/GlassCard';
 
 const MOCK_APPS = [
   { id: 'com.social.app', name: 'Instagram', Icon: CameraIcon },
@@ -79,6 +83,13 @@ export default function ActiveSessionScreen({ navigation, route }) {
   const { minutes, seconds: secs } = formatSeconds(seconds);
   const progress = (seconds / duration) * 100;
   
+  // Circular progress calculations
+  const size = 220;
+  const strokeWidth = 8;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
+  
   const endEarly = async () => {
     try {
       const runSeconds = duration - seconds;
@@ -96,17 +107,46 @@ export default function ActiveSessionScreen({ navigation, route }) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: navColors.background }}>
-      <ScrollView contentContainerStyle={styles.container}>
+    <GradientBackground>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <ScrollView contentContainerStyle={styles.container}>
         <View style={{ width: '100%', maxWidth: 520 }}>
-          {/* Large Timer Card */}
-          <View style={[styles.timerCard, shadows.lg]}>
+          {/* Large Timer Card with Circular Progress */}
+          <GlassCard tint="dark" intensity={60} cornerRadius={28} contentStyle={styles.timerContent} style={styles.timerCardOuter}>
             <Text style={styles.timerLabel}>TIME REMAINING</Text>
-            <Text style={styles.timerDisplay}>{minutes}:{secs}</Text>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+            
+            {/* Circular Progress */}
+            <View style={styles.circularProgressContainer}>
+              <Svg width={size} height={size} style={styles.circularProgress}>
+                {/* Background circle */}
+                <Circle
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  stroke="rgba(255, 255, 255, 0.1)"
+                  strokeWidth={strokeWidth}
+                  fill="transparent"
+                />
+                {/* Progress circle */}
+                <Circle
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  stroke="#0072ff"
+                  strokeWidth={strokeWidth}
+                  fill="transparent"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                  transform={`rotate(-90 ${size / 2} ${size / 2})`}
+                />
+              </Svg>
+              {/* Timer text in center */}
+              <View style={styles.timerTextContainer}>
+                <Text style={styles.timerDisplay}>{minutes}:{secs}</Text>
+              </View>
             </View>
-          </View>
+          </GlassCard>
 
           {/* Build capability notice (shows in Expo Go or non-native builds) */}
           {!blockingAvailable && (
@@ -136,7 +176,7 @@ export default function ActiveSessionScreen({ navigation, route }) {
           </View>
 
           {/* Stay Focused Card */}
-          <View style={[styles.motivationCard, shadows.sm]}>
+          <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={styles.motivationContent} style={styles.motivationCardOuter}>
             <View style={styles.targetIconWrapper}>
               <TargetIcon size={24} color={colors.primary} />
             </View>
@@ -146,9 +186,10 @@ export default function ActiveSessionScreen({ navigation, route }) {
                 You're doing great. Keep your momentum going.
               </Text>
             </View>
-          </View>
+          </GlassCard>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
 
       {/* End Session Button */}
       <View style={styles.footer}>
@@ -164,7 +205,7 @@ export default function ActiveSessionScreen({ navigation, route }) {
       {/* Confirmation Modal */}
       <Modal visible={showConfirm} transparent animationType="fade" onRequestClose={() => setShowConfirm(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, shadows.lg]}>
+          <GlassCard tint="dark" intensity={60} cornerRadius={24} contentStyle={{ padding: spacing['2xl'] }} style={{ width: '100%', maxWidth: 400 }}>
             <View style={styles.modalHeader}>
               <View style={styles.alertIconWrapper}>
                 <AlertCircleIcon size={24} color={colors.destructive} />
@@ -188,10 +229,10 @@ export default function ActiveSessionScreen({ navigation, route }) {
                 style={{ flex: 1, marginLeft: spacing.sm }}
               />
             </View>
-          </View>
+          </GlassCard>
         </View>
       </Modal>
-    </View>
+    </GradientBackground>
   );
 }
 
@@ -214,11 +255,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   timerDisplay: {
-    fontSize: 80,
+    fontSize: 48,
     fontWeight: typography.bold,
     color: '#fff',
-    letterSpacing: -2,
-    marginBottom: spacing.xl,
+    letterSpacing: -1,
+    textAlign: 'center',
   },
   progressBarBg: {
     width: '100%',
@@ -359,17 +400,43 @@ const styles = StyleSheet.create({
   noticeBanner: {
     flexDirection: 'row',
     gap: spacing.md,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: 'rgba(255,223,128,0.12)',
     padding: spacing.lg,
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: 'rgba(255,223,128,0.3)',
     marginTop: spacing.lg,
   },
   noticeText: {
     flex: 1,
     fontSize: typography.sm,
-    color: '#78350F',
+    color: colors.foreground,
     lineHeight: 20,
+  },
+  timerCardOuter: { width: '100%' },
+  timerContent: {
+    paddingVertical: spacing['3xl'],
+    paddingHorizontal: spacing['2xl'],
+    alignItems: 'center',
+  },
+  circularProgressContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  circularProgress: {
+    transform: [{ rotate: '0deg' }],
+  },
+  timerTextContainer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  motivationCardOuter: { marginTop: spacing['2xl'] },
+  motivationContent: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    padding: spacing.lg,
   },
 });

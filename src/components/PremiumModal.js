@@ -5,6 +5,7 @@ import { useTheme } from '@react-navigation/native';
 import { CrownIcon, XIcon, CheckIcon, ZapIcon, ShieldIcon, CloudIcon } from './Icons';
 import { colors, spacing, radius, typography, shadows } from '../theme';
 import GlassCard from './Ui/GlassCard';
+import GradientBackground from './GradientBackground';
 
 export default function PremiumModal({ visible, onClose, onUpgrade }) {
   const { colors: navColors } = useTheme();
@@ -39,55 +40,56 @@ export default function PremiumModal({ visible, onClose, onUpgrade }) {
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={{ flex: 1, backgroundColor: navColors.background }} edges={['top']}>
-        <View style={styles.container}>
+      <GradientBackground>
+        <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }} edges={['top']}>
+          <View style={styles.container}>
           {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <XIcon size={24} color={colors.mutedForeground} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView 
-            style={{ flex: 1 }} 
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Hero Section */}
-            <View style={styles.hero}>
-              <View style={styles.crownIconWrapper}>
-                <CrownIcon size={32} color="#fff" />
-              </View>
-              <Text style={styles.heroTitle}>Unlock Premium</Text>
-              <Text style={styles.heroSubtitle}>
-                Take your focus to the next level with advanced features and unlimited access
-              </Text>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <XIcon size={20} color={colors.mutedForeground} />
+              </TouchableOpacity>
             </View>
+
+            <ScrollView 
+              style={{ flex: 1 }} 
+              contentContainerStyle={styles.content}
+              showsVerticalScrollIndicator={false}
+            >
+            {/* Hero Section */}
+              <View style={styles.hero}>
+                <GlassCard tint="dark" intensity={60} cornerRadius={40} contentStyle={styles.crownContent} style={styles.crownWrapper}>
+                  <CrownIcon size={28} color="#fff" />
+                </GlassCard>
+                <Text style={styles.heroTitle}>Unlock Premium</Text>
+                <Text style={styles.heroSubtitle}>
+                  Take your focus to the next level with advanced features and unlimited access
+                </Text>
+              </View>
 
             {/* Features List */}
-            <View style={styles.features}>
-              {features.map((feature, index) => {
-                const FeatureIcon = feature.icon;
-                return (
-                  <View key={index} style={styles.featureItem}>
-                    <View style={styles.featureIconWrapper}>
-                      <FeatureIcon size={20} color={colors.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.featureTitle}>{feature.title}</Text>
-                      <Text style={styles.featureDescription}>{feature.description}</Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
+              <View style={styles.features}>
+                {features.map((feature, index) => {
+                  const FeatureIcon = feature.icon;
+                  return (
+                    <GlassCard key={index} tint="dark" intensity={40} cornerRadius={16} contentStyle={styles.featureRow} style={styles.featureItemCard}>
+                      <View style={styles.featureIconWrapperGlass}>
+                        <FeatureIcon size={18} color={colors.primary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.featureTitle}>{feature.title}</Text>
+                        <Text style={styles.featureDescription}>{feature.description}</Text>
+                      </View>
+                    </GlassCard>
+                  );
+                })}
+              </View>
 
             {/* Pricing Cards */}
             <View style={styles.pricing}>
               <Text style={styles.pricingHeader}>Choose Your Plan</Text>
               
               {/* Annual Plan (Recommended) */}
-              <GlassCard tint="light" intensity={60} cornerRadius={20} style={[styles.pricingCard, styles.recommendedCard]}>
+              <GlassCard tint="dark" intensity={60} cornerRadius={20} style={[styles.pricingCard, styles.recommendedCard]}>
                 <TouchableOpacity onPress={() => onUpgrade('annual')}>
                   <View style={styles.recommendedBadge}>
                     <Text style={styles.recommendedText}>BEST VALUE</Text>
@@ -106,7 +108,7 @@ export default function PremiumModal({ visible, onClose, onUpgrade }) {
               </GlassCard>
 
               {/* Monthly Plan */}
-              <GlassCard tint="light" intensity={50} cornerRadius={20} style={styles.pricingCard}>
+              <GlassCard tint="dark" intensity={40} cornerRadius={20} style={styles.pricingCard}>
                 <TouchableOpacity onPress={() => onUpgrade('monthly')}>
                   <View style={styles.pricingContent}>
                     <View style={{ flex: 1 }}>
@@ -128,9 +130,10 @@ export default function PremiumModal({ visible, onClose, onUpgrade }) {
                 Start your free trial today. Cancel anytime.
               </Text>
             </View>
-          </ScrollView>
-        </View>
-      </SafeAreaView>
+            </ScrollView>
+          </View>
+        </SafeAreaView>
+      </GradientBackground>
     </Modal>
   );
 }
@@ -148,10 +151,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: radius.full,
-    backgroundColor: colors.muted,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -163,15 +168,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing['2xl'],
   },
-  crownIconWrapper: {
+  crownWrapper: {
     width: 80,
     height: 80,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
+    borderRadius: 40,
+    alignSelf: 'center',
+    marginBottom: spacing.lg,
+  },
+  crownContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.lg,
-    ...shadows.lg,
+    padding: 0,
   },
   heroTitle: {
     fontSize: typography['3xl'],
@@ -190,20 +197,26 @@ const styles = StyleSheet.create({
   },
   features: {
     marginBottom: spacing['2xl'],
+    gap: spacing.sm,
   },
-  featureItem: {
+  featureItemCard: {
+    padding: 0,
+  },
+  featureRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: spacing.md,
-    marginBottom: spacing.lg,
+    padding: spacing.lg,
   },
-  featureIconWrapper: {
+  featureIconWrapperGlass: {
     width: 40,
     height: 40,
     borderRadius: radius.full,
-    backgroundColor: `${colors.primary}20`,
+    backgroundColor: 'rgba(137, 0, 245, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(137, 0, 245, 0.25)'
   },
   featureTitle: {
     fontSize: typography.base,
@@ -227,14 +240,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   pricingCard: {
-    backgroundColor: colors.card,
     borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
     padding: spacing.lg,
     marginBottom: spacing.md,
     position: 'relative',
-    ...shadows.sm,
   },
   recommendedCard: {
     borderColor: colors.primary,

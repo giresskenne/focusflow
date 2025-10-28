@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { getPremiumStatus, setPremiumStatus, getSettings, updateSettings, getAuthUser, clearAuthUser, hasLocalData, getMigrationFlag, setMigrationFlag, exportUserData, clearUserData } from '../storage';
 import MigrationPrompt from '../components/MigrationPrompt';
 import DataSyncPrompt from '../components/DataSyncPrompt';
@@ -192,48 +193,85 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>ACCOUNT</Text>
 
-          {isPremium ? (
-            <View style={styles.premiumCard}>
-              <View style={styles.premiumIconWrapper}>
-                <CrownIcon color="#fff" size={24} />
+          {/* User Profile Card */}
+          <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
+            <TouchableOpacity 
+              style={styles.profileCard}
+              onPress={() => {
+                if (authUser) {
+                  // Could navigate to account details
+                } else {
+                  handleSignIn();
+                }
+              }}
+            >
+              <View style={styles.profileAvatar}>
+                <Text style={styles.profileAvatarText}>
+                  {authUser ? authUser.email?.charAt(0).toUpperCase() : 'U'}
+                </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.premiumMemberTitle}>Premium Member</Text>
-                <Text style={styles.premiumMemberSubtitle}>All features unlocked</Text>
-              </View>
-              <TouchableOpacity 
-                style={styles.downgradeBadge}
-                onPress={async () => {
-                  console.log('Downgrading to free...');
-                  await setPremiumStatus(false);
-                  setIsPremium(false);
-                }}
-              >
-                <Text style={styles.downgradeText}>Test Free</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.settingsCard} onPress={handlePremiumPress}>
-              <View style={styles.premiumIconWrapperLight}>
-                <CrownIcon color={colors.primary} size={24} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.settingsItemTitle}>Upgrade to Premium</Text>
-                <Text style={styles.settingsItemSubtitle}>Unlock all features</Text>
+                <Text style={styles.profileName}>
+                  {authUser ? authUser.email?.split('@')[0] : 'Guest User'}
+                </Text>
+                <Text style={styles.profileEmail}>
+                  {authUser ? authUser.email : 'Tap to sign in'}
+                </Text>
               </View>
               <ChevronRightIcon color={colors.mutedForeground} size={20} />
             </TouchableOpacity>
-          )}
-        </View>
 
-        {/* Notifications Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionHeader}>NOTIFICATIONS</Text>
+            <View style={styles.divider} />
 
-          <View style={styles.groupCard}>
+            {/* Premium Status Row */}
             <View style={styles.settingsItem}>
               <View style={styles.settingsItemContent}>
-                <BellIcon color={colors.mutedForeground} size={20} />
+                <CrownIcon color={isPremium ? colors.primary : colors.mutedForeground} size={20} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingsItemTitle}>
+                    {isPremium ? 'Premium Member' : 'Free Plan'}
+                  </Text>
+                </View>
+              </View>
+              {!isPremium ? (
+                <TouchableOpacity 
+                  onPress={handlePremiumPress}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={['#8900f5', '#0072ff']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.upgradeButton}
+                  >
+                    <Text style={styles.upgradeButtonText}>Upgrade</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.testFreeButton}
+                  onPress={async () => {
+                    await setPremiumStatus(false);
+                    setIsPremium(false);
+                  }}
+                >
+                  <Text style={styles.testFreeButtonText}>Test Free</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </GlassCard>
+        </View>
+
+        {/* Preferences Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>PREFERENCES</Text>
+
+          <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
+            <View style={styles.settingsItem}>
+              <View style={styles.settingsItemContent}>
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
+                  <BellIcon color="#a855f7" size={20} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Reminder Notifications</Text>
                   <Text style={styles.settingsItemSubtitle}>Get notified for reminders</Text>
@@ -252,7 +290,9 @@ export default function SettingsScreen({ navigation }) {
 
             <View style={styles.settingsItem}>
               <View style={styles.settingsItemContent}>
-                <BellIcon color={colors.mutedForeground} size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
+                  <BellIcon color="#a855f7" size={20} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Session Notifications</Text>
                   <Text style={styles.settingsItemSubtitle}>Alerts when sessions end</Text>
@@ -271,7 +311,9 @@ export default function SettingsScreen({ navigation }) {
 
             <View style={styles.settingsItem}>
               <View style={styles.settingsItemContent}>
-                <BellIcon color={colors.mutedForeground} size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
+                  <BellIcon color="#a855f7" size={20} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Motivation Messages</Text>
                   <Text style={styles.settingsItemSubtitle}>Encouraging tips & insights</Text>
@@ -285,7 +327,7 @@ export default function SettingsScreen({ navigation }) {
                 }} 
               />
             </View>
-          </View>
+          </GlassCard>
         </View>
 
         {/* Appearance Section */}
@@ -304,7 +346,9 @@ export default function SettingsScreen({ navigation }) {
             style={[styles.settingsCard, !isPremium && styles.disabledCard]}
             onPress={isPremium ? () => Alert.alert('Theme & Colors', 'Theme customization coming soon!') : handlePremiumPress}
           >
-            <PaletteIcon color={colors.mutedForeground} size={20} />
+            <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
+              <PaletteIcon color="#a855f7" size={20} />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.settingsItemTitle}>Theme & Colors</Text>
               <Text style={styles.settingsItemSubtitle}>
@@ -319,10 +363,12 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>PRIVACY & DATA</Text>
 
-          <View style={styles.groupCard}>
+          <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
             <View style={styles.settingsItem}>
               <View style={styles.settingsItemContent}>
-                <ShieldIcon color={colors.mutedForeground} size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
+                  <ShieldIcon color="#a855f7" size={20} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Anonymous Analytics</Text>
                   <Text style={styles.settingsItemSubtitle}>Help us improve the app</Text>
@@ -343,7 +389,9 @@ export default function SettingsScreen({ navigation }) {
 
             <TouchableOpacity style={styles.settingsItem} onPress={handleExportData}>
               <View style={styles.settingsItemContent}>
-                <ShieldIcon color={colors.mutedForeground} size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
+                  <ShieldIcon color="#a855f7" size={20} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Export Data</Text>
                   <Text style={styles.settingsItemSubtitle}>Get a JSON export of your data</Text>
@@ -356,7 +404,9 @@ export default function SettingsScreen({ navigation }) {
 
             <TouchableOpacity style={styles.settingsItem} onPress={handleWipeData}>
               <View style={styles.settingsItemContent}>
-                <ShieldIcon color={colors.mutedForeground} size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
+                  <ShieldIcon color="#a855f7" size={20} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Wipe Local Data</Text>
                   <Text style={styles.settingsItemSubtitle}>Remove local reminders, apps, analytics, settings</Text>
@@ -367,44 +417,12 @@ export default function SettingsScreen({ navigation }) {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.settingsItem} onPress={handlePrivacyPolicy}>
+            <TouchableOpacity style={styles.settingsItem} onPress={handleExportData}>
               <View style={styles.settingsItemContent}>
-                <ShieldIcon color={colors.mutedForeground} size={20} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.settingsItemTitle}>Privacy Policy</Text>
-                  <Text style={styles.settingsItemSubtitle}>View our privacy policy</Text>
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
+                  <HelpCircleIcon color="#a855f7" size={20} />
                 </View>
-              </View>
-              <ChevronRightIcon color={colors.mutedForeground} size={20} />
-            </TouchableOpacity>
-
-            <View style={styles.divider} />
-
-            <TouchableOpacity style={styles.settingsItem} onPress={handleTerms}>
-              <View style={styles.settingsItemContent}>
-                <ShieldIcon color={colors.mutedForeground} size={20} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.settingsItemTitle}>Terms of Service</Text>
-                  <Text style={styles.settingsItemSubtitle}>View our terms</Text>
-                </View>
-              </View>
-              <ChevronRightIcon color={colors.mutedForeground} size={20} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Help & Support Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionHeader}>HELP & SUPPORT</Text>
-
-          <View style={styles.groupCard}>
-            <TouchableOpacity style={styles.settingsItem} onPress={handleHelpCenter}>
-              <View style={styles.settingsItemContent}>
-                <HelpCircleIcon color={colors.mutedForeground} size={20} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.settingsItemTitle}>Help Center</Text>
-                  <Text style={styles.settingsItemSubtitle}>FAQs and guides</Text>
-                </View>
+                <Text style={styles.settingsItemTitle}>Help Center</Text>
               </View>
               <ChevronRightIcon color={colors.mutedForeground} size={20} />
             </TouchableOpacity>
@@ -413,7 +431,9 @@ export default function SettingsScreen({ navigation }) {
 
             <TouchableOpacity style={styles.settingsItem} onPress={handleContactSupport}>
               <View style={styles.settingsItemContent}>
-                <HelpCircleIcon color={colors.mutedForeground} size={20} />
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
+                  <HelpCircleIcon color="#a855f7" size={20} />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Contact Support</Text>
                   <Text style={styles.settingsItemSubtitle}>
@@ -431,14 +451,14 @@ export default function SettingsScreen({ navigation }) {
                 <ChevronRightIcon color={colors.mutedForeground} size={20} />
               </View>
             </TouchableOpacity>
-          </View>
+          </GlassCard>
         </View>
 
         {/* App Blocking (iOS dev) - gated by flag or presence of native bridge */}
         {(ENABLE_IOS_BLOCKING_DEV || AppBlocker.isAvailable) && (
           <View className="section">
             <Text style={styles.sectionHeader}>APP BLOCKING (iOS DEV)</Text>
-            <View style={styles.groupCard}>
+            <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
               <TouchableOpacity
                 style={styles.settingsItem}
                 onPress={async () => {
@@ -490,7 +510,7 @@ export default function SettingsScreen({ navigation }) {
                 </View>
                 <ChevronRightIcon color={colors.mutedForeground} size={20} />
               </TouchableOpacity>
-            </View>
+            </GlassCard>
           </View>
         )}
 
@@ -498,15 +518,13 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>ABOUT</Text>
 
-          <View style={styles.groupCard}>
+          <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
             <View style={styles.settingsItem}>
               <View style={styles.settingsItemContent}>
                 <InfoIcon color={colors.mutedForeground} size={20} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.settingsItemTitle}>App Version</Text>
-                  <Text style={styles.settingsItemSubtitle}>1.0.0</Text>
-                </View>
+                <Text style={styles.settingsItemTitle}>App Version</Text>
               </View>
+              <Text style={styles.settingsItemSubtitle}>1.0.0</Text>
             </View>
 
             <View style={styles.divider} />
@@ -548,20 +566,17 @@ export default function SettingsScreen({ navigation }) {
             <TouchableOpacity style={styles.settingsItem} onPress={handleRateApp}>
               <View style={styles.settingsItemContent}>
                 <InfoIcon color={colors.mutedForeground} size={20} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.settingsItemTitle}>Rate FocusFlow</Text>
-                  <Text style={styles.settingsItemSubtitle}>Share your feedback</Text>
-                </View>
+                <Text style={styles.settingsItemTitle}>Rate FocusFlow</Text>
               </View>
               <ChevronRightIcon color={colors.mutedForeground} size={20} />
             </TouchableOpacity>
-          </View>
+          </GlassCard>
         </View>
 
         {/* Legal & Privacy Section */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>LEGAL & PRIVACY</Text>
-          <View style={styles.groupCard}>
+          <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
             <TouchableOpacity 
               style={styles.settingsItem} 
               onPress={() => navigation.navigate('PolicyScreen', {
@@ -570,10 +585,7 @@ export default function SettingsScreen({ navigation }) {
             >
               <View style={styles.settingsItemContent}>
                 <ShieldIcon color={colors.mutedForeground} size={20} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.settingsItemTitle}>Privacy Policy</Text>
-                  <Text style={styles.settingsItemSubtitle}>How we protect your data</Text>
-                </View>
+                <Text style={styles.settingsItemTitle}>Privacy Policy</Text>
               </View>
               <ChevronRightIcon color={colors.mutedForeground} size={20} />
             </TouchableOpacity>
@@ -588,20 +600,17 @@ export default function SettingsScreen({ navigation }) {
             >
               <View style={styles.settingsItemContent}>
                 <InfoIcon color={colors.mutedForeground} size={20} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.settingsItemTitle}>Terms of Service</Text>
-                  <Text style={styles.settingsItemSubtitle}>App usage terms</Text>
-                </View>
+                <Text style={styles.settingsItemTitle}>Terms of Service</Text>
               </View>
               <ChevronRightIcon color={colors.mutedForeground} size={20} />
             </TouchableOpacity>
-          </View>
+          </GlassCard>
         </View>
 
         {/* Developer Section - Remove in production */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>DEVELOPER</Text>
-          <View style={styles.groupCard}>
+          <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
             <TouchableOpacity 
               style={styles.settingsItem} 
               onPress={async () => {
@@ -622,7 +631,7 @@ export default function SettingsScreen({ navigation }) {
               </View>
               <ChevronRightIcon color={colors.mutedForeground} size={20} />
             </TouchableOpacity>
-          </View>
+          </GlassCard>
         </View>
 
         {(process.env.EXPO_PUBLIC_ENABLE_IAP === 'true' || process.env.EXPO_PUBLIC_ENABLE_STOREKIT_TEST === 'true') && (
@@ -795,10 +804,10 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: typography.bold,
+    fontSize: 32,
+    fontWeight: typography.extrabold,
     color: colors.foreground,
-    letterSpacing: -0.5,
+    letterSpacing: -1,
   },
   headerSubtitle: {
     fontSize: typography.base,
@@ -834,44 +843,87 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    backgroundColor: '#fffbeb',
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: '#fcd34d',
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   premiumBadgeText: {
     fontSize: 10,
     fontWeight: typography.semibold,
-    color: '#d97706',
+    color: colors.mutedForeground,
   },
-  premiumCard: {
+  // Profile Card Styles
+  profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: '#fffbeb',
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: '#fcd34d',
     padding: spacing.lg,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    backgroundColor: 'transparent',
+  },
+  profileAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileAvatarText: {
+    fontSize: typography.lg,
+    fontWeight: typography.bold,
+    color: '#fff',
+  },
+  profileName: {
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
+    color: colors.foreground,
+  },
+  profileEmail: {
+    fontSize: typography.sm,
+    color: colors.mutedForeground,
+    marginTop: 2,
+  },
+  // Upgrade Button Styles
+  upgradeButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+  },
+  upgradeButtonText: {
+    fontSize: typography.sm,
+    fontWeight: typography.semibold,
+    color: '#fff',
+  },
+  testFreeButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  testFreeButtonText: {
+    fontSize: typography.xs,
+    fontWeight: typography.medium,
+    color: colors.mutedForeground,
+  },
+  premiumCardOuter: {},
+  premiumCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
   },
   premiumIconWrapper: {
     width: 48,
     height: 48,
     borderRadius: radius.full,
-    backgroundColor: '#f59e0b',
+    backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)'
   },
   premiumIconWrapperLight: {
     width: 48,
@@ -884,11 +936,11 @@ const styles = StyleSheet.create({
   premiumMemberTitle: {
     fontSize: typography.base,
     fontWeight: typography.semibold,
-    color: '#78350f',
+    color: colors.foreground,
   },
   premiumMemberSubtitle: {
     fontSize: typography.sm,
-    color: '#92400e',
+    color: colors.mutedForeground,
     marginTop: 2,
   },
   settingsCard: {
@@ -915,23 +967,9 @@ const styles = StyleSheet.create({
   disabledCard: {
     opacity: 0.6,
   },
-  groupCard: {
-    backgroundColor: colors.card,
+  groupCardOuter: {
     borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
   },
   settingsItem: {
     flexDirection: 'row',
@@ -939,13 +977,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
     padding: spacing.lg,
-    backgroundColor: colors.card,
+    backgroundColor: 'transparent',
   },
   settingsItemContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   settingsItemTitle: {
     fontSize: typography.base,
@@ -958,9 +1003,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    opacity: 0.3,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   priorityBadge: {
     flexDirection: 'row',
@@ -980,10 +1024,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.card,
+    backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.12)',
     padding: spacing.lg,
     marginBottom: spacing.xl,
   },
@@ -1000,17 +1044,17 @@ const styles = StyleSheet.create({
   downgradeBadge: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: '#f59e0b',
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#d97706',
+    borderColor: 'rgba(255,255,255,0.12)',
     minWidth: 60,
     alignItems: 'center',
   },
   downgradeText: {
     fontSize: typography.xs,
     fontWeight: typography.bold,
-    color: '#fff',
+    color: colors.foreground,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },

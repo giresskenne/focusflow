@@ -1,6 +1,7 @@
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import TabNavigator from './src/components/TabNavigator';
 import AppSelectionScreen from './src/screens/AppSelectionScreen';
 import FocusSessionScreen from './src/screens/FocusSessionScreen';
@@ -12,6 +13,8 @@ import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';
+import BrandedSplash from './src/components/BrandedSplash';
+import AnimatedSplashParticles from './src/components/AnimatedSplashParticles';
 import { AppState } from 'react-native';
 import theme from './src/theme';
 import { initializeAuth, setupAuthListener } from './src/lib/auth';
@@ -34,6 +37,7 @@ export default function App() {
   const [showMigration, setShowMigration] = useState(false);
   const [showSyncPrompt, setShowSyncPrompt] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
+  const [showBrandSplash, setShowBrandSplash] = useState(true);
 
   useEffect(() => {
     // Initialize global error handling
@@ -124,6 +128,16 @@ export default function App() {
     return unsubscribe;
   }, []);
 
+  // Hide branded overlay after initial work and a short brand moment
+  useEffect(() => {
+    if (!isAuthLoading) {
+      const t = setTimeout(async () => {
+        setShowBrandSplash(false);
+      }, 1200);
+      return () => clearTimeout(t);
+    }
+  }, [isAuthLoading]);
+
   // Listen for entitlement changes (e.g., refunds, renewals) and mirror to premium flag
   useEffect(() => {
     const remove = IAP.onCustomerInfoUpdate(async (info) => {
@@ -205,23 +219,21 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <NavigationContainer theme={theme}>
-        <ExpoStatusBar style="light" />
-        <Stack.Navigator
-          screenOptions={{
-            headerStyle: { backgroundColor: theme.colors.background },
-            headerShadowVisible: false,
-            headerTintColor: theme.colors.text,
-            headerTitleStyle: { fontWeight: '600' },
-            contentStyle: { backgroundColor: theme.colors.background },
-          }}
-        >
+      <SafeAreaProvider>
+        <NavigationContainer theme={theme}>
+          <ExpoStatusBar style="light" backgroundColor="transparent" translucent />
+          <Stack.Navigator
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: 'transparent' },
+            }}
+          >
           <Stack.Screen name="MainTabs" component={TabNavigator} options={{ headerShown: false }} />
           <Stack.Screen name="AppSelection" component={AppSelectionScreen} options={{ title: 'Select Apps' }} />
           <Stack.Screen name="FocusSession" component={FocusSessionScreen} options={{ title: 'Focus Session' }} />
           <Stack.Screen name="ActiveSession" component={ActiveSessionScreen} options={{ title: 'Active Session', gestureEnabled: false }} />
-          <Stack.Screen name="SignIn" component={SignInScreen} options={{ title: 'Sign In' }} />
-          <Stack.Screen name="SignUp" component={SignUpScreen} options={{ title: 'Sign Up' }} />
+          <Stack.Screen name="SignIn" component={SignInScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Terms" component={TermsScreen} options={{ title: 'Terms of Service' }} />
           <Stack.Screen name="Privacy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy' }} />
           <Stack.Screen name="Account" component={AccountScreen} options={{ title: 'Account' }} />
@@ -263,32 +275,37 @@ export default function App() {
         onClose={() => setShowMigration(false)}
       />
 
-      {/* Data sync decision: both local and cloud exist after sign-in */}
-      <DataSyncPrompt
-        visible={!!authUser && showSyncPrompt}
-        loading={isMigrating}
-        onKeepLocal={async () => {
-          if (!authUser?.id) return;
-          await setMigrationFlag(authUser.id, true);
-          setShowSyncPrompt(false);
-        }}
-        onReplaceWithCloud={async () => {
-          if (!authUser?.id) return;
-          try {
-            setIsMigrating(true);
-            await pullCloudToLocal(authUser.id);
+        {/* Data sync decision: both local and cloud exist after sign-in */}
+        <DataSyncPrompt
+          visible={!!authUser && showSyncPrompt}
+          loading={isMigrating}
+          onKeepLocal={async () => {
+            if (!authUser?.id) return;
             await setMigrationFlag(authUser.id, true);
             setShowSyncPrompt(false);
-          } catch (e) {
-            // leave prompt for retry
-          } finally {
-            setIsMigrating(false);
-          }
-        }}
-        onLater={() => setShowSyncPrompt(false)}
-        onClose={() => setShowSyncPrompt(false)}
-      />
-    </NavigationContainer>
+          }}
+          onReplaceWithCloud={async () => {
+            if (!authUser?.id) return;
+            try {
+              setIsMigrating(true);
+              await pullCloudToLocal(authUser.id);
+              await setMigrationFlag(authUser.id, true);
+              setShowSyncPrompt(false);
+            } catch (e) {
+              // leave prompt for retry
+            } finally {
+              setIsMigrating(false);
+            }
+          }}
+          onLater={() => setShowSyncPrompt(false)}
+          onClose={() => setShowSyncPrompt(false)}
+        />
+
+        {showBrandSplash && (
+          <AnimatedSplashParticles variant="bubbles" count={38} />
+        )}
+        </NavigationContainer>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }

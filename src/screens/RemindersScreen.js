@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, Alert, Modal, ScrollView, TouchableOpacity, Platform, Linking } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import UIButton from '../components/Ui/Button';
 import * as Notifications from 'expo-notifications';
 import { getReminders, setReminders, getPremiumStatus } from '../storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { PlusIcon, TrashIcon, ChevronRightIcon, CrownIcon } from '../components/Icons';
+import { PlusIcon, TrashIcon, ChevronRightIcon } from '../components/Icons';
 import { colors, spacing, radius, typography } from '../theme';
 import { FREE_REMINDER_LIMIT, canAddReminder } from '../utils/premium';
 import GradientBackground from '../components/GradientBackground';
@@ -298,7 +299,8 @@ export default function RemindersScreen({ navigation }) {
   // New/Edit Reminder Modal
   if (showAdd) {
     return (
-      <View style={styles.container}>
+      <GradientBackground>
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{editingItem ? 'Edit Reminder' : 'New Reminder'}</Text>
         </View>
@@ -359,7 +361,9 @@ export default function RemindersScreen({ navigation }) {
                     mode="time"
                     value={dailyTime}
                     onChange={(e, date) => { if (date) setDailyTime(date); }}
-                    themeVariant="light"
+                    themeVariant="dark"
+                    textColor={colors.foreground}
+                    accentColor={colors.primary}
                     display="spinner"
                     style={{ height: 120 }}
                   />
@@ -392,7 +396,9 @@ export default function RemindersScreen({ navigation }) {
                       mode="time"
                       value={dailyTime}
                       onChange={(e, date) => { if (date) setDailyTime(date); }}
-                      themeVariant="light"
+                      themeVariant="dark"
+                      textColor={colors.foreground}
+                      accentColor={colors.primary}
                       display="spinner"
                       style={{ height: 120 }}
                     />
@@ -407,7 +413,9 @@ export default function RemindersScreen({ navigation }) {
                     mode="datetime"
                     value={dailyTime}
                     onChange={(e, date) => { if (date) setDailyTime(date); }}
-                    themeVariant="light"
+                    themeVariant="dark"
+                    textColor={colors.foreground}
+                    accentColor={colors.primary}
                     display="spinner"
                     style={{ height: 120 }}
                     minimumDate={new Date()}
@@ -428,25 +436,36 @@ export default function RemindersScreen({ navigation }) {
               </View>
             ) : null}
 
-            {/* Premium Upsell Card */}
+            {/* Premium Upsell Card (match compact inline design) */}
             {!isPremium && (
-              <View style={styles.premiumCard}>
-                <View style={styles.premiumIconWrapper}>
-                  <CrownIcon color="#d97706" size={20} />
+              <GlassCard
+                tint="dark"
+                intensity={60}
+                style={styles.premiumCardOuter}
+                contentStyle={styles.premiumCardContent}
+              >
+                <View style={styles.premiumHeaderRow}>
+                  <Text style={styles.premiumSparkles}>✨</Text>
+                  <Text style={styles.premiumTitleGlass}>Upgrade for More</Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.premiumTitle}>Unlock advanced options</Text>
-                  <Text style={styles.premiumText}>
-                    Get custom schedules, location-based reminders, and unlimited reminders.
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.premiumButton}
-                    onPress={() => setShowPremium(true)}
+                <Text style={styles.premiumTextGlass}>
+                  Free plan allows up to {FREE_REMINDER_LIMIT} reminders. Upgrade to Premium for unlimited reminders and location-based alerts.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowPremium(true)}
+                  activeOpacity={0.9}
+                  style={{ alignSelf: 'flex-start', borderRadius: radius.xl, overflow: 'hidden' }}
+                >
+                  <LinearGradient
+                    colors={[ '#8900f5', '#0072ff' ]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.gradientButton}
                   >
-                    <Text style={styles.premiumButtonText}>Upgrade Now</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+                    <Text style={styles.gradientButtonText}>Upgrade to Premium</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </GlassCard>
             )}
           </View>
         </ScrollView>
@@ -485,7 +504,8 @@ export default function RemindersScreen({ navigation }) {
             </View>
           </View>
         )}
-      </View>
+        </SafeAreaView>
+      </GradientBackground>
     );
   }
 
@@ -564,16 +584,17 @@ export default function RemindersScreen({ navigation }) {
       {/* Premium Modal */}
       <Modal visible={showPremium} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Upgrade to Premium</Text>
+          <GlassCard tint="dark" intensity={60} style={styles.modalCard}>
+            <Text style={styles.modalTitle}>✨ Upgrade for More</Text>
             <Text style={styles.modalDescription}>
-              Free plan allows up to {FREE_REMINDER_LIMIT} reminders. Upgrade to add unlimited reminders and unlock advanced features.
+              Free plan allows up to {FREE_REMINDER_LIMIT} reminders. Upgrade to Premium for unlimited reminders and location-based alerts.
             </Text>
-            <UIButton
-              title="Got it"
-              onPress={() => setShowPremium(false)}
-            />
-          </View>
+            <TouchableOpacity onPress={() => setShowPremium(false)} activeOpacity={0.9} style={{ borderRadius: radius.xl, overflow: 'hidden' }}>
+              <LinearGradient colors={[ '#8900f5', '#0072ff' ]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.gradientButton, { alignSelf: 'stretch' }]}>
+                <Text style={styles.gradientButtonText}>Upgrade to Premium</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </GlassCard>
         </View>
       </Modal>
       </SafeAreaView>
@@ -831,6 +852,43 @@ const styles = StyleSheet.create({
     fontSize: typography.sm,
     fontWeight: typography.semibold,
     color: '#fff',
+  },
+  premiumCardOuter: {
+    borderRadius: radius.xl,
+  },
+  premiumCardContent: {
+    padding: spacing.lg,
+  },
+  premiumHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  premiumSparkles: {
+    fontSize: 16,
+  },
+  premiumTitleGlass: {
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
+    color: colors.foreground,
+  },
+  premiumTextGlass: {
+    fontSize: typography.sm,
+    color: colors.mutedForeground,
+    lineHeight: 20,
+    marginBottom: spacing.sm,
+  },
+  gradientButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.xl,
+  },
+  gradientButtonText: {
+    color: '#fff',
+    fontWeight: typography.semibold,
+    fontSize: typography.sm,
+    textAlign: 'center',
   },
   footer: {
     flexDirection: 'row',

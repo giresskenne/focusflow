@@ -6,6 +6,9 @@ import { getSelectedApps, setSelectedApps } from '../storage';
 import { CheckIcon, CameraIcon, MessageIcon, UserIcon, MusicIcon, PlayIcon, ShoppingIcon, LinkedinIcon, AlertCircleIcon, SearchIcon, AppsIcon } from '../components/Icons';
 import { colors, spacing, radius, typography, shadows } from '../theme';
 import { getInstalledApps } from '../native/installedApps';
+import GradientBackground from '../components/GradientBackground';
+import GlassCard from '../components/Ui/GlassCard';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Enhanced app list with bundle IDs for blocking and fallback icons
 const ENHANCED_MOCK_APPS = [
@@ -33,9 +36,10 @@ export default function FocusSessionScreen({ navigation, route }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [installedApps, setInstalledApps] = useState([]);
   const [isLoadingApps, setIsLoadingApps] = useState(true);
-  const [selectedDuration, setSelectedDuration] = useState(30);
+  const [selectedDuration, setSelectedDuration] = useState(route?.params?.presetDuration || 30);
   const [customDuration, setCustomDuration] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
+  const [blockAllApps, setBlockAllApps] = useState(false);
 
   // Load both installed apps and selected apps on mount
   useEffect(() => {
@@ -108,7 +112,7 @@ export default function FocusSessionScreen({ navigation, route }) {
   };
 
   const handleContinue = () => {
-    if (selectedApps.length === 0) return;
+    if (selectedApps.length === 0 && !blockAllApps) return;
     setShowConfirm(true);
   };
 
@@ -119,8 +123,8 @@ export default function FocusSessionScreen({ navigation, route }) {
 
   if (showConfirm) {
     return (
-      <View style={{ flex: 1, backgroundColor: navColors.background }}>
-        <ScrollView contentContainerStyle={styles.confirmContainer}>
+      <GradientBackground>
+        <SafeAreaView style={styles.container} edges={['top']}>
           <View style={[styles.warningBanner, shadows.sm]}>
             <AlertCircleIcon size={20} color={colors.warning} />
             <Text style={styles.warningText}>
@@ -128,20 +132,27 @@ export default function FocusSessionScreen({ navigation, route }) {
             </Text>
           </View>
 
-          <View style={[styles.confirmCard, shadows.sm]}>
+          <GlassCard tint="dark" intensity={50} cornerRadius={20} contentStyle={{ padding: spacing.xl }} style={{}}>
             <View style={{ marginBottom: spacing.lg }}>
               <Text style={styles.confirmLabel}>BLOCKED APPS</Text>
               <View style={styles.appChipsRow}>
-                {selectedApps.map((appId) => {
-                  const app = installedApps.find((a) => a.id === appId);
-                  const AppIcon = app?.Icon || AppsIcon;
-                  return (
-                    <View key={appId} style={styles.appChip}>
-                      <AppIcon size={16} color={colors.foreground} />
-                      <Text style={styles.appChipText}>{app?.name || 'Unknown App'}</Text>
-                    </View>
-                  );
-                })}
+                {blockAllApps ? (
+                  <View style={styles.appChip}>
+                    <AppsIcon size={16} color={colors.foreground} />
+                    <Text style={styles.appChipText}>All Applications</Text>
+                  </View>
+                ) : (
+                  selectedApps.map((appId) => {
+                    const app = installedApps.find((a) => a.id === appId);
+                    const AppIcon = app?.Icon || AppsIcon;
+                    return (
+                      <View key={appId} style={styles.appChip}>
+                        <AppIcon size={16} color={colors.foreground} />
+                        <Text style={styles.appChipText}>{app?.name || 'Unknown App'}</Text>
+                      </View>
+                    );
+                  })
+                )}
               </View>
             </View>
             <View style={styles.dividerLine} />
@@ -151,8 +162,8 @@ export default function FocusSessionScreen({ navigation, route }) {
                 {customDuration ? `${customDuration} minutes` : `${selectedDuration} minutes`}
               </Text>
             </View>
-          </View>
-        </ScrollView>
+          </GlassCard>
+        </SafeAreaView>
 
         <View style={styles.confirmFooter}>
           <UIButton
@@ -162,18 +173,19 @@ export default function FocusSessionScreen({ navigation, route }) {
             style={{ flex: 1, marginRight: spacing.sm }}
           />
           <UIButton
-            title="Start Focus Session"
+            title="Start"
             onPress={confirmStart}
             style={{ flex: 1, marginLeft: spacing.sm }}
           />
         </View>
-      </View>
+      </GradientBackground>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: navColors.background }}>
-      <ScrollView contentContainerStyle={styles.container}>
+    <GradientBackground>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <ScrollView contentContainerStyle={styles.container}>
         <View style={{ width: '100%', maxWidth: 520 }}>
           <Text style={styles.sectionHeader}>SELECT APPS TO BLOCK</Text>
           <TextInput
@@ -183,6 +195,27 @@ export default function FocusSessionScreen({ navigation, route }) {
             onChangeText={setSearchQuery}
             style={styles.searchInput}
           />
+          
+          {/* Block All Apps Option */}
+          <TouchableOpacity
+            style={[
+              styles.blockAllOption,
+              blockAllApps && styles.blockAllOptionSelected,
+              shadows.sm,
+            ]}
+            onPress={() => setBlockAllApps(!blockAllApps)}
+          >
+            <View style={styles.blockAllContent}>
+              <Text style={[styles.blockAllTitle, blockAllApps && styles.blockAllTitleSelected]}>
+                Block All Applications
+              </Text>
+              <Text style={styles.blockAllSubtitle}>
+                Emergency services and phone calls will still work
+              </Text>
+            </View>
+            {blockAllApps && <CheckIcon size={20} color="#fff" />}
+          </TouchableOpacity>
+          
           <View style={styles.appGrid}>
             {isLoadingApps ? (
               <View style={styles.loadingContainer}>
@@ -219,46 +252,61 @@ export default function FocusSessionScreen({ navigation, route }) {
             )}
           </View>
 
-          <Text style={[styles.sectionHeader, { marginTop: spacing['2xl'] }]}>SESSION DURATION</Text>
-          <View style={styles.durationRow}>
-            {DURATIONS.map((item) => (
-              <TouchableOpacity
-                key={item.value}
-                style={[
-                  styles.durationBtn,
-                  selectedDuration === item.value && !customDuration && styles.durationBtnSelected,
-                ]}
-                onPress={() => { setSelectedDuration(item.value); setCustomDuration(''); }}
-              >
-                <Text style={[
-                  styles.durationBtnText,
-                  selectedDuration === item.value && !customDuration && styles.durationBtnTextSelected,
-                ]}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {/* Only show duration selection if no preset duration was passed */}
+          {!route?.params?.presetDuration && (
+            <>
+              <Text style={[styles.sectionHeader, { marginTop: spacing['2xl'] }]}>SESSION DURATION</Text>
+              <View style={styles.durationRow}>
+                {DURATIONS.map((item) => (
+                  <TouchableOpacity
+                    key={item.value}
+                    style={[
+                      styles.durationBtn,
+                      selectedDuration === item.value && !customDuration && styles.durationBtnSelected,
+                    ]}
+                    onPress={() => { setSelectedDuration(item.value); setCustomDuration(''); }}
+                  >
+                    <Text style={[
+                      styles.durationBtnText,
+                      selectedDuration === item.value && !customDuration && styles.durationBtnTextSelected,
+                    ]}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-          <TextInput
-            placeholder="Custom (minutes)"
-            placeholderTextColor={colors.mutedForeground}
-            value={customDuration}
-            onChangeText={setCustomDuration}
-            keyboardType="number-pad"
-            style={styles.customInput}
-          />
+              <TextInput
+                placeholder="Custom (minutes)"
+                placeholderTextColor={colors.mutedForeground}
+                value={customDuration}
+                onChangeText={setCustomDuration}
+                keyboardType="number-pad"
+                style={styles.customInput}
+              />
+            </>
+          )}
         </View>
-      </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
 
       <View style={styles.footer}>
-        <UIButton
-          title="Continue"
-          onPress={handleContinue}
-          disabled={selectedApps.length === 0}
-        />
+        <View style={styles.footerButtons}>
+          <UIButton
+            title="Cancel"
+            variant="outline"
+            onPress={() => navigation.goBack()}
+            style={styles.cancelButton}
+          />
+          <UIButton
+            title="Continue"
+            onPress={handleContinue}
+            disabled={selectedApps.length === 0 && !blockAllApps}
+            style={styles.continueButton}
+          />
+        </View>
       </View>
-    </View>
+    </GradientBackground>
   );
 }
 
@@ -277,14 +325,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.card,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.xl,
     minWidth: '48%',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backdrop: 'blur(20px)',
   },
   appPillSelected: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#0072ff',
+    borderColor: '#0072ff',
+    shadowColor: '#0072ff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   appPillText: {
     fontSize: typography.base,
@@ -347,24 +404,18 @@ const styles = StyleSheet.create({
   warningBanner: {
     flexDirection: 'row',
     gap: spacing.md,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: 'rgba(255,223,128,0.12)',
     padding: spacing.lg,
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: 'rgba(255,223,128,0.3)',
   },
   warningText: {
     flex: 1,
     fontSize: typography.sm,
-    color: '#78350F',
+    color: colors.foreground,
+    opacity: 0.9,
     lineHeight: 20,
-  },
-  confirmCard: {
-    backgroundColor: colors.card,
-    padding: spacing.xl,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   confirmLabel: {
     fontSize: typography.xs,
@@ -417,5 +468,47 @@ const styles = StyleSheet.create({
     fontSize: typography.sm,
     color: colors.mutedForeground,
     textAlign: 'center',
+  },
+  blockAllOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.xl,
+    marginBottom: spacing.lg,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  blockAllOptionSelected: {
+    backgroundColor: colors.primary,
+    borderColor: '#0072ff',
+  },
+  blockAllContent: {
+    flex: 1,
+  },
+  blockAllTitle: {
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
+    color: colors.foreground,
+    marginBottom: 4,
+  },
+  blockAllTitleSelected: {
+    color: '#fff',
+  },
+  blockAllSubtitle: {
+    fontSize: typography.sm,
+    color: colors.mutedForeground,
+  },
+  footerButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  cancelButton: {
+    flex: 1,
+  },
+  continueButton: {
+    flex: 1,
   },
 });

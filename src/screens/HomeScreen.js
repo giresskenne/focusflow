@@ -12,6 +12,22 @@ import { colors, spacing, radius, typography, shadows } from '../theme';
 import { SkeletonListItem } from '../components/SkeletonLoader';
 import { withErrorHandling } from '../utils/errorHandling';
 
+// Helper functions for reminder styling
+function getReminderColor(item, index) {
+  // Cycle through colors based on reminder type or index
+  const colors = ['#3b82f6', '#f59e0b', '#a855f7', '#ec4899', '#06b6d4'];
+  return colors[index % colors.length];
+}
+
+function getReminderIcon(item, index) {
+  const iconMap = {
+    0: '💧', // Water drop
+    1: '☕', // Coffee
+    2: '📖', // Book
+  };
+  return <Text style={{ fontSize: 20 }}>{iconMap[index] || '🔔'}</Text>;
+}
+
 // Normalize reminder records to a consistent shape, supporting legacy data
 function normalizeReminder(r) {
   const type = (r.type || (r.recurrence ? String(r.recurrence).toLowerCase() : '')).toLowerCase();
@@ -276,92 +292,85 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        <View style={[styles.mainButton, { 
-          backgroundColor: colors.primary,
-          shadowColor: colors.primary,
-          shadowOpacity: 0.3,
-          shadowRadius: 20,
-          shadowOffset: { width: 0, height: 8 },
-          elevation: 8,
-        }]}>
+        {/* Hero Card - Ready to Focus */}
+        <GlassCard tint="dark" intensity={50} style={styles.heroCard} contentStyle={styles.heroContent}>
+          <View style={styles.heroTextSection}>
+            <Text style={styles.heroTitle}>Ready to Focus?</Text>
+            <Text style={styles.heroSubtitle}>Start a session to boost your productivity</Text>
+          </View>
+          
           <TouchableOpacity 
-            style={styles.btnInner} 
+            style={styles.playButtonWrapper}
             onPress={() => navigation.navigate('FocusSession')}
             accessibilityLabel="Start Focus Session"
-            accessibilityHint="Navigate to focus session setup"
             accessibilityRole="button"
           >
-            <ClockIcon size={20} color="#fff" />
-            <Text style={styles.mainBtnText}>Start Focus Session</Text>
-          </TouchableOpacity>
-        </View>
-
-        <GlassCard tint="dark" intensity={70} style={styles.mainButton}>
-          <TouchableOpacity
-            style={styles.btnInner}
-            onPress={() => navigation.navigate('Reminders')}
-            accessibilityLabel="Manage Reminders"
-            accessibilityHint="Navigate to reminders setup"
-            accessibilityRole="button"
-          >
-            <BellIcon size={20} color={colors.foreground} />
-            <Text style={[styles.mainBtnText, { color: colors.foreground }]}>Manage Reminders</Text>
+            <View style={styles.playButtonOuter}>
+              <View style={styles.playButton}>
+                <View style={styles.playIcon} />
+              </View>
+            </View>
           </TouchableOpacity>
         </GlassCard>
 
-        {(reminders.length > 0 || isLoadingReminders) && (
-          <View style={{ marginTop: spacing['2xl'] }}>
-            <Text style={styles.sectionHeader}>UPCOMING</Text>
-            <GlassCard tint="dark" intensity={60} style={[styles.card, { maxHeight: 240 }]} contentStyle={{ padding: spacing.lg }}>
-              <ScrollView style={{ maxHeight: 240 }} showsVerticalScrollIndicator={false}>
-                {isLoadingReminders ? (
-                  // Show skeleton loaders while loading
-                  <>
-                    <SkeletonListItem />
-                    <SkeletonListItem />
-                    <SkeletonListItem />
-                  </>
-                ) : (
-                  reminders.map((item, idx) => (
-                    <View key={item.id}>
-                      <View style={styles.reminderRow}>
-                        <Text style={styles.reminderTitle}>{item.text || item.title || 'Reminder'}</Text>
-                        <Text style={styles.reminderTime}>{formatUpcomingTime(item)}</Text>
-                      </View>
-                      {idx < reminders.length - 1 && <View style={styles.divider} />}
-                    </View>
-                  ))
-                )}
-              </ScrollView>
-            </GlassCard>
+        {/* Quick Start Section */}
+        <View style={styles.quickStartSection}>
+          <Text style={styles.sectionTitle}>Quick Start</Text>
+          <View style={styles.quickStartGrid}>
+            {[15, 25, 30, 45].map((minutes) => (
+              <TouchableOpacity 
+                key={minutes}
+                style={styles.quickStartButton}
+                onPress={() => navigation.navigate('FocusSession', { presetDuration: minutes })}
+              >
+                <Text style={styles.quickStartText}>{minutes} min</Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        )}
+        </View>
 
-        <View style={styles.tilesRow}>
-          <GlassCard tint="dark" intensity={60} style={styles.tile} contentStyle={styles.tileContent}>
-            <TouchableOpacity
-              style={styles.tilePressable}
-              onPress={() => { isPremium ? navigation.navigate('Analytics') : setShowPremium(true); }}
-              accessibilityLabel="Analytics"
-              accessibilityHint={isPremium ? "View your focus analytics" : "Upgrade to premium for analytics"}
-              accessibilityRole="button"
-            >
-              <BarChartIcon size={24} color={colors.primary} />
-              <Text style={styles.tileLabel}>Analytics</Text>
-            </TouchableOpacity>
-          </GlassCard>
-          <GlassCard tint="dark" intensity={60} style={styles.tile} contentStyle={styles.tileContent}>
-            <TouchableOpacity
-              style={styles.tilePressable}
-              onPress={() => navigation.navigate('Settings')}
-              accessibilityLabel="Settings"
-              accessibilityHint="Navigate to app settings"
-              accessibilityRole="button"
-            >
-              <SettingsIcon size={24} color={colors.foreground} />
-              <Text style={styles.tileLabel}>Settings</Text>
-            </TouchableOpacity>
-          </GlassCard>
+        {/* Upcoming Reminders Section */}
+        <View style={styles.remindersSection}>
+          <Text style={styles.sectionTitle}>Upcoming Reminders</Text>
+          <View style={styles.remindersList}>
+            {isLoadingReminders ? (
+              <>
+                <SkeletonListItem />
+                <SkeletonListItem />
+                <SkeletonListItem />
+              </>
+            ) : reminders.length > 0 ? (
+              reminders.slice(0, 3).map((item, idx) => (
+                <GlassCard 
+                  key={item.id} 
+                  tint="dark" 
+                  intensity={40} 
+                  style={[styles.reminderCard, idx < reminders.length - 1 && idx < 2 && { marginBottom: spacing.md }]}
+                  contentStyle={styles.reminderCardContent}
+                >
+                  <View style={styles.reminderIconWrapper}>
+                    <View style={[styles.reminderIcon, { backgroundColor: getReminderColor(item, idx) }]}>
+                      {getReminderIcon(item, idx)}
+                    </View>
+                  </View>
+                  <View style={styles.reminderInfo}>
+                    <Text style={styles.reminderTitle}>{item.text || item.title || 'Reminder'}</Text>
+                    <Text style={styles.reminderTime}>{formatUpcomingTime(item)}</Text>
+                  </View>
+                </GlassCard>
+              ))
+            ) : (
+              <GlassCard tint="dark" intensity={40} style={styles.reminderCard} contentStyle={styles.reminderCardContent}>
+                <Text style={styles.noRemindersText}>No upcoming reminders</Text>
+              </GlassCard>
+            )}
+          </View>
+        </View>
+
+        {/* Motivational Quote */}
+        <View style={styles.quoteSection}>
+          <Text style={styles.quoteText}>"The secret of getting ahead is getting started."</Text>
+          <Text style={styles.quoteAuthor}>— Mark Twain</Text>
         </View>
       </View>
       <PremiumModal
@@ -389,14 +398,15 @@ const styles = StyleSheet.create({
   },
   title: { 
     fontSize: typography['3xl'], 
-    fontWeight: typography.bold, 
-    letterSpacing: -0.5, 
+    fontWeight: typography.extrabold, 
+    letterSpacing: -1, 
     color: colors.foreground 
   },
   subtitle: { 
-    fontSize: typography.sm, 
-    marginTop: 2, 
-    color: colors.mutedForeground 
+    fontSize: typography.base, 
+    marginTop: 4, 
+    color: colors.mutedForeground,
+    fontWeight: typography.normal,
   },
   activeBadge: { 
     backgroundColor: colors.activeGreenBg, 
@@ -424,37 +434,128 @@ const styles = StyleSheet.create({
     fontSize: typography.xs, 
     fontWeight: typography.semibold 
   },
-  mainButton: { 
-    width: '100%', 
-    height: 56, 
-    borderRadius: radius.lg, 
-    marginBottom: spacing.md 
+  // Hero Card Styles
+  heroCard: {
+    width: '100%',
+    marginBottom: spacing.xl,
+    borderRadius: radius['2xl'],
   },
-  btnInner: { 
-    flex: 1, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: spacing.sm 
+  heroContent: {
+    padding: spacing.xl,
+    alignItems: 'center',
   },
-  mainBtnText: { 
-    fontSize: typography.base, 
-    fontWeight: typography.semibold, 
-    color: '#FFFFFF' 
+  heroTextSection: {
+    width: '100%',
+    marginBottom: spacing.lg,
   },
-  sectionHeader: { 
-    fontSize: typography.xs, 
-    fontWeight: typography.semibold, 
-    color: colors.mutedForeground, 
-    textTransform: 'uppercase', 
-    letterSpacing: 0.5, 
-    marginBottom: spacing.sm 
+  heroTitle: {
+    fontSize: typography.lg,
+    fontWeight: typography.bold,
+    color: colors.foreground,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
   },
-  card: { 
-    borderRadius: radius.xl
+  heroSubtitle: {
+    fontSize: typography.sm,
+    color: colors.mutedForeground,
+    textAlign: 'center',
   },
-  reminderRow: { 
-    paddingVertical: 10 
+  playButtonWrapper: {
+    marginVertical: spacing.lg,
+  },
+  playButtonOuter: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    borderColor: '#a855f7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(168, 85, 247, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playIcon: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 20,
+    borderRightWidth: 0,
+    borderTopWidth: 12,
+    borderBottomWidth: 12,
+    borderLeftColor: '#a855f7',
+    borderRightColor: 'transparent',
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    marginLeft: 4,
+  },
+  // Quick Start Section
+  quickStartSection: {
+    width: '100%',
+    marginBottom: spacing.xl,
+  },
+  sectionTitle: {
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
+    color: colors.foreground,
+    marginBottom: spacing.md,
+  },
+  quickStartGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  quickStartButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickStartText: {
+    fontSize: typography.sm,
+    fontWeight: typography.medium,
+    color: colors.foreground,
+  },
+  // Reminders Section
+  remindersSection: {
+    width: '100%',
+    marginBottom: spacing.xl,
+  },
+  remindersList: {
+    width: '100%',
+  },
+  reminderCard: {
+    width: '100%',
+    borderRadius: radius.xl,
+  },
+  reminderCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  reminderIconWrapper: {
+    width: 48,
+    height: 48,
+  },
+  reminderIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reminderInfo: {
+    flex: 1,
   },
   reminderTitle: { 
     fontSize: typography.base, 
@@ -466,34 +567,30 @@ const styles = StyleSheet.create({
     fontSize: typography.sm, 
     color: colors.mutedForeground 
   },
-  divider: { 
-    height: 1, 
-    backgroundColor: colors.glassBorder, 
-    marginVertical: 4 
+  noRemindersText: {
+    fontSize: typography.base,
+    color: colors.mutedForeground,
+    textAlign: 'center',
   },
-  tilesRow: { 
-    flexDirection: 'row', 
-    gap: spacing.md, 
-    marginTop: spacing.xl 
+  // Quote Section
+  quoteSection: {
+    width: '100%',
+    marginTop: spacing.lg,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
   },
-  tile: { 
-    flex: 1, 
-    height: 100, 
-    borderRadius: radius.xl
+  quoteText: {
+    fontSize: typography.sm,
+    fontWeight: typography.medium,
+    color: colors.foreground,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: spacing.xs,
+    paddingHorizontal: spacing.md,
   },
-  tileLabel: { 
-    fontSize: typography.sm, 
-    fontWeight: typography.semibold, 
-    marginTop: 6, 
-    color: colors.foreground 
-  },
-  tileContent: { 
-    flex: 1, 
-    padding: 0 
-  },
-  tilePressable: { 
-    flex: 1, 
-    alignItems: 'center', 
-    justifyContent: 'center' 
+  quoteAuthor: {
+    fontSize: typography.xs,
+    color: colors.mutedForeground,
+    textAlign: 'center',
   },
 });

@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,33 +30,45 @@ export default function TabNavigator() {
             iconName = focused ? 'settings' : 'settings-outline';
           }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name={iconName} size={size} color={color} />
+              {focused && (
+                <View
+                  style={{
+                    width: 4,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: '#a855f7',
+                    marginTop: 6,
+                  }}
+                />
+              )}
+            </View>
+          );
         },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: '#9ca3af', // Inactive gray
+        tabBarActiveTintColor: '#a855f7', // Bright purple from screenshots
+        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.4)', // Dimmed white
         tabBarStyle: {
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          backgroundColor: 'rgba(10, 5, 20, 0.95)',
           borderTopColor: 'rgba(255, 255, 255, 0.1)',
           position: 'absolute',
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 88, // Increased height for better visual presence
+          paddingBottom: 24,
+          paddingTop: 12,
+          height: 90, // Increased height for better visual presence
         },
+        tabBarShowLabel: false,
         tabBarBackground: () => (
           <BlurView 
             tint="dark" 
-            intensity={40} 
+            intensity={80} 
             style={{ 
               flex: 1,
-              backgroundColor: 'rgba(0, 0, 0, 0.4)' 
+              backgroundColor: 'rgba(10, 5, 20, 0.7)' 
             }} 
           />
         ),
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-          marginTop: 4,
-        },
+        // labels hidden to match reference design (icon + active dot)
         headerStyle: {
           backgroundColor: colors.background,
         },
@@ -80,6 +93,7 @@ export default function TabNavigator() {
         component={AnalyticsScreen}
         options={{
           title: 'Analytics',
+          headerShown: false,
         }}
       />
       <Tab.Screen
@@ -87,6 +101,7 @@ export default function TabNavigator() {
         component={RemindersScreen}
         options={{
           title: 'Smart Reminders',
+          headerShown: false,
         }}
       />
       <Tab.Screen
@@ -94,6 +109,7 @@ export default function TabNavigator() {
         component={SettingsScreen}
         options={{
           title: 'Settings',
+          headerShown: false,
         }}
       />
     </Tab.Navigator>

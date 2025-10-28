@@ -1,16 +1,18 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, ImageBackground } from 'react-native';
 
 export default function GradientBackground({ children }) {
   return (
     <View style={styles.container}>
-      {/* Main dark background with layered colored overlays */}
-      <View style={[StyleSheet.absoluteFillObject, styles.mainBackground]} />
-      
-      {/* Purple-Blue gradient effect using multiple layers */}
-      <View style={[StyleSheet.absoluteFillObject, styles.purpleOverlay]} />
-      <View style={[StyleSheet.absoluteFillObject, styles.blueOverlay]} />
-      <View style={[StyleSheet.absoluteFillObject, styles.radialOverlay]} />
+      {/* Background image */}
+      <ImageBackground
+        source={require('../../assets/background-1.jpg')}
+        style={StyleSheet.absoluteFillObject}
+        resizeMode="cover"
+      >
+        {/* Purple overlay for color tint */}
+        <View style={[StyleSheet.absoluteFillObject, styles.overlay]} />
+      </ImageBackground>
       
       {children}
     </View>
@@ -22,19 +24,7 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
-  mainBackground: {
-    backgroundColor: '#0a0514', // Base dark background
-  },
-  purpleOverlay: {
-    backgroundColor: 'rgba(137, 0, 245, 0.2)', // Purple overlay
-    opacity: 0.8,
-  },
-  blueOverlay: {
-    backgroundColor: 'rgba(0, 114, 255, 0.15)', // Blue overlay  
-    opacity: 0.6,
-  },
-  radialOverlay: {
-    backgroundColor: 'rgba(137, 0, 245, 0.1)', // Subtle radial effect
-    opacity: 0.4,
+  overlay: {
+    backgroundColor: 'rgba(30, 10, 50, 0.85)', // Darker purple overlay
   },
 });
