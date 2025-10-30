@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "scheme": "com.anonymous.focusflow-app",
+    "scheme": "com.giress.focusflow-app",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -15,7 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.focusflow-app",
+      "bundleIdentifier": "com.giress.focusflow-app",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSFamilyControlsUsageDescription": "FocusFlow needs access to Screen Time to block distracting apps during your focus sessions."
+      },
       "splash": {
         "image": "./assets/splash-icon.png",
         "resizeMode": "contain",
@@ -28,14 +35,24 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.focusflowapp"
+      "package": "com.giress.focusflowapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-notifications",
-      ["./plugins/app-blocker-plugin", { "appGroup": "group.com.anonymous.focusflow" }]
-    ]
+      [
+        "./plugins/app-blocker-plugin",
+        {
+          "appGroup": "group.com.giress.focusflow"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d1d7cdb8-e7ff-4cc1-9d84-75772efaa57a"
+      }
+    }
   }
 }

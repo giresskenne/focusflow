@@ -20,6 +20,10 @@ const ENHANCED_MOCK_APPS = [
   { id: 'com.reddit.Reddit', name: 'Reddit', bundleId: 'com.reddit.Reddit', Icon: MessageIcon },
   { id: 'com.toyopagroup.picaboo', name: 'Snapchat', bundleId: 'com.toyopagroup.picaboo', Icon: CameraIcon },
   { id: 'com.linkedin.LinkedIn', name: 'LinkedIn', bundleId: 'com.linkedin.LinkedIn', Icon: LinkedinIcon },
+  // Added common test targets so searches like "Zoom" work during iOS dev
+  { id: 'us.zoom.videomeetings', name: 'Zoom', bundleId: 'us.zoom.videomeetings', Icon: AppsIcon },
+  { id: 'com.google.ios.youtube', name: 'YouTube', bundleId: 'com.google.ios.youtube', Icon: AppsIcon },
+  { id: 'com.netflix.Netflix', name: 'Netflix', bundleId: 'com.netflix.Netflix', Icon: AppsIcon },
 ];
 
 const DURATIONS = [

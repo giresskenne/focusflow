@@ -68,14 +68,23 @@ export default function RemindersScreen({ navigation }) {
   };
 
   const requestPermission = async () => {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') {
+    // Always try to request first; iOS won't reprompt after hard denial but will
+    // return the current status. We'll deep-link to Settings in that case.
+    let current = await Notifications.getPermissionsAsync();
+    if (current.status !== 'granted') {
       const res = await Notifications.requestPermissionsAsync();
-      if (res.status !== 'granted') {
-        Alert.alert('Permission needed', 'Enable notifications to use reminders.');
-        throw new Error('permission-denied');
-      }
-      return true;
+      current = res;
+    }
+    if (current.status !== 'granted') {
+      Alert.alert(
+        'Notifications Disabled',
+        'Please enable notifications in iOS Settings to use reminders.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings?.() },
+        ],
+      );
+      throw new Error('permission-denied');
     }
     return true;
   };
@@ -99,15 +108,7 @@ export default function RemindersScreen({ navigation }) {
     const cleanTitle = title.trim();
     if (!cleanTitle) return;
     try {
-      // Check notification permissions first
-      const { status } = await Notifications.getPermissionsAsync();
-  // Permission status available if needed: status
-      
-      if (status !== 'granted') {
-        console.warn('Notification permissions not granted');
-        alert('Please grant notification permissions in Settings');
-        return;
-      }
+      // Ensure notification permissions before scheduling
       await requestPermission();
       let identifier = null;
       let record = null;

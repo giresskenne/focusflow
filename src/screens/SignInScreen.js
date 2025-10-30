@@ -38,7 +38,7 @@ export default function SignInScreen({ navigation }) {
       if (user) {
         await setAuthUser({ id: user.id, email: user.email });
         Alert.alert('Welcome Back', 'You are now signed in.');
-        navigation.navigate('Home');
+        navigation.navigate('MainTabs');
       } else {
         Alert.alert('Sign In Failed', 'Unable to sign in with these credentials.');
       }

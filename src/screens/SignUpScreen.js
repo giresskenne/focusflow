@@ -56,7 +56,7 @@ export default function SignUpScreen({ navigation }) {
       if (user) {
         await setAuthUser({ id: user.id, email: user.email });
         Alert.alert('Account Created', 'You are now signed in.');
-        navigation.navigate('Home');
+        navigation.navigate('MainTabs');
       } else {
         Alert.alert('Sign Up', 'Please check your email to continue.');
       }

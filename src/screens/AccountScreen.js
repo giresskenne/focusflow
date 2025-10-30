@@ -63,7 +63,7 @@ export default function AccountScreen({ navigation }) {
       await supabase.auth.signOut();
       await clearAuthUser();
       Alert.alert('Signed Out', 'You have been signed out.');
-      navigation.navigate('Home');
+      navigation.navigate('MainTabs');
     } catch (e) {
       console.warn('[Account] Sign out error:', e);
     }
