@@ -51,13 +51,26 @@ export default function App() {
     // Initialize global error handling
     setupGlobalErrorHandling();
 
+    // Global notifications behavior: prevent premature foreground alerts for
+    // our "focus-end" notifications by checking an intended fire timestamp.
     Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: false,
-        shouldSetBadge: false,
-      }),
+      handleNotification: async (notification) => {
+        const data = notification?.request?.content?.data || {};
+        const intendedAt = typeof data?.intendedAt === 'number' ? data.intendedAt : null;
+        const now = Date.now();
+        const isFocusEnd = data?.type === 'focus-end';
+        const premature = isFocusEnd && intendedAt && now < (intendedAt - 1000);
+        const allow = !premature;
+        return {
+          // Android
+          shouldShowAlert: allow,
+          shouldPlaySound: false,
+          shouldSetBadge: false,
+          // iOS 17+ granular controls (Expo SDK new behavior)
+          shouldShowBanner: allow,
+          shouldShowList: allow,
+        };
+      },
     });
 
     // Initialize auth session
