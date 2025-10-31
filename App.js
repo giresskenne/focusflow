@@ -59,7 +59,8 @@ export default function App() {
         const intendedAt = typeof data?.intendedAt === 'number' ? data.intendedAt : null;
         const now = Date.now();
         const isFocusEnd = data?.type === 'focus-end';
-        const premature = isFocusEnd && intendedAt && now < (intendedAt - 1000);
+        // Allow if: not focus-end, no intendedAt, or within 5 seconds of intended time (tolerance for scheduling precision)
+        const premature = isFocusEnd && intendedAt && now < (intendedAt - 5000);
         const allow = !premature;
         return {
           // Android
@@ -168,6 +169,20 @@ export default function App() {
       } catch {}
     });
     return () => { try { remove?.(); } catch {} };
+  }, []);
+
+  // Handle notification actions (like "End Session Early")
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const { actionIdentifier } = response;
+      if (actionIdentifier === 'end-early') {
+        // User tapped "End Session Early" - navigate to home and let ActiveSession cleanup
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('Main', { screen: 'Home' });
+        }
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   // Background pull on app focus (signed-in only), with a minimal cooldown
