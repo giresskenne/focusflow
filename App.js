@@ -1,5 +1,5 @@
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import TabNavigator from './src/components/TabNavigator';
@@ -18,7 +18,7 @@ import AnimatedSplashParticles from './src/components/AnimatedSplashParticles';
 import { AppState } from 'react-native';
 import theme from './src/theme';
 import { initializeAuth, setupAuthListener } from './src/lib/auth';
-import { getReminders, getAuthUser, getLastSyncAt, getDirtySince, clearDirty, getSignInNudgeId, setSignInNudgeId, clearSignInNudgeId, getSignInNudgeOptOut, hasLocalData, getMigrationFlag, setMigrationFlag } from './src/storage';
+import { getReminders, getAuthUser, getLastSyncAt, getDirtySince, clearDirty, getSignInNudgeId, setSignInNudgeId, clearSignInNudgeId, getSignInNudgeOptOut, hasLocalData, getMigrationFlag, setMigrationFlag, getSession } from './src/storage';
 import { mergeCloudToLocal, performMigrationUpload, hasCloudData, pullCloudToLocal } from './src/lib/sync';
 import MigrationPrompt from './src/components/MigrationPrompt';
 import DataSyncPrompt from './src/components/DataSyncPrompt';
@@ -30,6 +30,7 @@ import { setupGlobalErrorHandling } from './src/utils/errorHandling';
 import PolicyScreen from './src/screens/PolicyScreen';
 
 const Stack = createNativeStackNavigator();
+export const navigationRef = createNavigationContainerRef();
 
 export default function App() {
   const [authUser, setAuthUser] = useState(null);
@@ -161,6 +162,18 @@ export default function App() {
     const sub = AppState.addEventListener('change', async (state) => {
       if (state !== 'active') return;
       try {
+        // Restore an active focus session if it exists and we're not already on ActiveSession
+        try {
+          const s = await getSession();
+          if (s?.active && s?.endAt && s.endAt > Date.now() && navigationRef.isReady()) {
+            const currentRoute = navigationRef.getCurrentRoute();
+            if (currentRoute?.name !== 'ActiveSession') {
+              const remaining = Math.max(1, Math.floor((s.endAt - Date.now()) / 1000));
+              navigationRef.navigate('ActiveSession', { durationSeconds: remaining });
+            }
+          }
+        } catch {}
+
         const user = await getAuthUser();
 
         // 1) Signed-in: push local changes to cloud if dirty
@@ -227,7 +240,23 @@ export default function App() {
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <NavigationContainer theme={theme}>
+        <NavigationContainer theme={theme} ref={navigationRef}
+          onReady={async () => {
+            // On app start, restore any active session only once
+            try {
+              const s = await getSession();
+              if (s?.active && s?.endAt && s.endAt > Date.now()) {
+                const remaining = Math.max(1, Math.floor((s.endAt - Date.now()) / 1000));
+                // Small delay to ensure navigation is ready
+                setTimeout(() => {
+                  if (navigationRef.isReady()) {
+                    navigationRef.navigate('ActiveSession', { durationSeconds: remaining });
+                  }
+                }, 100);
+              }
+            } catch {}
+          }}
+        >
           <ExpoStatusBar style="light" backgroundColor="transparent" translucent />
           <Stack.Navigator
             screenOptions={{

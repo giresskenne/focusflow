@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, Modal } from 'react-native';
 import { useTheme } from '@react-navigation/native';
 import UIButton from '../components/Ui/Button';
 import { getSelectedApps, setSelectedApps } from '../storage';
@@ -9,6 +9,19 @@ import { getInstalledApps } from '../native/installedApps';
 import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+// Import react-native-device-activity for DeviceActivitySelectionView
+let DeviceActivity = null;
+let DeviceActivitySelectionView = null;
+if (Platform.OS === 'ios') {
+  try {
+    const lib = require('react-native-device-activity');
+    DeviceActivity = lib;
+    DeviceActivitySelectionView = lib.DeviceActivitySelectionView;
+  } catch (error) {
+    console.log('[FocusSession] react-native-device-activity not available:', error.message);
+  }
+}
 
 // Enhanced app list with bundle IDs for blocking and fallback icons
 const ENHANCED_MOCK_APPS = [
@@ -44,6 +57,12 @@ export default function FocusSessionScreen({ navigation, route }) {
   const [customDuration, setCustomDuration] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [blockAllApps, setBlockAllApps] = useState(false);
+  const [showNativePicker, setShowNativePicker] = useState(false);
+  const [familyActivitySelection, setFamilyActivitySelection] = useState(null);
+  const FAMILY_SELECTION_ID = 'focusflow_selection';
+  
+  // Check if native picker is available
+  const nativePickerAvailable = DeviceActivitySelectionView !== null;
 
   // Load both installed apps and selected apps on mount
   useEffect(() => {
@@ -136,7 +155,9 @@ export default function FocusSessionScreen({ navigation, route }) {
             </Text>
           </View>
 
-          <GlassCard tint="dark" intensity={50} cornerRadius={20} contentStyle={{ padding: spacing.xl }} style={{}}>
+          {/* Widen the confirmation card on phones */}
+          <View style={{ width: '100%', maxWidth: 520 }}>
+          <GlassCard tint="dark" intensity={50} cornerRadius={20} contentStyle={{ padding: spacing.xl }} style={{ width: '100%' }}>
             <View style={{ marginBottom: spacing.lg }}>
               <Text style={styles.confirmLabel}>BLOCKED APPS</Text>
               <View style={styles.appChipsRow}>
@@ -145,6 +166,33 @@ export default function FocusSessionScreen({ navigation, route }) {
                     <AppsIcon size={16} color={colors.foreground} />
                     <Text style={styles.appChipText}>All Applications</Text>
                   </View>
+                ) : familyActivitySelection && (familyActivitySelection.applicationCount > 0 || familyActivitySelection.categoryCount > 0 || familyActivitySelection.webDomainCount > 0) ? (
+                  <>
+                    {familyActivitySelection.applicationCount > 0 && (
+                      <View style={styles.appChip}>
+                        <AppsIcon size={16} color={colors.foreground} />
+                        <Text style={styles.appChipText}>
+                          {familyActivitySelection.applicationCount} {familyActivitySelection.applicationCount === 1 ? 'App' : 'Apps'}
+                        </Text>
+                      </View>
+                    )}
+                    {familyActivitySelection.categoryCount > 0 && (
+                      <View style={styles.appChip}>
+                        <AppsIcon size={16} color={colors.foreground} />
+                        <Text style={styles.appChipText}>
+                          {familyActivitySelection.categoryCount} {familyActivitySelection.categoryCount === 1 ? 'Category' : 'Categories'}
+                        </Text>
+                      </View>
+                    )}
+                    {familyActivitySelection.webDomainCount > 0 && (
+                      <View style={styles.appChip}>
+                        <AppsIcon size={16} color={colors.foreground} />
+                        <Text style={styles.appChipText}>
+                          {familyActivitySelection.webDomainCount} {familyActivitySelection.webDomainCount === 1 ? 'Website' : 'Websites'}
+                        </Text>
+                      </View>
+                    )}
+                  </>
                 ) : (
                   selectedApps.map((appId) => {
                     const app = installedApps.find((a) => a.id === appId);
@@ -152,7 +200,7 @@ export default function FocusSessionScreen({ navigation, route }) {
                     return (
                       <View key={appId} style={styles.appChip}>
                         <AppIcon size={16} color={colors.foreground} />
-                        <Text style={styles.appChipText}>{app?.name || 'Unknown App'}</Text>
+                        <Text style={styles.appChipText}>{app?.name || 'App'}</Text>
                       </View>
                     );
                   })
@@ -167,6 +215,7 @@ export default function FocusSessionScreen({ navigation, route }) {
               </Text>
             </View>
           </GlassCard>
+          </View>
         </SafeAreaView>
 
         <View style={styles.confirmFooter}>
@@ -192,13 +241,39 @@ export default function FocusSessionScreen({ navigation, route }) {
         <ScrollView contentContainerStyle={styles.container}>
         <View style={{ width: '100%', maxWidth: 520 }}>
           <Text style={styles.sectionHeader}>SELECT APPS TO BLOCK</Text>
-          <TextInput
-            placeholder="Search apps"
-            placeholderTextColor={colors.mutedForeground}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={styles.searchInput}
-          />
+          
+          {/* Show native picker button if available */}
+          {nativePickerAvailable && (
+            <TouchableOpacity
+              style={[styles.nativePickerButton, shadows.sm]}
+              onPress={() => setShowNativePicker(true)}
+            >
+              <AppsIcon size={20} color={colors.primary} />
+              <Text style={styles.nativePickerButtonText}>
+                Choose Apps from Device
+              </Text>
+              {familyActivitySelection && (
+                <View style={styles.selectionBadge}>
+                  <Text style={styles.selectionBadgeText}>
+                    {(familyActivitySelection.applicationCount || 0) + 
+                     (familyActivitySelection.categoryCount || 0) + 
+                     (familyActivitySelection.webDomainCount || 0)} selected
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+          
+          {/* Fallback search for non-native builds */}
+          {!nativePickerAvailable && (
+            <TextInput
+              placeholder="Search apps"
+              placeholderTextColor={colors.mutedForeground}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={styles.searchInput}
+            />
+          )}
           
           {/* Block All Apps Option */}
           <TouchableOpacity
@@ -310,6 +385,80 @@ export default function FocusSessionScreen({ navigation, route }) {
           />
         </View>
       </View>
+      
+      {/* Native DeviceActivitySelectionView - Full Screen Modal */}
+      {nativePickerAvailable && DeviceActivitySelectionView && (
+        <Modal
+          visible={showNativePicker}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => setShowNativePicker(false)}
+        >
+          <GradientBackground>
+            <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+              <View style={{ flex: 1 }}>
+                <DeviceActivitySelectionView
+                  style={{ flex: 1 }}
+                  headerText="Choose Activities"
+                  footerText=""
+                  onSelectionChange={(event) => {
+                    const nativeEvent = event?.nativeEvent;
+                    console.log('[FocusSession] nativeEvent:', nativeEvent);
+                    if (nativeEvent) {
+                      const { applicationCount, categoryCount, webDomainCount, familyActivitySelection } = nativeEvent;
+                      console.log('[FocusSession] Counts:', { applicationCount, categoryCount, webDomainCount });
+                      const selectionData = {
+                        applicationCount,
+                        categoryCount,
+                        webDomainCount,
+                        familyActivitySelection,
+                      };
+                      setFamilyActivitySelection(selectionData);
+
+                      // Persist selection via ID so the extensions can read it
+                      if ((applicationCount + categoryCount + webDomainCount) > 0 && familyActivitySelection && DeviceActivity) {
+                        try {
+                          DeviceActivity.setFamilyActivitySelectionId({
+                            id: FAMILY_SELECTION_ID,
+                            familyActivitySelection,
+                          });
+                          // Store the id in app storage so ActiveSession can pick it up
+                          // Also persist the raw token for resilience (fallback/migration in ActiveSession)
+                          setSelectedApps({
+                            familyActivitySelectionId: FAMILY_SELECTION_ID,
+                            nativeFamilyActivitySelection: familyActivitySelection,
+                          });
+                          // Keep a local hint for UI
+                          setSelectedAppsState([FAMILY_SELECTION_ID]);
+                          console.log('[FocusSession] Valid selection detected');
+                        } catch (e) {
+                          console.log('[FocusSession] Error saving selection id:', e);
+                        }
+                      }
+                    }
+                  }}
+                />
+
+                <View style={{
+                  padding: spacing.lg,
+                  paddingBottom: spacing['3xl'],
+                  backgroundColor: colors.background,
+                  borderTopWidth: 1,
+                  borderTopColor: colors.border,
+                }}>
+                  <UIButton
+                    title="Done"
+                    onPress={() => {
+                      console.log('[FocusSession] Closing picker');
+                      setShowNativePicker(false);
+                    }}
+                  />
+                </View>
+              </View>
+            </SafeAreaView>
+          </GradientBackground>
+        </Modal>
+      )}
     </GradientBackground>
   );
 }
@@ -514,5 +663,34 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     flex: 1,
+  },
+  nativePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.card,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.xl,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  nativePickerButtonText: {
+    flex: 1,
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
+    color: colors.foreground,
+  },
+  selectionBadge: {
+    backgroundColor: colors.primary,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+  },
+  selectionBadgeText: {
+    fontSize: typography.xs,
+    fontWeight: typography.semibold,
+    color: '#fff',
   },
 });

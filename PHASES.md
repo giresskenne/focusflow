@@ -81,10 +81,53 @@ Implemented MVP details:
 - ✅ Data integrity validation (complex datasets through full sync cycle)
 - ✅ Real Supabase testing with local instance and test credentials
 
-## Phase 10 — Real App Blocking (MVP priority) (Implementation Deferred ⚠️)
-- Native iOS module: request DeviceActivity authorization ✅
-- iOS Family Controls integration and app restriction shields ✅
-- Background app monitoring and enforcement (pending Apple approval)
+## Phase 10 — Real iOS App Blocking (Updated Plan ✅ In Progress)
+
+We will integrate the react-native-device-activity library to deliver persistent, OS-level blocking using Apple's Screen Time APIs. This replaces the earlier "stub-only" plan and removes the defer status.
+
+Scope and milestones:
+
+1) Library & Config Integration (Dev Builds)
+- Add react-native-device-activity dependency and plugin configuration
+- Add expo-build-properties (iOS deploymentTarget 16.0+)
+- Register App Group: group.com.giress.focusflow (Apple Dev Portal)
+- Prebuild (generates 4 targets: App, ShieldConfiguration, ShieldAction, ActivityMonitor)
+- Verify Signing & App Group across all 4 targets
+
+2) Dev Testing (Family Controls only)
+- Request Family Controls authorization in-app
+- Start a timed focus session and verify shields on blocked apps
+- Validate persistence while app is backgrounded/killed
+- Note: Managed Settings and DeviceActivity distribution entitlements are not required for DEV testing; Family Controls is sufficient to validate flow on a physical device
+
+3) Distribution Entitlement Requests (Parallel, Long-Lead)
+- Request Family Controls distribution entitlement for 3 extension bundle IDs:
+  - com.giress.focusflow-app.ShieldConfiguration
+  - com.giress.focusflow-app.ShieldAction
+  - com.giress.focusflow-app.ActivityMonitor
+- Typical lead time: 6–12 weeks total; start immediately
+
+4) TestFlight & Production Readiness (after approvals)
+- Enable Distribution entitlements on all 4 targets in Xcode
+- Regenerate provisioning profiles including Family Controls (Distribution)
+- Build for TestFlight and run beta tests covering persistence after kill/reboot
+
+Status: Phase 10 is now active; Dev Testing can proceed now on a physical iPhone. Distribution approvals run in parallel.
+
+Deliverables:
+- Working dev build with shields shown for blocked apps
+- Documented entitlement requests (links and text used)
+- Test checklist results logged in PROGRESS.md
+
+Risks/Notes:
+- Full background enforcement reliability increases once DeviceActivity distribution entitlements are granted.
+
+Dependencies:
+- Apple Developer Account (complete)
+- App Group created and added to App ID (in progress)
+
+Acceptance Tests:
+- Grant permission → start session → open blocked app → shield shows even after killing FocusFlow
 
 **Status**: Implementation scaffolding complete but **production enforcement is deferred** pending Apple entitlement approval for Family Controls and Device Activity frameworks. The UI and development infrastructure are ready, but actual app blocking requires special approval from Apple that is not automatically granted.
 

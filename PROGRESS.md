@@ -30,7 +30,7 @@ Date: October 23, 2025
 - **iOS**: Safe area handling, proper header management, native stub files
 - **Cross-platform**: Expo managed workflow with native module support
 
-## Current Status: Guest User Experience
+## Current Status: Guest User Experience → Transitioning to Real iOS Blocking (Phase 10)
 - ✅ **Guest Mode**: App works fully without account creation
 - ✅ **Free Limits**: 5 apps, 5 reminders enforced with upgrade prompts
 - ✅ **Local Data**: All data stored locally via AsyncStorage
@@ -45,13 +45,37 @@ Date: October 23, 2025
 - Implement functional Settings toggles (persisted) ✅
 - Add Terms/Privacy policy pages ✅
 
-### Upcoming (Phase 8+)
-- Firebase Auth implementation
-- User profile management
-- Guest-to-authenticated data migration
-- Cloud sync capabilities
-- Real in-app purchases
-- Native app blocking (Screen Time API / UsageStats)
+## Upcoming (Phase 10/11 Focus)
+- Real iOS app blocking (react-native-device-activity) — DEV TESTING NOW
+- Distribution entitlement requests for 3 extensions (long-lead)
+- Real in-app purchases via RevenueCat (sandbox dev testing)
+
+### Phase 10 — Real iOS Blocking (DEV Testing Checklist)
+- [ ] Build dev on physical iPhone (Family Controls enabled)
+- [ ] Request Family Controls authorization in-app
+- [ ] Start a 30-min session with 2–3 known bundle IDs
+- [ ] Open blocked app → Shield appears
+- [ ] Kill FocusFlow → Open blocked app → Shield still appears
+- [ ] End session (Emergency Override) → Shield removed
+- [ ] Log findings and any edge cases
+
+Notes:
+- Managed Settings and DeviceActivity distribution entitlements are not required for DEV testing. Family Controls authorization is sufficient to validate the flow on device.
+
+### Phase 10 — Entitlement Requests (Parallel)
+- [ ] Prepare requests for:
+  - com.giress.focusflow-app.ShieldConfiguration
+  - com.giress.focusflow-app.ShieldAction
+  - com.giress.focusflow-app.ActivityMonitor
+- [ ] Submit via Apple form; track ticket IDs and dates
+- [ ] Update when approvals arrive (ETA 6–12 weeks total)
+
+### Phase 11 — IAP (RevenueCat) — DEV Testing
+- [ ] Add RevenueCat SDK and configure API keys (.env already set)
+- [ ] Define products in RevenueCat (monthly/yearly) matching App Store IDs
+- [ ] Implement paywall screen and entitlement gating
+- [ ] Test purchases in Sandbox; restore purchases flow
+- [ ] Persist premium state and unlock premium-only features
 
 ## New (MVP Sync UX)
 - Silent background sync for signed-in users: auto-upload on foreground if local data changed; periodic cloud→local merge (5m cooldown)
@@ -83,8 +107,8 @@ Date: October 23, 2025
 - Premium badge now refreshes correctly when returning from Settings
 
 ## Technical Notes
-- **Native Blocking**: Still uses stub implementation (no real enforcement)
-- **iOS Build**: Stub files ready for Xcode target integration
+- **Native Blocking**: Moving from stubs → react-native-device-activity integration (4 targets); Family Controls sufficient for dev validation
+- **iOS Build**: Prebuild required to generate extensions; ensure App Group: group.com.giress.focusflow across all targets
 - **Test Coverage**: Unit tests for time utilities and premium storage/gating; ready for integration tests
 - **Premium Gating Util**: Centralized `FREE_REMINDER_LIMIT` and `canAddReminder` helper used across screens
 - PHASES.md created with project roadmap
