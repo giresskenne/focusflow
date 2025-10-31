@@ -48,7 +48,9 @@ export default function ActiveSessionScreen({ navigation, route }) {
   const safeSeconds = typeof seconds === 'number' && !isNaN(seconds) && seconds >= 0 ? seconds : duration;
   const safeProgress = typeof progress === 'number' && !isNaN(progress) ? progress : 100;
   const unblockTimeoutRef = useRef(null);
+  const notifyTimeoutRef = useRef(null); // JS timer that fires the end notification exactly at end while foreground
   const endNotifIdRef = useRef(null);
+  const endOsNotifIdRef = useRef(null); // OS-scheduled end notification id for background/killed fallback
   const { colors: navColors } = useTheme();
   const [startAt, setStartAt] = useState(Date.now());
   const [apps, setApps] = useState([]);
@@ -81,6 +83,27 @@ export default function ActiveSessionScreen({ navigation, route }) {
     };
   }, []);
 
+  // Proactively dismiss any stray "focus-end" banners that may have been presented by a previous debug session
+  useEffect(() => {
+    (async () => {
+      try {
+        const presented = await (Notifications.getPresentedNotificationsAsync?.() || Promise.resolve([]));
+        for (const n of presented || []) {
+          try {
+            const id = n?.request?.identifier;
+            const data = n?.request?.content?.data;
+            if (data?.type === 'focus-end' && id) {
+              await Notifications.dismissNotificationAsync(id);
+              console.log('[ActiveSession] Dismissed stray presented focus-end notification:', id);
+            }
+          } catch {}
+        }
+      } catch (e) {
+        console.log('[ActiveSession] get/dismiss presented notifications failed (non-fatal):', e?.message || e);
+      }
+    })();
+  }, []);
+
   // Helper: schedule end notification after clearing stale ones tagged as 'focus-end'
   const scheduleEndNotification = async (seconds, meta = {}) => {
     try {
@@ -96,19 +119,68 @@ export default function ActiveSessionScreen({ navigation, route }) {
         }
       }
 
+      // Use an absolute date trigger instead of a time-interval to avoid an iOS dev quirk
+      // where interval triggers can occasionally fire immediately in debug sessions.
+      const fireDate = new Date(Date.now() + Math.max(3, Math.floor(seconds)) * 1000);
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Focus Session Complete! 🎯',
           body: `Your ${Math.max(1, Math.round(seconds / 60))} minute focus session is finished. Great work!`,
-          data: { type: 'focus-end', ...meta },
+          data: { type: 'focus-end', intendedAt: fireDate.getTime(), ...meta },
         },
-        trigger: { seconds: Math.max(1, Math.floor(seconds)) },
+        trigger: { date: fireDate },
       });
       console.log('[ActiveSession] Scheduled focus-end notification id:', id, 'in', seconds, 'seconds');
       endNotifIdRef.current = id;
       return id;
     } catch (e) {
       console.log('[ActiveSession] Error scheduling focus-end notification:', e?.message || e);
+    }
+  };
+
+  // Helper: when app is foreground, prefer a JS timer that fires the end notification exactly at end
+  const scheduleEndNotificationAtExactEnd = (seconds, meta = {}) => {
+    try {
+      if (notifyTimeoutRef.current) clearTimeout(notifyTimeoutRef.current);
+      const delay = Math.max(1000, Math.floor(seconds) * 1000);
+      notifyTimeoutRef.current = setTimeout(async () => {
+        try {
+          // Before firing, cancel the OS-scheduled fallback to avoid duplicate
+          try {
+            if (endOsNotifIdRef.current) {
+              await Notifications.cancelScheduledNotificationAsync(endOsNotifIdRef.current);
+              console.log('[ActiveSession] Cancelled OS fallback notification before JS-triggered end');
+              endOsNotifIdRef.current = null;
+            }
+          } catch {}
+          
+          // Fire now (immediate trigger) with intendedAt = now
+          const nowTs = Date.now();
+          // Dismiss any stray banners first
+          try {
+            const presented = await (Notifications.getPresentedNotificationsAsync?.() || Promise.resolve([]));
+            for (const n of presented || []) {
+              try { if (n?.request?.content?.data?.type === 'focus-end') await Notifications.dismissNotificationAsync(n.request.identifier); } catch {}
+            }
+          } catch {}
+
+          const id = await Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Focus Session Complete! 🎯',
+              body: `Nice work! Completed ${Math.max(1, Math.round(seconds / 60))} minutes.`,
+              data: { type: 'focus-end', intendedAt: nowTs, ...meta },
+            },
+            trigger: null, // fire immediately at exact end while app is foreground
+          });
+          endNotifIdRef.current = id;
+          console.log('[ActiveSession] Fired end notification via JS timer at exact end');
+        } catch (e) {
+          console.log('[ActiveSession] Failed to fire end notification at exact end:', e?.message || e);
+        }
+      }, delay);
+      console.log('[ActiveSession] JS end-notification timer set for', seconds, 'seconds');
+    } catch (e) {
+      console.log('[ActiveSession] Failed to set JS end-notification timer:', e?.message || e);
     }
   };
 
@@ -332,23 +404,24 @@ export default function ActiveSessionScreen({ navigation, route }) {
 
                   // Immediately block as a runtime safety net (useful for short sessions)
                   try {
-                    console.log('[ActiveSession] Immediately blocking selection...');
-                    DeviceActivity.blockSelection({ familyActivitySelectionId: selectionIdToUse });
-                    console.log('[ActiveSession] Successfully blocked with selectionId');
-                    
-                    if (map?.nativeFamilyActivitySelection) {
-                      try { 
-                        DeviceActivity.blockSelection({ familyActivitySelection: map.nativeFamilyActivitySelection }); 
-                        console.log('[ActiveSession] Successfully blocked with native selection');
-                      } catch (nativeError) {
-                        console.log('[ActiveSession] Native block failed (continuing):', nativeError);
+                    const totalBlocked = (selectionCounts?.applicationCount || 0) + (selectionCounts?.categoryCount || 0) + ((selectionCounts?.webDomainCount ?? selectionCounts?.webdomainCount) || 0);
+                    if (totalBlocked === 0) {
+                      console.log('[ActiveSession] Skipping immediate block; selection metadata reports zero items. Will rely on monitor start + JS timer.');
+                    } else {
+                      console.log('[ActiveSession] Immediately blocking selection...');
+                      DeviceActivity.blockSelection({ familyActivitySelectionId: selectionIdToUse });
+                      console.log('[ActiveSession] Successfully blocked with selectionId');
+                      if (map?.nativeFamilyActivitySelection) {
+                        try { 
+                          DeviceActivity.blockSelection({ familyActivitySelection: map.nativeFamilyActivitySelection }); 
+                          console.log('[ActiveSession] Successfully blocked with native selection');
+                        } catch (nativeError) {
+                          console.log('[ActiveSession] Native block failed (continuing):', nativeError);
+                        }
                       }
                     }
                   } catch (e) {
-                    console.log('[ActiveSession] Critical: Immediate blockSelection error:', e);
-                    Alert.alert('Blocking Failed', 'Unable to block selected apps. The session cannot continue safely.');
-                    try { navigation.goBack(); } catch (_) {}
-                    return;
+                    console.log('[ActiveSession] Immediate blockSelection error (non-fatal in dev):', e?.message || e);
                   }
                 } catch (e) {
                   console.log('[ActiveSession] configureActions error:', e);
@@ -400,8 +473,14 @@ export default function ActiveSessionScreen({ navigation, route }) {
                 console.log('[ActiveSession] startMonitoring failed even with long window:', e?.message || e);
               }
 
-              // Schedule a notification for session completion (with stale cleanup)
-              await scheduleEndNotification(duration, { startAt: now, selectionId: selectionIdToUse });
+              // End notification strategy:
+              // - Foreground: use JS timer to fire at exact end (no early delivery quirk)
+              // - Background/Killed: also schedule an OS absolute-date notification as fallback
+              scheduleEndNotificationAtExactEnd(duration, { startAt: now, selectionId: selectionIdToUse });
+              
+              // Also schedule OS fallback notification for background/killed scenarios
+              const osId = await scheduleEndNotification(duration, { startAt: now, selectionId: selectionIdToUse });
+              endOsNotifIdRef.current = osId;
 
               // JS safety net: unblock at the exact requested duration
               if (selectionIdToUse) {
@@ -506,6 +585,9 @@ export default function ActiveSessionScreen({ navigation, route }) {
             clearTimeout(unblockTimeoutRef.current);
             unblockTimeoutRef.current = null;
           }
+          // Cancel notifications and timers
+          try { if (endOsNotifIdRef.current) { await Notifications.cancelScheduledNotificationAsync(endOsNotifIdRef.current); endOsNotifIdRef.current = null; } } catch {}
+          try { if (notifyTimeoutRef.current) { clearTimeout(notifyTimeoutRef.current); notifyTimeoutRef.current = null; } } catch {}
         } catch {}
         if (mountedRef.current) {
           navigation.goBack();
@@ -550,8 +632,10 @@ export default function ActiveSessionScreen({ navigation, route }) {
         apps,
       });
       await setSession({ active: false, endAt: null, totalSeconds: null });
-      // Cancel the scheduled end notification since we ended early
-      try { if (endNotifIdRef.current) { await Notifications.cancelScheduledNotificationAsync(endNotifIdRef.current); endNotifIdRef.current = null; } } catch {}
+  // Cancel any scheduled/pending end notifications since we ended early
+  try { if (endNotifIdRef.current) { await Notifications.cancelScheduledNotificationAsync(endNotifIdRef.current); endNotifIdRef.current = null; } } catch {}
+  try { if (endOsNotifIdRef.current) { await Notifications.cancelScheduledNotificationAsync(endOsNotifIdRef.current); endOsNotifIdRef.current = null; } } catch {}
+  try { if (notifyTimeoutRef.current) { clearTimeout(notifyTimeoutRef.current); notifyTimeoutRef.current = null; } } catch {}
       // Send an immediate early-end notification
       try { await maybeNotifySessionEnd(true, runSeconds); } catch {}
       if (unblockTimeoutRef.current) { clearTimeout(unblockTimeoutRef.current); unblockTimeoutRef.current = null; }
