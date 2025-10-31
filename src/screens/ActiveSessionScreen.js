@@ -1,16 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, AppState } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
+
 import UIButton from '../components/Ui/Button';
-import AppBlocker from '../../components/AppBlocker';
-import { getSelectedApps, setSession, appendSessionRecord } from '../storage';
+import { getSelectedApps, setSession, appendSessionRecord, getSession } from '../storage';
 import { formatSeconds } from '../utils/time';
+import { getContextualQuote } from '../utils/quotes';
+import { createCustomShield } from '../utils/shieldConfig';
+import { createAdvancedShield } from '../utils/advancedShield';
 import { XIcon, AlertCircleIcon, TargetIcon, CameraIcon, MessageIcon, UserIcon, MusicIcon, PlayIcon } from '../components/Icons';
 import { colors, spacing, radius, typography, shadows } from '../theme';
 import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
+import useSessionCountdown from '../hooks/useSessionCountdown';
+import * as Notifications from 'expo-notifications';
+
+// Import react-native-device-activity for real blocking
+let DeviceActivity = null;
+if (Platform.OS === 'ios') {
+  try {
+    DeviceActivity = require('react-native-device-activity');
+  } catch (error) {
+    console.log('[ActiveSession] react-native-device-activity not available:', error.message);
+  }
+}
 
 const MOCK_APPS = [
   { id: 'com.social.app', name: 'Instagram', Icon: CameraIcon },
@@ -22,49 +37,459 @@ const MOCK_APPS = [
 
 export default function ActiveSessionScreen({ navigation, route }) {
   const duration = route?.params?.durationSeconds || 25 * 60;
-  const [seconds, setSeconds] = useState(duration);
-  const intervalRef = useRef(null);
+  const [sessionEndAt, setSessionEndAt] = useState(() => {
+    const endTime = Date.now() + duration * 1000;
+    console.log('[ActiveSession] Initial sessionEndAt:', new Date(endTime).toISOString());
+    return endTime;
+  });
+  const { seconds, progress } = useSessionCountdown(sessionEndAt, duration, 1000);
+  
+  // Validate countdown values to prevent crashes
+  const safeSeconds = typeof seconds === 'number' && !isNaN(seconds) && seconds >= 0 ? seconds : duration;
+  const safeProgress = typeof progress === 'number' && !isNaN(progress) ? progress : 100;
+  const unblockTimeoutRef = useRef(null);
+  const endNotifIdRef = useRef(null);
   const { colors: navColors } = useTheme();
   const [startAt, setStartAt] = useState(Date.now());
   const [apps, setApps] = useState([]);
   const [showConfirm, setShowConfirm] = useState(false);
-  const blockingAvailable = AppBlocker?.isAvailable === true;
+  const [authStatus, setAuthStatus] = useState(null);
+  const [selectionCounts, setSelectionCounts] = useState(null);
+  const FAMILY_SELECTION_ID = 'focusflow_selection';
+  const mountedRef = useRef(true);
+  useEffect(() => { return () => { mountedRef.current = false; }; }, []);
+
+  // Debug: log notifications received/responses to diagnose early or duplicate notifications
+  useEffect(() => {
+    const subRecv = Notifications.addNotificationReceivedListener((n) => {
+      try {
+        console.log('[Notifications] received:', n?.request?.identifier, n?.request?.content?.title, n?.request?.content?.data);
+      } catch (e) {
+        console.log('[Notifications] received (log error):', e);
+      }
+    });
+    const subResp = Notifications.addNotificationResponseReceivedListener((r) => {
+      try {
+        console.log('[Notifications] response:', r?.notification?.request?.identifier, r?.notification?.request?.content?.data);
+      } catch (e) {
+        console.log('[Notifications] response (log error):', e);
+      }
+    });
+    return () => {
+      try { subRecv?.remove?.(); } catch {}
+      try { subResp?.remove?.(); } catch {}
+    };
+  }, []);
+
+  // Helper: schedule end notification after clearing stale ones tagged as 'focus-end'
+  const scheduleEndNotification = async (seconds, meta = {}) => {
+    try {
+      const pending = await Notifications.getAllScheduledNotificationsAsync();
+      for (const n of pending || []) {
+        try {
+          if (n?.content?.data?.type === 'focus-end') {
+            await Notifications.cancelScheduledNotificationAsync(n.identifier);
+            console.log('[ActiveSession] Cancelled pending focus-end notification:', n.identifier);
+          }
+        } catch (e) {
+          console.log('[ActiveSession] Failed cancelling pending notif:', e?.message || e);
+        }
+      }
+
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Focus Session Complete! 🎯',
+          body: `Your ${Math.max(1, Math.round(seconds / 60))} minute focus session is finished. Great work!`,
+          data: { type: 'focus-end', ...meta },
+        },
+        trigger: { seconds: Math.max(1, Math.floor(seconds)) },
+      });
+      console.log('[ActiveSession] Scheduled focus-end notification id:', id, 'in', seconds, 'seconds');
+      endNotifIdRef.current = id;
+      return id;
+    } catch (e) {
+      console.log('[ActiveSession] Error scheduling focus-end notification:', e?.message || e);
+    }
+  };
+
+  // Get contextual quote based on session duration
+  const sessionMinutes = Math.ceil(duration / 60);
+  const quote = getContextualQuote(sessionMinutes);
+  
+  // Check if DeviceActivity library is available
+  const blockingAvailable = DeviceActivity !== null;
+
+  // Handle app state changes to check session completion
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState) => {
+      if (nextAppState === 'active') {
+        console.log('[ActiveSession] App became active, checking session status...');
+        try {
+          const currentSession = await getSession();
+          if (currentSession?.active && currentSession?.endAt) {
+            const now = Date.now();
+            if (now >= currentSession.endAt) {
+              console.log('[ActiveSession] Session should have ended, completing now...');
+              // Complete the session
+              await setSession({ active: false, endAt: null, totalSeconds: null });
+              
+              // Unblock apps
+              if (blockingAvailable && DeviceActivity) {
+                try {
+                  const stored = await getSelectedApps();
+                  const selectionId = stored?.familyActivitySelectionId || FAMILY_SELECTION_ID;
+                  if (selectionId) {
+                    DeviceActivity.unblockSelection({ familyActivitySelectionId: selectionId });
+                  }
+                  if (stored?.nativeFamilyActivitySelection) {
+                    try { DeviceActivity.unblockSelection({ familyActivitySelection: stored.nativeFamilyActivitySelection }); } catch (_) {}
+                  }
+                  DeviceActivity.stopMonitoring(['focusSession']);
+                } catch (e) {
+                  console.log('[ActiveSession] Error unblocking on state change:', e);
+                }
+              }
+              
+              // Record the session
+              await appendSessionRecord({
+                id: String(now),
+                startAt: currentSession.startAt || startAt,
+                endAt: now,
+                durationSeconds: duration,
+                endedEarly: false,
+                apps,
+              });
+              
+              // Navigate back if still mounted
+              if (mountedRef.current) {
+                try { navigation.goBack(); } catch (_) {}
+              }
+            }
+          }
+        } catch (e) {
+          console.log('[ActiveSession] Error checking session on app state change:', e);
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
+  }, []);
 
   useEffect(() => {
     const now = Date.now();
     setStartAt(now);
     let endAt = now + duration * 1000;
+    setSessionEndAt(endAt);
     (async () => {
       try {
+        // Don't schedule notification here to avoid immediate firing
         const map = await getSelectedApps();
-        const appIds = Object.entries(map)
-          .filter(([, on]) => !!on)
-          .map(([id]) => id);
-        setApps(appIds);
-        // Only attempt native flows if the bridge is available
-        if (blockingAvailable) {
-          // Prepare FamilyControls authorization in dev builds
-          await AppBlocker.requestAuthorization?.();
-          await AppBlocker.startBlocking(appIds);
+        let appIds = [];
+        let selectionId = null;
+
+        if (map?.familyActivitySelectionId) {
+          selectionId = map.familyActivitySelectionId;
+        } else if (map?.nativeFamilyActivitySelection) {
+          // Backwards compatibility: a raw token was stored earlier
+          if (DeviceActivity) {
+            try {
+              DeviceActivity.setFamilyActivitySelectionId({
+                id: FAMILY_SELECTION_ID,
+                familyActivitySelection: map.nativeFamilyActivitySelection,
+              });
+              selectionId = FAMILY_SELECTION_ID;
+            } catch (e) {
+              console.log('[ActiveSession] Failed to migrate selection token to id:', e);
+            }
+          }
         }
-        await setSession({ active: true, endAt, totalSeconds: duration });
-      } catch {}
-    })();
-    intervalRef.current = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000);
-    return () => {
-      clearInterval(intervalRef.current);
-      if (blockingAvailable) {
-        AppBlocker.stopBlocking().catch(() => {});
+
+        if (selectionId) {
+          appIds = [selectionId];
+          // Derive counts for UI and attempt recovery if empty by re-migrating token
+          try {
+            let meta = DeviceActivity?.activitySelectionMetadata({ familyActivitySelectionId: selectionId });
+            const metaCount = (meta?.applicationCount || 0) + (meta?.categoryCount || 0) + (meta?.webDomainCount || meta?.webdomainCount || 0);
+            if (!meta || metaCount === 0) {
+              // Try to re-migrate from stored raw token
+              if (map?.nativeFamilyActivitySelection && DeviceActivity) {
+                try {
+                  console.log('[ActiveSession] Re-migrating selection token to id');
+                  DeviceActivity.setFamilyActivitySelectionId({
+                    id: FAMILY_SELECTION_ID,
+                    familyActivitySelection: map.nativeFamilyActivitySelection,
+                  });
+                  meta = DeviceActivity?.activitySelectionMetadata({ familyActivitySelectionId: FAMILY_SELECTION_ID });
+                } catch (e) {
+                  console.log('[ActiveSession] Re-migration failed:', e);
+                }
+              }
+            }
+            if (meta) setSelectionCounts(meta);
+          } catch {}
+        } else {
+          // legacy boolean map -> chips fallback
+          appIds = Object.entries(map || {})
+            .filter(([, on]) => !!on)
+            .map(([id]) => id);
+        }
+        setApps(appIds);
+        
+        // Start blocking with native library if available
+        if (blockingAvailable && DeviceActivity) {
+          try {
+            // Get current authorization status
+            const currentStatus = DeviceActivity.getAuthorizationStatus();
+            console.log('[ActiveSession] Current authorization status:', currentStatus);
+            setAuthStatus(currentStatus);
+            
+            // Status values: 0 = notDetermined, 1 = denied, 2 = approved
+            const isApproved = currentStatus === 2 || currentStatus === 'approved';
+            
+            // Request authorization if not already approved
+            if (!isApproved) {
+              console.log('[ActiveSession] Requesting authorization...');
+              await DeviceActivity.requestAuthorization();
+              // Check status again after request
+              const newStatus = DeviceActivity.getAuthorizationStatus();
+              console.log('[ActiveSession] Authorization status after request:', newStatus);
+              setAuthStatus(newStatus);
+            }
+            
+            // Get final status
+            const finalStatus = DeviceActivity.getAuthorizationStatus();
+            const finalApproved = finalStatus === 2 || finalStatus === 'approved';
+            
+            // If authorized, start monitoring with the selected apps
+            if (finalApproved) {
+              // Configure shield UI and actions if we have a selection id
+              const selectionIdToUse = (appIds[0] === FAMILY_SELECTION_ID || appIds[0] === map?.familyActivitySelectionId) ? (map?.familyActivitySelectionId || FAMILY_SELECTION_ID) : null;
+
+              if (selectionIdToUse) {
+                try {
+                  console.log('[ActiveSession] Using selectionId:', selectionIdToUse);
+                  try {
+                    const metaDebug = DeviceActivity?.activitySelectionMetadata({ familyActivitySelectionId: selectionIdToUse });
+                    console.log('[ActiveSession] Selection metadata:', metaDebug);
+                  } catch (e) {
+                    console.log('[ActiveSession] Could not read selection metadata:', e);
+                  }
+                  // Create enhanced shield configuration with metadata counts
+                  const appCount = selectionCounts?.applicationCount || 0;
+                  const categoryCount = selectionCounts?.categoryCount || 0;
+                  const websiteCount = selectionCounts?.webDomainCount || selectionCounts?.webdomainCount || 0;
+                  const totalBlocked = appCount + categoryCount + websiteCount;
+                  
+                  // Create FocusFlow branded shield configuration
+                  const contextualQuote = getContextualQuote(sessionMinutes);
+                  
+                  // Build subtitle with stats and quote
+                  const statsText = totalBlocked > 0 ? 
+                    `${appCount} apps, ${categoryCount} categories, ${websiteCount} websites blocked` : 
+                    'Focus mode is active';
+                  
+                  const shieldConfig = {
+                    // Main configuration
+                    title: 'Stay Focused',
+                    subtitle: contextualQuote,
+                    primaryButtonLabel: 'Work It!',
+                    
+                    // Simplified styling for better compatibility
+                    // NOTE: Native getColor divides by 255, so provide RGB in 0-255 range
+                    backgroundColor: { red: 12, green: 14, blue: 22, alpha: 0.96 },
+                    backgroundBlurStyle: 3, // favor darker blur if supported
+                    titleColor: { red: 255, green: 255, blue: 255, alpha: 1.0 },
+                    subtitleColor: { red: 220, green: 220, blue: 220, alpha: 1.0 },
+                    iconSystemName: 'hourglass',
+                    iconTint: { red: 137, green: 0, blue: 245, alpha: 1.0 },
+                    
+                    // Clear button styling
+                    primaryButtonBackgroundColor: { red: 255, green: 255, blue: 255, alpha: 1.0 },
+                    primaryButtonLabelColor: { red: 0, green: 0, blue: 0, alpha: 1.0 },
+                  };
+                  
+                  console.log('[ActiveSession] Applying custom shield configuration');
+                  DeviceActivity.updateShield(shieldConfig, {
+                    primary: { type: 'dismiss', behavior: 'close' },
+                  });
+
+                  // Block on interval start, unblock on end
+                  DeviceActivity.configureActions({
+                    activityName: 'focusSession',
+                    callbackName: 'intervalDidStart',
+                    actions: [
+                      { type: 'blockSelection', familyActivitySelectionId: selectionIdToUse },
+                    ],
+                  });
+                  DeviceActivity.configureActions({
+                    activityName: 'focusSession',
+                    callbackName: 'intervalDidEnd',
+                    actions: [
+                      { type: 'unblockSelection', familyActivitySelectionId: selectionIdToUse },
+                    ],
+                  });
+
+                  // Immediately block as a runtime safety net (useful for short sessions)
+                  try {
+                    console.log('[ActiveSession] Immediately blocking selection...');
+                    DeviceActivity.blockSelection({ familyActivitySelectionId: selectionIdToUse });
+                    console.log('[ActiveSession] Successfully blocked with selectionId');
+                    
+                    if (map?.nativeFamilyActivitySelection) {
+                      try { 
+                        DeviceActivity.blockSelection({ familyActivitySelection: map.nativeFamilyActivitySelection }); 
+                        console.log('[ActiveSession] Successfully blocked with native selection');
+                      } catch (nativeError) {
+                        console.log('[ActiveSession] Native block failed (continuing):', nativeError);
+                      }
+                    }
+                  } catch (e) {
+                    console.log('[ActiveSession] Critical: Immediate blockSelection error:', e);
+                    Alert.alert('Blocking Failed', 'Unable to block selected apps. The session cannot continue safely.');
+                    try { navigation.goBack(); } catch (_) {}
+                    return;
+                  }
+                } catch (e) {
+                  console.log('[ActiveSession] configureActions error:', e);
+                }
+              }
+
+              console.log('[ActiveSession] Starting monitoring for apps:', appIds);
+
+              // Build a non-repeating schedule; for short sessions iOS often rejects short windows.
+              // Strategy: use a minimum monitor window (30 min) for reliability, then JS-unblock at exact end.
+              const nowDate = new Date();
+              const startDate = new Date(nowDate.getTime() + 5 * 1000); // small delay
+              const totalMinutes = Math.ceil(duration / 60);
+              const minMonitorMinutes = Math.max(30, totalMinutes); // ensure >= system minimum
+              const monitorEnd = new Date(startDate.getTime() + minMonitorMinutes * 60 * 1000);
+
+              const schedule = {
+                intervalStart: {
+                  year: startDate.getFullYear(),
+                  month: startDate.getMonth() + 1,
+                  day: startDate.getDate(),
+                  hour: startDate.getHours(),
+                  minute: startDate.getMinutes(),
+                  second: startDate.getSeconds(),
+                },
+                intervalEnd: {
+                  year: monitorEnd.getFullYear(),
+                  month: monitorEnd.getMonth() + 1,
+                  day: monitorEnd.getDate(),
+                  hour: monitorEnd.getHours(),
+                  minute: monitorEnd.getMinutes(),
+                  second: monitorEnd.getSeconds(),
+                },
+                repeats: false,
+              };
+
+              console.log('[ActiveSession] Computed monitor schedule:', {
+                start: schedule.intervalStart,
+                end: schedule.intervalEnd,
+                requestedSeconds: duration,
+                monitorMinutes: minMonitorMinutes,
+              });
+
+              try {
+                console.log('[ActiveSession] Attempting to start monitoring...');
+                await DeviceActivity.startMonitoring('focusSession', schedule, []);
+                console.log('[ActiveSession] Monitoring started (window minutes):', minMonitorMinutes);
+              } catch (e) {
+                console.log('[ActiveSession] startMonitoring failed even with long window:', e?.message || e);
+              }
+
+              // Schedule a notification for session completion (with stale cleanup)
+              await scheduleEndNotification(duration, { startAt: now, selectionId: selectionIdToUse });
+
+              // JS safety net: unblock at the exact requested duration
+              if (selectionIdToUse) {
+                try {
+                  if (unblockTimeoutRef.current) clearTimeout(unblockTimeoutRef.current);
+                  unblockTimeoutRef.current = setTimeout(async () => {
+                    try {
+                      console.log('[ActiveSession] JS timer reached, attempting cleanup and unblock');
+
+                      const currentSession = await getSession();
+                      if (!currentSession?.active) {
+                        console.log('[ActiveSession] Session already inactive at JS timer, skipping');
+                        return;
+                      }
+
+                      try {
+                        DeviceActivity.unblockSelection({ familyActivitySelectionId: selectionIdToUse });
+                        if (map?.nativeFamilyActivitySelection) {
+                          try { DeviceActivity.unblockSelection({ familyActivitySelection: map.nativeFamilyActivitySelection }); } catch (_) {}
+                        }
+                        try { DeviceActivity.stopMonitoring(['focusSession']); } catch (_) {}
+                        console.log('[ActiveSession] Unblock + stopMonitoring invoked');
+                      } catch (e) {
+                        console.log('[ActiveSession] Error unblocking on JS timer:', e?.message || e);
+                      }
+
+                      try {
+                        await setSession({ active: false, endAt: null, totalSeconds: null });
+                        const endAtReal = Date.now();
+                        await appendSessionRecord({
+                          id: String(endAtReal),
+                          startAt: startAt,
+                          endAt: endAtReal,
+                          durationSeconds: duration,
+                          endedEarly: false,
+                          apps,
+                        });
+                        console.log('[ActiveSession] Session record appended at JS timer');
+                      } catch (e) {
+                        console.log('[ActiveSession] Error persisting session record at JS timer:', e?.message || e);
+                      }
+
+                      if (mountedRef.current) {
+                        try { navigation.goBack(); } catch (_) {}
+                      }
+                    } catch (e) {
+                      console.log('[ActiveSession] JS unblockSelection outer error:', e?.message || e);
+                    }
+                  }, Math.max(1000, duration * 1000));
+                  console.log('[ActiveSession] JS unblock timer set for', duration, 'seconds');
+                } catch (e) {
+                  console.log('[ActiveSession] Failed to set JS unblock timer:', e?.message || e);
+                }
+              }
+            } else {
+              console.log('[ActiveSession] Authorization not approved, status:', finalStatus);
+            }
+          } catch (error) {
+            console.log('[ActiveSession] Error starting monitoring:', error);
+          }
+        }
+        
+        console.log('[ActiveSession] About to set session state...');
+        await setSession({ active: true, endAt, totalSeconds: duration, startAt: now });
+        console.log('[ActiveSession] Session state set successfully');
+      } catch (error) {
+        console.log('[ActiveSession] Setup error:', error);
+        Alert.alert('Session Setup Failed', `Unable to start focus session: ${error?.message || error}`);
+        try { navigation.goBack(); } catch (_) {}
       }
-      setSession({ active: false, endAt: null, totalSeconds: null }).catch(() => {});
+    })();
+    return () => {
+      // Keep monitoring and JS timer running when leaving the screen;
+      // only stop on explicit end or when the timer fires.
     };
   }, [duration]);
 
   // Auto-complete when timer hits zero
   useEffect(() => {
-    if (seconds === 0) {
+    if (safeSeconds === 0 && mountedRef.current) {
       (async () => {
         try {
+          // Guard against duplicate completion when JS timer already ran
+          const current = await getSession();
+          if (!current?.active) return;
+          // Clear the session state immediately to prevent restart loops
+          await setSession({ active: false, endAt: null, totalSeconds: null });
+          
           const endAt = Date.now();
           await appendSessionRecord({
             id: String(endAt),
@@ -74,24 +499,46 @@ export default function ActiveSessionScreen({ navigation, route }) {
             endedEarly: false,
             apps,
           });
+          // Rely on scheduled end notification; don't send another here to avoid duplicates
+          
+          // Clear any pending unblock timer
+          if (unblockTimeoutRef.current) {
+            clearTimeout(unblockTimeoutRef.current);
+            unblockTimeoutRef.current = null;
+          }
         } catch {}
-        navigation.goBack();
+        if (mountedRef.current) {
+          navigation.goBack();
+        }
       })();
     }
-  }, [seconds]);
+  }, [safeSeconds]);
 
-  const { minutes, seconds: secs } = formatSeconds(seconds);
-  const progress = (seconds / duration) * 100;
+  const { minutes, seconds: secs } = formatSeconds(safeSeconds);
   
   // Circular progress calculations
   const size = 220;
   const strokeWidth = 8;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
+  const strokeDashoffset = circumference - (safeProgress / 100) * circumference;
   
   const endEarly = async () => {
     try {
+      // Unblock immediately if we used a selection id
+      if (blockingAvailable && DeviceActivity) {
+        try {
+          const stored = await getSelectedApps();
+          const selectionId = stored?.familyActivitySelectionId || FAMILY_SELECTION_ID;
+          if (selectionId) {
+            DeviceActivity.unblockSelection({ familyActivitySelectionId: selectionId });
+          }
+          if (stored?.nativeFamilyActivitySelection) {
+            try { DeviceActivity.unblockSelection({ familyActivitySelection: stored.nativeFamilyActivitySelection }); } catch (_) {}
+          }
+          DeviceActivity.stopMonitoring(['focusSession']);
+        } catch {}
+      }
       const runSeconds = duration - seconds;
       const endAt = Date.now();
       await appendSessionRecord({
@@ -102,10 +549,35 @@ export default function ActiveSessionScreen({ navigation, route }) {
         endedEarly: true,
         apps,
       });
+      await setSession({ active: false, endAt: null, totalSeconds: null });
+      // Cancel the scheduled end notification since we ended early
+      try { if (endNotifIdRef.current) { await Notifications.cancelScheduledNotificationAsync(endNotifIdRef.current); endNotifIdRef.current = null; } } catch {}
+      // Send an immediate early-end notification
+      try { await maybeNotifySessionEnd(true, runSeconds); } catch {}
+      if (unblockTimeoutRef.current) { clearTimeout(unblockTimeoutRef.current); unblockTimeoutRef.current = null; }
     } catch {}
     navigation.goBack();
   };
 
+  // Notify helper: silent if user hasn't granted notifications
+  const maybeNotifySessionEnd = async (endedEarly, secondsRan) => {
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') return;
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: endedEarly ? 'Focus session ended early' : 'Focus session complete',
+          body: endedEarly
+            ? `You focused for ${Math.max(1, Math.round(secondsRan / 60))} minutes.`
+            : `Nice work! Completed ${Math.max(1, Math.round(duration / 60))} minutes.`,
+        },
+        trigger: null,
+      });
+    } catch {}
+  };
+
+  console.log('[ActiveSession] Rendering with seconds:', safeSeconds, 'progress:', safeProgress, 'endAt:', sessionEndAt);
+  
   return (
     <GradientBackground>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
@@ -117,7 +589,7 @@ export default function ActiveSessionScreen({ navigation, route }) {
             
             {/* Circular Progress */}
             <View style={styles.circularProgressContainer}>
-              <Svg width={size} height={size} style={styles.circularProgress}>
+              <Svg width={size} height={size} style={styles.circularProgress} key={`svg-${safeSeconds}`}>
                 {/* Background circle */}
                 <Circle
                   cx={size / 2}
@@ -148,12 +620,22 @@ export default function ActiveSessionScreen({ navigation, route }) {
             </View>
           </View>
 
-          {/* Build capability notice (shows in Expo Go or non-native builds) */}
+          {/* Build capability notice */}
           {!blockingAvailable && (
             <View style={[styles.noticeBanner, shadows.sm]}>
               <AlertCircleIcon size={18} color={colors.warning} />
               <Text style={styles.noticeText}>
-                App blocking isn’t active in this build (Expo Go). Use an iOS dev build with DeviceActivity to enforce blocking.
+                App blocking isn't active in this build. Use an iOS dev build with DeviceActivity to enforce blocking.
+              </Text>
+            </View>
+          )}
+          
+          {/* Authorization status notice */}
+          {blockingAvailable && authStatus !== null && authStatus !== 2 && authStatus !== 'approved' && (
+            <View style={[styles.noticeBanner, shadows.sm]}>
+              <AlertCircleIcon size={18} color={colors.warning} />
+              <Text style={styles.noticeText}>
+                Screen Time permission is required for app blocking. Please authorize in Settings.
               </Text>
             </View>
           )}
@@ -162,16 +644,45 @@ export default function ActiveSessionScreen({ navigation, route }) {
           <View style={{ marginTop: spacing['2xl'] }}>
             <Text style={styles.sectionHeader}>BLOCKED APPS</Text>
             <View style={styles.appChipsRow}>
-              {apps.slice(0, 5).map((appId) => {
-                const app = MOCK_APPS.find((a) => a.id === appId);
-                const AppIcon = app?.Icon || CameraIcon;
-                return (
-                  <View key={appId} style={[styles.appChip, shadows.sm]}>
-                    <AppIcon size={16} color={colors.foreground} />
-                    <Text style={styles.appChipText}>{app?.name || 'App'}</Text>
-                  </View>
-                );
-              })}
+              {selectionCounts ? (
+                <>
+                  {(selectionCounts.applicationCount || 0) > 0 && (
+                    <View style={[styles.appChip, shadows.sm]}>
+                      <CameraIcon size={16} color={colors.foreground} />
+                      <Text style={styles.appChipText}>
+                        {selectionCounts.applicationCount} {selectionCounts.applicationCount === 1 ? 'App' : 'Apps'}
+                      </Text>
+                    </View>
+                  )}
+                  {(selectionCounts.categoryCount || 0) > 0 && (
+                    <View style={[styles.appChip, shadows.sm]}>
+                      <CameraIcon size={16} color={colors.foreground} />
+                      <Text style={styles.appChipText}>
+                        {selectionCounts.categoryCount} {selectionCounts.categoryCount === 1 ? 'Category' : 'Categories'}
+                      </Text>
+                    </View>
+                  )}
+                  {((selectionCounts.webDomainCount ?? selectionCounts.webdomainCount ?? 0) > 0) && (
+                    <View style={[styles.appChip, shadows.sm]}>
+                      <CameraIcon size={16} color={colors.foreground} />
+                      <Text style={styles.appChipText}>
+                        {(selectionCounts.webDomainCount ?? selectionCounts.webdomainCount ?? 0)} {((selectionCounts.webDomainCount ?? selectionCounts.webdomainCount ?? 0) === 1) ? 'Website' : 'Websites'}
+                      </Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                apps.slice(0, 5).map((appId) => {
+                  const app = MOCK_APPS.find((a) => a.id === appId);
+                  const AppIcon = app?.Icon || CameraIcon;
+                  return (
+                    <View key={appId} style={[styles.appChip, shadows.sm]}>
+                      <AppIcon size={16} color={colors.foreground} />
+                      <Text style={styles.appChipText}>{app?.name || 'App'}</Text>
+                    </View>
+                  );
+                })
+              )}
             </View>
           </View>
 

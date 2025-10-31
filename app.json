@@ -16,6 +16,8 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.giress.focusflow-app",
+      "deploymentTarget": "16.0",
+      "appleTeamId": "ZTB4YDKG8V",
       "buildNumber": "1",
       "config": {
         "usesNonExemptEncryption": false
@@ -46,6 +48,22 @@
         "./plugins/app-blocker-plugin",
         {
           "appGroup": "group.com.giress.focusflow"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.0"
+          }
+        }
+      ],
+      [
+        "react-native-device-activity",
+        {
+          "appleTeamId": "ZTB4YDKG8V",
+          "appGroup": "group.com.giress.focusflow",
+          "modes": ["suppressShield"]
         }
       ]
     ],
