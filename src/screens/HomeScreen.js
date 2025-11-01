@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useTheme, useFocusEffect } from '@react-navigation/native';
@@ -318,6 +318,28 @@ export default function HomeScreen({ navigation }) {
   const tickRef = useRef(null);
   const [isPremium, setIsPremium] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
+  const bounceAnim = useRef(new Animated.Value(1)).current;
+
+  // Bouncing animation for play button (like Shazam)
+  useEffect(() => {
+    const bounce = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, {
+          toValue: 1.08,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bounceAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    bounce.start();
+    return () => bounce.stop();
+  }, [bounceAnim]);
+
   // Periodic refresh so time labels update and one-time reminders disappear without navigation
   useEffect(() => {
     const interval = setInterval(() => {
@@ -389,24 +411,27 @@ export default function HomeScreen({ navigation }) {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView 
           style={{ flex: 1 }} 
-          contentContainerStyle={[styles.container, compact && { paddingBottom: 24 }]}
+          contentContainerStyle={[
+            styles.container, 
+            compact && { paddingBottom: tabBarHeight + spacing.md }
+          ]}
           scrollEnabled={scrollEnabled}
+          showsVerticalScrollIndicator={false}
         >
         <View 
           style={{ width: '100%', maxWidth: 520 }}
           onLayout={(e) => {
             const contentHeight = e.nativeEvent.layout.height;
-            // useBottomTabBarHeight already includes bottom inset
+            // Calculate available space: window height - top inset - tab bar height
             const available = windowHeight - insets.top - tabBarHeight;
             setScrollEnabled(contentHeight > available);
           }}
         >
-          <View style={[styles.header, compact && { marginBottom: spacing.lg }]}>
-          <View>
-            <Text style={[styles.title, compact && { fontSize: typography['2xl'] } ]}>FocusFlow</Text>
-            <Text style={[styles.subtitle, compact && { fontSize: typography.sm } ]}>Stay focused, stay productive</Text>
+          <View style={[styles.header, compact && { marginBottom: spacing.md }]}>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[styles.title, compact && { fontSize: 28 }]}>FocusFlow</Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <View style={{ position: 'absolute', right: 0, top: 0, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             {session.active && (
               <View style={styles.activeBadge}>
                 <Text style={styles.activeBadgeText}>Active</Text>
@@ -422,28 +447,33 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* Hero Card - Ready to Focus */}
-        <View style={[styles.heroCard, compact && { marginBottom: spacing.lg, paddingVertical: spacing.lg }]}>
-          <View style={[styles.heroTextSection, compact && { marginBottom: spacing.md }]}>
+        <View style={[styles.heroCard, compact && { marginBottom: spacing.sm, paddingVertical: spacing.sm }]}>
+          <View style={[styles.heroTextSection, compact && { marginBottom: spacing.sm }]}>
             <Text style={styles.heroTitle}>Ready to Focus?</Text>
             <Text style={styles.heroSubtitle}>Start a session to boost your productivity</Text>
           </View>
           
           <TouchableOpacity 
-            style={[styles.playButtonWrapper, compact && { marginVertical: spacing.md }]}
+            style={[styles.playButtonWrapper, compact && { marginVertical: spacing.xs }]}
             onPress={() => navigation.navigate('FocusSession')}
             accessibilityLabel="Start Focus Session"
             accessibilityRole="button"
+            activeOpacity={0.8}
           >
-            <View style={[styles.playButtonOuter, compact && { width: 96, height: 96, borderRadius: 48 }]}>
-              <View style={[styles.playButton, compact && { width: 64, height: 64, borderRadius: 32 }]}>
+            <Animated.View style={[
+              styles.playButtonOuter, 
+              compact && { width: 90, height: 90, borderRadius: 45 },
+              { transform: [{ scale: bounceAnim }] }
+            ]}>
+              <View style={[styles.playButton, compact && { width: 60, height: 60, borderRadius: 30 }]}>
                 <View style={styles.playIcon} />
               </View>
-            </View>
+            </Animated.View>
           </TouchableOpacity>
         </View>
 
         {/* Quick Start Section */}
-        <View style={[styles.quickStartSection, compact && { marginBottom: spacing.lg }]}>
+        <View style={[styles.quickStartSection, compact && { marginBottom: spacing['3xl'] }]}>
           <Text style={styles.sectionTitle}>Quick Start</Text>
           <View style={styles.quickStartGrid}>
             {[15, 25, 30, 45].map((minutes) => (
@@ -459,7 +489,7 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* Upcoming Reminders Section */}
-        <View style={[styles.remindersSection, compact && { marginBottom: spacing.lg }]}>
+        <View style={[styles.remindersSection, compact && { marginBottom: spacing.xs }]}>
           <Text style={styles.sectionTitle}>Upcoming Reminders</Text>
           <View style={styles.remindersList}>
             {isLoadingReminders ? (
@@ -469,22 +499,22 @@ export default function HomeScreen({ navigation }) {
                 <SkeletonListItem />
               </>
             ) : reminders.length > 0 ? (
-              reminders.slice(0, 3).map((item, idx) => (
+              reminders.slice(0, 2).map((item, idx) => (
                 <GlassCard 
                   key={item.id} 
                   tint="dark" 
                   intensity={40} 
-                  style={[styles.reminderCard, idx < reminders.length - 1 && idx < 2 && { marginBottom: spacing.md }]}
-                  contentStyle={[styles.reminderCardContent, compact && { padding: spacing.md, gap: spacing.sm }]}
+                  style={[styles.reminderCard, idx < reminders.length - 1 && idx < 1 && { marginBottom: spacing.sm }]}
+                  contentStyle={[styles.reminderCardContent, compact && { padding: spacing.sm, gap: spacing.sm }]}
                 >
-                  <View style={[styles.reminderIconWrapper, compact && { width: 40, height: 40 }]}>
-                    <View style={[styles.reminderIcon, compact && { width: 40, height: 40, borderRadius: 20 }, { backgroundColor: getReminderColor(item, idx) }]}>
-                      <Ionicons name={getReminderIcon(item, idx)} size={20} color="#fff" />
+                  <View style={[styles.reminderIconWrapper, compact && { width: 36, height: 36 }]}>
+                    <View style={[styles.reminderIcon, compact && { width: 36, height: 36, borderRadius: 18 }, { backgroundColor: getReminderColor(item, idx) }]}>
+                      <Ionicons name={getReminderIcon(item, idx)} size={18} color="#fff" />
                     </View>
                   </View>
                   <View style={styles.reminderInfo}>
-                    <Text style={styles.reminderTitle}>{item.text || item.title || 'Reminder'}</Text>
-                    <Text style={styles.reminderTime}>{formatUpcomingTime(item)}</Text>
+                    <Text style={[styles.reminderTitle, compact && { fontSize: typography.sm, marginBottom: 2 }]}>{item.text || item.title || 'Reminder'}</Text>
+                    <Text style={[styles.reminderTime, compact && { fontSize: typography.xs }]}>{formatUpcomingTime(item)}</Text>
                   </View>
                 </GlassCard>
               ))
@@ -497,9 +527,9 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* Motivational Quote */}
-        <View style={[styles.quoteSection, compact && { paddingVertical: spacing.md, marginTop: spacing.md }]}>
-          <Text style={styles.quoteText}>"The secret of getting ahead is getting started."</Text>
-          <Text style={styles.quoteAuthor}>— Mark Twain</Text>
+        <View style={[styles.quoteSection, compact && { paddingVertical: spacing.sm, marginTop: 0 }]}>
+          <Text style={[styles.quoteText, compact && { fontSize: typography.xs }]}>"The secret of getting ahead is getting started."</Text>
+          <Text style={[styles.quoteAuthor, compact && { fontSize: typography.xs }]}>— Mark Twain</Text>
         </View>
       </View>
       <PremiumModal
@@ -520,15 +550,17 @@ const styles = StyleSheet.create({
     paddingBottom: 24, // small cushion; tab bar height handled dynamically
   },
   header: { 
+    width: '100%',
     flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'flex-start', 
-    marginBottom: spacing.xl 
+    justifyContent: 'center',
+    alignItems: 'center', 
+    marginBottom: spacing.lg,
+    position: 'relative',
   },
   title: { 
-    fontSize: typography['3xl'], 
+    fontSize: 32, // 2/3 of original 48px (3xl)
     fontWeight: typography.extrabold, 
-    letterSpacing: -1, 
+    letterSpacing: -0.5, 
     color: colors.foreground 
   },
   subtitle: { 
@@ -572,7 +604,7 @@ const styles = StyleSheet.create({
   },
   heroTextSection: {
     width: '100%',
-    marginBottom: spacing.lg,
+    marginBottom: spacing['3xl'],
   },
   heroTitle: {
     fontSize: typography.lg,
@@ -622,7 +654,7 @@ const styles = StyleSheet.create({
   // Quick Start Section
   quickStartSection: {
     width: '100%',
-    marginBottom: spacing.xl,
+    marginBottom: spacing['3xl'],
   },
   sectionTitle: {
     fontSize: typography.base,

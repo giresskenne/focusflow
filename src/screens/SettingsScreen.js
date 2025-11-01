@@ -110,22 +110,6 @@ export default function SettingsScreen({ navigation }) {
 
   const [showPremium, setShowPremium] = useState(false);
 
-  const handlePrivacyPolicy = () => {
-    navigation.navigate('Privacy');
-  };
-
-  const handleTerms = () => {
-    navigation.navigate('Terms');
-  };
-
-  const handleHelpCenter = () => {
-    Alert.alert('Help Center', 'FAQs and guides would be displayed here.');
-  };
-
-  const handleContactSupport = () => {
-    Alert.alert('Contact Support', 'Support contact form would be displayed here.');
-  };
-
   const handleRateApp = () => {
     Alert.alert('Rate FocusFlow', 'Rate us on the App Store!');
   };
@@ -187,7 +171,8 @@ export default function SettingsScreen({ navigation }) {
 
       <ScrollView
         style={styles.scrollContent}
-        contentContainerStyle={{ paddingBottom: spacing['3xl'] }}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
       >
         {/* Account Section */}
         <View style={styles.section}>
@@ -218,7 +203,7 @@ export default function SettingsScreen({ navigation }) {
                   {authUser ? authUser.email : 'Tap to sign in'}
                 </Text>
               </View>
-              <ChevronRightIcon color={colors.mutedForeground} size={20} />
+              {!authUser && <ChevronRightIcon color={colors.mutedForeground} size={20} />}
             </TouchableOpacity>
 
             <View style={styles.divider} />
@@ -233,7 +218,7 @@ export default function SettingsScreen({ navigation }) {
                   </Text>
                 </View>
               </View>
-              {!isPremium ? (
+              {!isPremium && (
                 <TouchableOpacity 
                   onPress={handlePremiumPress}
                   activeOpacity={0.8}
@@ -246,16 +231,6 @@ export default function SettingsScreen({ navigation }) {
                   >
                     <Text style={styles.upgradeButtonText}>Upgrade</Text>
                   </LinearGradient>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity 
-                  style={styles.testFreeButton}
-                  onPress={async () => {
-                    await setPremiumStatus(false);
-                    setIsPremium(false);
-                  }}
-                >
-                  <Text style={styles.testFreeButtonText}>Test Free</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -330,35 +305,6 @@ export default function SettingsScreen({ navigation }) {
           </GlassCard>
         </View>
 
-        {/* Appearance Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeader}>APPEARANCE</Text>
-            {!isPremium && (
-              <View style={styles.premiumBadge}>
-                <CrownIcon color="#d97706" size={12} />
-                <Text style={styles.premiumBadgeText}>Premium</Text>
-              </View>
-            )}
-          </View>
-
-          <TouchableOpacity
-            style={[styles.settingsCard, !isPremium && styles.disabledCard]}
-            onPress={isPremium ? () => Alert.alert('Theme & Colors', 'Theme customization coming soon!') : handlePremiumPress}
-          >
-            <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
-              <PaletteIcon color="#0072ff" size={20} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.settingsItemTitle}>Theme & Colors</Text>
-              <Text style={styles.settingsItemSubtitle}>
-                {isPremium ? 'Customize your experience' : 'Available with Premium'}
-              </Text>
-            </View>
-            <ChevronRightIcon color={colors.mutedForeground} size={20} />
-          </TouchableOpacity>
-        </View>
-
         {/* Privacy & Data Section */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>PRIVACY & DATA</Text>
@@ -417,19 +363,28 @@ export default function SettingsScreen({ navigation }) {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.settingsItem} onPress={handleExportData}>
+            <TouchableOpacity 
+              style={[styles.settingsItem, styles.disabledItem]} 
+              onPress={() => Alert.alert('Coming Soon', 'Help Center with FAQs and guides is coming soon!')}
+            >
               <View style={styles.settingsItemContent}>
                 <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
                   <HelpCircleIcon color="#0072ff" size={20} />
                 </View>
-                <Text style={styles.settingsItemTitle}>Help Center</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingsItemTitle}>Help Center</Text>
+                  <Text style={styles.settingsItemSubtitle}>Coming Soon</Text>
+                </View>
               </View>
               <ChevronRightIcon color={colors.mutedForeground} size={20} />
             </TouchableOpacity>
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.settingsItem} onPress={handleContactSupport}>
+            <TouchableOpacity 
+              style={styles.settingsItem} 
+              onPress={() => Linking.openURL('https://www.focusflow.cc/contact')}
+            >
               <View style={styles.settingsItemContent}>
                 <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
                   <HelpCircleIcon color="#0072ff" size={20} />
@@ -453,66 +408,6 @@ export default function SettingsScreen({ navigation }) {
             </TouchableOpacity>
           </GlassCard>
         </View>
-
-        {/* App Blocking (iOS dev) - gated by flag or presence of native bridge */}
-        {(ENABLE_IOS_BLOCKING_DEV || AppBlocker.isAvailable) && (
-          <View className="section">
-            <Text style={styles.sectionHeader}>APP BLOCKING (iOS DEV)</Text>
-            <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
-              <TouchableOpacity
-                style={styles.settingsItem}
-                onPress={async () => {
-                  if (!AppBlocker.isAvailable) {
-                    Alert.alert('Not available', 'This build does not include the native blocking module. Build a dev client for iOS.');
-                    return;
-                  }
-                  try {
-                    await AppBlocker.requestAuthorization?.();
-                    Alert.alert('Ready', 'Authorization requested. You can now start a session to test shields.');
-                  } catch (e) {
-                    Alert.alert('Auth Error', e?.message || 'Could not request Family Controls authorization.');
-                  }
-                }}
-              >
-                <View style={styles.settingsItemContent}>
-                  <ShieldIcon color={colors.mutedForeground} size={20} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.settingsItemTitle}>Request Authorization</Text>
-                    <Text style={styles.settingsItemSubtitle}>Family Controls (iOS 16+)</Text>
-                  </View>
-                </View>
-                <ChevronRightIcon color={colors.mutedForeground} size={20} />
-              </TouchableOpacity>
-
-              <View style={styles.divider} />
-
-              <TouchableOpacity
-                style={styles.settingsItem}
-                onPress={async () => {
-                  if (!AppBlocker.isAvailable) {
-                    Alert.alert('Not available', 'Native module missing in this build.');
-                    return;
-                  }
-                  try {
-                    const items = await AppBlocker.selectApps?.();
-                    Alert.alert('Selected', items?.length ? `${items.length} selected` : 'No selection');
-                  } catch (e) {
-                    Alert.alert('Picker Error', e?.message || 'Could not open FamilyActivityPicker.');
-                  }
-                }}
-              >
-                <View style={styles.settingsItemContent}>
-                  <ShieldIcon color={colors.mutedForeground} size={20} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.settingsItemTitle}>Select Apps to Block</Text>
-                    <Text style={styles.settingsItemSubtitle}>FamilyActivityPicker (placeholder)</Text>
-                  </View>
-                </View>
-                <ChevronRightIcon color={colors.mutedForeground} size={20} />
-              </TouchableOpacity>
-            </GlassCard>
-          </View>
-        )}
 
         {/* About Section */}
         <View style={styles.section}>
@@ -579,9 +474,7 @@ export default function SettingsScreen({ navigation }) {
           <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
             <TouchableOpacity 
               style={styles.settingsItem} 
-              onPress={() => navigation.navigate('PolicyScreen', {
-                policyType: 'privacy'
-              })}
+              onPress={() => Linking.openURL('https://www.focusflow.cc/privacy')}
             >
               <View style={styles.settingsItemContent}>
                 <ShieldIcon color={colors.mutedForeground} size={20} />
@@ -594,9 +487,7 @@ export default function SettingsScreen({ navigation }) {
 
             <TouchableOpacity 
               style={styles.settingsItem} 
-              onPress={() => navigation.navigate('PolicyScreen', {
-                policyType: 'terms'
-              })}
+              onPress={() => Linking.openURL('https://www.focusflow.cc/terms')}
             >
               <View style={styles.settingsItemContent}>
                 <InfoIcon color={colors.mutedForeground} size={20} />
@@ -607,73 +498,45 @@ export default function SettingsScreen({ navigation }) {
           </GlassCard>
         </View>
 
-        {/* Developer Section - Remove in production */}
+        {/* Purchases Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionHeader}>DEVELOPER</Text>
+          <Text style={styles.sectionHeader}>PURCHASES</Text>
           <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
-            <TouchableOpacity 
-              style={styles.settingsItem} 
+            <TouchableOpacity
+              style={styles.settingsItem}
               onPress={async () => {
-                const newStatus = !isPremium;
-                await setPremiumStatus(newStatus);
-                setIsPremium(newStatus);
-                Alert.alert('Status Changed', `Switched to ${newStatus ? 'Premium' : 'Free'} mode`);
+                try {
+                  if (IAP.isReady()) {
+                    const info = await IAP.restorePurchases();
+                    const active = IAP.hasPremiumEntitlement(info);
+                    await setPremiumStatus(!!active);
+                    setIsPremium(!!active);
+                    Alert.alert('Restore', active ? 'Purchases restored.' : 'No active subscription found.');
+                  } else if (StoreKitTest.isReady()) {
+                    const purchases = await StoreKitTest.restorePurchases();
+                    const active = StoreKitTest.hasActivePurchase(purchases);
+                    await setPremiumStatus(!!active);
+                    setIsPremium(!!active);
+                    Alert.alert('Restore', active ? 'Purchases restored.' : 'No active subscription found.');
+                  } else {
+                    Alert.alert('Not available', 'In-app purchases are not enabled in this build.');
+                  }
+                } catch (e) {
+                  Alert.alert('Restore Failed', e?.message || 'Could not restore purchases.');
+                }
               }}
             >
               <View style={styles.settingsItemContent}>
                 <CrownIcon color={colors.mutedForeground} size={20} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.settingsItemTitle}>Toggle Premium Status</Text>
-                  <Text style={styles.settingsItemSubtitle}>
-                    Current: {isPremium ? 'Premium' : 'Free'} - Tap to switch
-                  </Text>
+                  <Text style={styles.settingsItemTitle}>Restore Purchases</Text>
+                  <Text style={styles.settingsItemSubtitle}>Re-activate Premium on this device</Text>
                 </View>
               </View>
               <ChevronRightIcon color={colors.mutedForeground} size={20} />
             </TouchableOpacity>
           </GlassCard>
         </View>
-
-        {(process.env.EXPO_PUBLIC_ENABLE_IAP === 'true' || process.env.EXPO_PUBLIC_ENABLE_STOREKIT_TEST === 'true') && (
-          <View style={styles.section}>
-            <Text style={styles.sectionHeader}>PURCHASES</Text>
-            <View style={styles.groupCard}>
-              <TouchableOpacity
-                style={styles.settingsItem}
-                onPress={async () => {
-                  try {
-                    if (IAP.isReady()) {
-                      const info = await IAP.restorePurchases();
-                      const active = IAP.hasPremiumEntitlement(info);
-                      await setPremiumStatus(!!active);
-                      setIsPremium(!!active);
-                      Alert.alert('Restore', active ? 'Purchases restored.' : 'No active subscription found.');
-                    } else if (StoreKitTest.isReady()) {
-                      const purchases = await StoreKitTest.restorePurchases();
-                      const active = StoreKitTest.hasActivePurchase(purchases);
-                      await setPremiumStatus(!!active);
-                      setIsPremium(!!active);
-                      Alert.alert('Restore', active ? 'Purchases restored.' : 'No active subscription found.');
-                    } else {
-                      Alert.alert('Not available', 'In-app purchases are not enabled in this build.');
-                    }
-                  } catch (e) {
-                    Alert.alert('Restore Failed', e?.message || 'Could not restore purchases.');
-                  }
-                }}
-              >
-                <View style={styles.settingsItemContent}>
-                  <CrownIcon color={colors.mutedForeground} size={20} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.settingsItemTitle}>Restore Purchases</Text>
-                    <Text style={styles.settingsItemSubtitle}>Re-activate Premium on this device</Text>
-                  </View>
-                </View>
-                <ChevronRightIcon color={colors.mutedForeground} size={20} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
 
         {/* Account / Sign In */}
         {authUser ? (
@@ -978,6 +841,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.lg,
     backgroundColor: 'transparent',
+  },
+  disabledItem: {
+    opacity: 0.5,
   },
   settingsItemContent: {
     flex: 1,

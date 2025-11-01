@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, Alert, Modal, ScrollView, TouchableOpacity, Platform, Linking } from 'react-native';
+import React, { useEffect, useState, useLayoutEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TextInput, Alert, Modal, ScrollView, TouchableOpacity, Platform, Linking, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import UIButton from '../components/Ui/Button';
 import * as Notifications from 'expo-notifications';
 import { getReminders, setReminders, getPremiumStatus } from '../storage';
@@ -14,6 +15,9 @@ import GlassCard from '../components/Ui/GlassCard';
 import PremiumModal from '../components/PremiumModal';
 
 export default function RemindersScreen({ navigation }) {
+  const tabBarHeight = useBottomTabBarHeight();
+  const { height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [items, setItems] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -24,6 +28,27 @@ export default function RemindersScreen({ navigation }) {
   const [weekDay, setWeekDay] = useState(1); // 1 = Monday
   const [isPremium, setIsPremium] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(0);
+
+  // Hide tab bar when modal is open; otherwise ensure full style is restored
+  useLayoutEffect(() => {
+    const baseTabStyle = {
+      position: 'absolute',
+      bottom: 16,
+      left: 16,
+      right: 16,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: 'transparent',
+      borderTopWidth: 0,
+      elevation: 0,
+      paddingBottom: 0,
+      paddingTop: 0,
+    };
+    navigation.setOptions({
+      tabBarStyle: showAdd ? [{ ...baseTabStyle }, { display: 'none' }] : baseTabStyle,
+    });
+  }, [showAdd, navigation]);
 
   const loadReminders = async () => {
     const existing = await getReminders();
@@ -302,12 +327,15 @@ export default function RemindersScreen({ navigation }) {
   if (showAdd) {
     return (
       <GradientBackground>
-        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.header}>
+        <SafeAreaView style={styles.container} edges={['top']}>
+        <View 
+          style={styles.header}
+          onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
+        >
           <Text style={styles.headerTitle}>{editingItem ? 'Edit Reminder' : 'New Reminder'}</Text>
         </View>
 
-        <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: spacing['3xl'] }}>
+        <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: 100 }}>
           <View style={{ gap: spacing.xl }}>
             {/* Reminder Text Input */}
             <View style={{ gap: spacing.sm }}>
@@ -491,22 +519,6 @@ export default function RemindersScreen({ navigation }) {
           />
         </View>
 
-  {/* Debug helpers (toggled; previously dev-only). Keep visible to help QA on device */}
-  {(
-          <View style={{ padding: spacing.lg, gap: spacing.md }}>
-            <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>Notifications Debug</Text>
-            <View style={{ flexDirection: 'row', gap: spacing.md }}>
-              {/* Removed debug buttons: 5s Test and 1min Repeat Test */}
-
-              {/* Removed debug buttons: List Scheduled, Clear All */}
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                {/* Removed debug buttons: Permission Status and Open Settings */}
-            </View>
-          </View>
-        )}
-
         {/* Premium Page (modal) while in Add/Edit view */}
         <PremiumModal
           visible={showPremium}
@@ -545,49 +557,66 @@ export default function RemindersScreen({ navigation }) {
     <GradientBackground>
       <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Reminders</Text>
-          {!isPremium && (
-            <Text style={styles.headerSubtitle}>
-              {items.length}/{FREE_REMINDER_LIMIT} reminders
-            </Text>
-          )}
-        </View>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={handleAddReminder}
+      <View style={styles.headerContainer}>
+        <View 
+          style={styles.header}
+          onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
         >
-          <PlusIcon color="#fff" size={20} />
-        </TouchableOpacity>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={styles.headerTitle}>Reminders</Text>
+            {!isPremium && (
+              <Text style={styles.headerSubtitle}>
+                {items.length}/{FREE_REMINDER_LIMIT} reminders
+              </Text>
+            )}
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={handleAddReminder}
+            >
+              <PlusIcon color="#fff" size={20} />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       {/* Reminders List */}
       <View style={styles.scrollContent}>
-        {items.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🔔</Text>
-            <Text style={styles.emptyText}>
-              No reminders yet. Add one to get started!
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.remindersList}>
-            <FlatList
-              data={items}
-              keyExtractor={(item) => item.id}
-              renderItem={renderItem}
-              style={{ flex: 1 }}
-              showsVerticalScrollIndicator
-              scrollEnabled
-              bounces
-              alwaysBounceVertical
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ paddingBottom: spacing['3xl'], flexGrow: 1 }}
-              ListFooterComponent={<View style={{ height: spacing['3xl'] }} />}
-            />
-          </View>
-        )}
+            {items.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>🔔</Text>
+                <Text style={styles.emptyText}>
+                  No reminders yet. Add one to get started!
+                </Text>
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.remindersList,
+                  {
+                    // Exact height so the panel never renders under the tab bar
+                    height: Math.max(
+                      0,
+                      windowHeight - insets.top - tabBarHeight - headerHeight - spacing['2xl']
+                    ),
+                  },
+                ]}
+              >
+                <FlatList
+                  data={items}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderItem}
+                  style={{ flex: 1 }}
+                  showsVerticalScrollIndicator
+                  scrollEnabled
+                  bounces
+                  alwaysBounceVertical
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ paddingBottom: spacing.md }}
+                />
+              </View>
+            )}
       </View>
 
       {/* Premium Page (modal) */}
@@ -604,18 +633,23 @@ export default function RemindersScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: 'transparent',
+  },
+  headerContainer: {
+    paddingHorizontal: spacing.xl,
   },
   header: {
+    width: '100%',
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
+    position: 'relative',
     paddingTop: spacing['3xl'],
     paddingBottom: spacing.lg,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: typography.bold,
+    fontSize: 32,
+    fontWeight: typography.extrabold,
     color: colors.foreground,
     letterSpacing: -0.5,
   },
@@ -623,7 +657,17 @@ const styles = StyleSheet.create({
     fontSize: typography.base,
     color: colors.mutedForeground,
     marginTop: 4,
+    textAlign: 'center',
   },
+  headerActions: {
+    position: 'absolute',
+    right: spacing.lg,
+    top: spacing['3xl'],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  // headerRight: removed (was used for absolute + button)
   addButton: {
     width: 40,
     height: 40,
@@ -800,8 +844,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   dayButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: 'rgba(0, 114, 255, 0.15)',
+    borderColor: '#0072ff',
+    borderWidth: 2,
   },
   dayButtonText: {
     fontSize: typography.sm,
@@ -809,7 +854,7 @@ const styles = StyleSheet.create({
     color: colors.foreground,
   },
   dayButtonTextActive: {
-    color: '#fff',
+    color: colors.foreground,
   },
   premiumCard: {
     flexDirection: 'row',
@@ -892,7 +937,7 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     padding: spacing.lg,
-    paddingBottom: spacing['3xl'],
+    paddingBottom: spacing.xl,
     backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.border,

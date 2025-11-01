@@ -683,12 +683,19 @@ export default function ActiveSessionScreen({ navigation, route }) {
           const selectionId = stored?.familyActivitySelectionId || FAMILY_SELECTION_ID;
           if (selectionId) {
             DeviceActivity.unblockSelection({ familyActivitySelectionId: selectionId });
+            console.log('[ActiveSession] Unblocked via selectionId on early end');
           }
           if (stored?.nativeFamilyActivitySelection) {
-            try { DeviceActivity.unblockSelection({ familyActivitySelection: stored.nativeFamilyActivitySelection }); } catch (_) {}
+            try { 
+              DeviceActivity.unblockSelection({ familyActivitySelection: stored.nativeFamilyActivitySelection }); 
+              console.log('[ActiveSession] Unblocked via native selection on early end');
+            } catch (_) {}
           }
           DeviceActivity.stopMonitoring(['focusSession']);
-        } catch {}
+          console.log('[ActiveSession] Stopped monitoring on early end');
+        } catch (e) {
+          console.log('[ActiveSession] Error during unblock on early end:', e);
+        }
       }
       const runSeconds = duration - seconds;
       const endAt = Date.now();
@@ -708,12 +715,16 @@ export default function ActiveSessionScreen({ navigation, route }) {
       // Send an immediate early-end notification
       try { await maybeNotifySessionEnd(true, runSeconds); } catch {}
       if (unblockTimeoutRef.current) { clearTimeout(unblockTimeoutRef.current); unblockTimeoutRef.current = null; }
-    } catch {}
+    } catch (e) {
+      console.log('[ActiveSession] Error in endEarly cleanup:', e);
+    }
     
-    // Small delay to ensure modal closes before navigation
-    setTimeout(() => {
+    // Wait a bit longer to ensure unblock commands are processed by the OS
+    await sleep(300);
+    
+    if (mountedRef.current) {
       navigation.navigate('MainTabs', { screen: 'Home' });
-    }, 100);
+    }
   };
 
   // Notify helper: silent if user hasn't granted notifications

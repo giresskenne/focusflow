@@ -93,17 +93,83 @@ export function computeMostBlockedApps(history = [], top = 3) {
 
 function prettifyAppId(id) {
   if (!id) return 'Unknown';
-  // Heuristic: last segment or known aliases
-  const aliases = {
-    'com.social.app': 'Instagram',
-    'com.video.stream': 'YouTube',
-    'com.games.arcade': 'Arcade Games',
-    'com.shop.mall': 'Shopping',
+  
+  // Map of real bundle IDs to display names
+  const bundleIdMap = {
+    // Social Media
+    'com.burbn.instagram': 'Instagram',
+    'com.atebits.Tweetie2': 'Twitter',
+    'com.facebook.Facebook': 'Facebook',
+    'com.zhiliaoapp.musically': 'TikTok',
+    'net.whatsapp.WhatsApp': 'WhatsApp',
+    'com.reddit.Reddit': 'Reddit',
+    'com.toyopagroup.picaboo': 'Snapchat',
+    'com.linkedin.LinkedIn': 'LinkedIn',
+    'com.telegram.Telegram': 'Telegram',
+    'com.discord': 'Discord',
+    'com.pinterest': 'Pinterest',
+    
+    // Entertainment
+    'us.zoom.videomeetings': 'Zoom',
+    'com.google.ios.youtube': 'YouTube',
+    'com.netflix.Netflix': 'Netflix',
+    'com.spotify.client': 'Spotify',
+    'tv.twitch': 'Twitch',
+    'com.hulu.plus': 'Hulu',
+    'com.disney.disneyplus': 'Disney+',
+    'com.amazon.PrimeVideo': 'Prime Video',
+    'com.hbo.hbonow': 'HBO Max',
+    
+    // Gaming
+    'com.epicgames.fortnite': 'Fortnite',
+    'com.roblox.robloxmobile': 'Roblox',
+    'com.supercell.clashofclans': 'Clash of Clans',
+    'com.king.candycrushsaga': 'Candy Crush',
+    'com.ea.ios.apexlegendsmobilefps': 'Apex Legends',
+    'com.miHoYo.GenshinImpact': 'Genshin Impact',
+    
+    // Productivity (sometimes blocked during deep focus)
+    'com.apple.mobileslideshow': 'Photos',
+    'com.apple.MobileSMS': 'Messages',
+    'com.apple.mobilemail': 'Mail',
+    'com.microsoft.Office.Outlook': 'Outlook',
+    'com.google.Gmail': 'Gmail',
+    'com.microsoft.Office.Word': 'Word',
+    'com.microsoft.skype.teams': 'Teams',
+    
+    // Shopping
+    'com.amazon.Amazon': 'Amazon',
+    'com.ebay.iphone': 'eBay',
+    'com.etsy.EtsyInc': 'Etsy',
+    'com.shopify.Shopify': 'Shopify',
+    
+    // News & Reading
+    'com.apple.news': 'News',
+    'flipboard.app': 'Flipboard',
+    'com.medium.reader': 'Medium',
+    
+    // Dating
+    'com.tinder.Tinder': 'Tinder',
+    'com.bumble.app': 'Bumble',
+    'com.match.app': 'Match',
   };
-  if (aliases[id]) return aliases[id];
+  
+  // Return mapped name if available
+  if (bundleIdMap[id]) {
+    return bundleIdMap[id];
+  }
+  
+  // Fallback: extract last component and capitalize
   const parts = id.split('.');
   const last = parts[parts.length - 1];
-  return last.charAt(0).toUpperCase() + last.slice(1);
+  
+  // Handle camelCase or PascalCase app names
+  const readable = last
+    .replace(/([A-Z])/g, ' $1') // Add space before capitals
+    .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
+    .trim();
+  
+  return readable || 'Unknown App';
 }
 
 export function formatHrsMins(seconds) {
