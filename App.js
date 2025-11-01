@@ -8,6 +8,7 @@ import FocusSessionScreen from './src/screens/FocusSessionScreen';
 import ActiveSessionScreen from './src/screens/ActiveSessionScreen';
 import SignInScreen from './src/screens/SignInScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 import TermsScreen from './src/screens/TermsScreen';
 import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import AccountScreen from './src/screens/AccountScreen';
@@ -18,7 +19,7 @@ import AnimatedSplashParticles from './src/components/AnimatedSplashParticles';
 import { AppState } from 'react-native';
 import theme from './src/theme';
 import { initializeAuth, setupAuthListener } from './src/lib/auth';
-import { getReminders, getAuthUser, getLastSyncAt, getDirtySince, clearDirty, getSignInNudgeId, setSignInNudgeId, clearSignInNudgeId, getSignInNudgeOptOut, hasLocalData, getMigrationFlag, setMigrationFlag, getSession } from './src/storage';
+import { getReminders, getAuthUser, getLastSyncAt, getDirtySince, clearDirty, getSignInNudgeId, setSignInNudgeId, clearSignInNudgeId, getSignInNudgeOptOut, hasLocalData, getMigrationFlag, setMigrationFlag, getSession, getOnboardingCompleted, setOnboardingCompleted } from './src/storage';
 import { mergeCloudToLocal, performMigrationUpload, hasCloudData, pullCloudToLocal } from './src/lib/sync';
 import MigrationPrompt from './src/components/MigrationPrompt';
 import DataSyncPrompt from './src/components/DataSyncPrompt';
@@ -39,6 +40,8 @@ export default function App() {
   const [showSyncPrompt, setShowSyncPrompt] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
   const [showBrandSplash, setShowBrandSplash] = useState(true);
+  const [onboardingCompleted, setOnboardingCompletedState] = useState(false);
+  const [isOnboardingLoading, setIsOnboardingLoading] = useState(true);
 
   // Auto-hide splash overlay after the animation completes as a fallback
   useEffect(() => {
@@ -46,6 +49,22 @@ export default function App() {
     const t = setTimeout(() => setShowBrandSplash(false), 1400);
     return () => clearTimeout(t);
   }, [showBrandSplash]);
+
+  // Load onboarding completion status
+  useEffect(() => {
+    (async () => {
+      try {
+        const completed = await getOnboardingCompleted();
+        setOnboardingCompletedState(completed);
+      } catch (error) {
+        console.error('Failed to load onboarding status:', error);
+        // Default to not completed on error
+        setOnboardingCompletedState(false);
+      } finally {
+        setIsOnboardingLoading(false);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     // Initialize global error handling
@@ -262,6 +281,19 @@ export default function App() {
       await setSignInNudgeId(id);
     } catch {}
   }
+
+  // Handle onboarding completion
+  async function handleOnboardingComplete() {
+    try {
+      await setOnboardingCompleted(true);
+      setOnboardingCompletedState(true);
+      if (navigationRef.isReady()) {
+        navigationRef.navigate('MainTabs');
+      }
+    } catch (error) {
+      console.error('Failed to save onboarding completion:', error);
+    }
+  }
   
 
 
@@ -292,6 +324,14 @@ export default function App() {
               contentStyle: { backgroundColor: 'transparent' },
             }}
           >
+          {!isOnboardingLoading && !onboardingCompleted ? (
+            <Stack.Screen 
+              name="Onboarding" 
+              options={{ headerShown: false }}
+            >
+              {(props) => <OnboardingScreen {...props} onComplete={handleOnboardingComplete} />}
+            </Stack.Screen>
+          ) : null}
           <Stack.Screen name="MainTabs" component={TabNavigator} options={{ headerShown: false }} />
           <Stack.Screen name="AppSelection" component={AppSelectionScreen} options={{ title: 'Select Apps' }} />
           <Stack.Screen name="FocusSession" component={FocusSessionScreen} options={{ title: 'Focus Session' }} />

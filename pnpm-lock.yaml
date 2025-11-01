@@ -44,6 +44,9 @@ importers:
       expo-file-system:
         specifier: ~19.0.17
         version: 19.0.17(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))
+      expo-image:
+        specifier: ^3.0.10
+        version: 3.0.10(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))(react-native-web@0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)
       expo-intent-launcher:
         specifier: ~13.0.7
         version: 13.0.7(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))
@@ -2026,6 +2029,17 @@ packages:
       expo: '*'
       react: '*'
       react-native: '*'
+
+  expo-image@3.0.10:
+    resolution: {integrity: sha512-i4qNCEf9Ur7vDqdfDdFfWnNCAF2efDTdahuDy9iELPS2nzMKBLeeGA2KxYEPuRylGCS96Rwm+SOZJu6INc2ADQ==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
+      react-native-web: '*'
+    peerDependenciesMeta:
+      react-native-web:
+        optional: true
 
   expo-intent-launcher@13.0.7:
     resolution: {integrity: sha512-4em7utK59gftgBwokpw+TQkyY27C5JH28LLrM/ZTABIsAMRUEqS+Inzd/xtN0hvxo2Z8aTsd+N1WRcCdOehYdg==}
@@ -6723,6 +6737,14 @@ snapshots:
       fontfaceobserver: 2.3.0
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.28.5)(react@19.1.0)
+
+  expo-image@3.0.10(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))(react-native-web@0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      expo: 54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.28.5)(react@19.1.0)
+    optionalDependencies:
+      react-native-web: 0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
 
   expo-intent-launcher@13.0.7(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)):
     dependencies:

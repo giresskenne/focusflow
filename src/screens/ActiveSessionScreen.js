@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, AppState } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, AppState, Image } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
@@ -60,6 +60,7 @@ export default function ActiveSessionScreen({ navigation, route }) {
   const [startAt, setStartAt] = useState(Date.now());
   const [apps, setApps] = useState([]);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showSarcasm, setShowSarcasm] = useState(false);
   const [authStatus, setAuthStatus] = useState(null);
   const [selectionCounts, setSelectionCounts] = useState(null);
   const FAMILY_SELECTION_ID = 'focusflow_selection';
@@ -625,12 +626,29 @@ export default function ActiveSessionScreen({ navigation, route }) {
 
   // Auto-complete when timer hits zero
   useEffect(() => {
-    if (safeSeconds === 0 && mountedRef.current) {
+    const now = Date.now();
+    const hasExpired = sessionEndAt && now >= sessionEndAt;
+    
+    console.log('[ActiveSession] Timer check:', { 
+      safeSeconds, 
+      hasExpired, 
+      now, 
+      sessionEndAt,
+      diff: sessionEndAt - now 
+    });
+    
+    if ((safeSeconds <= 0 || hasExpired) && mountedRef.current) {
       (async () => {
         try {
           // Guard against duplicate completion when JS timer already ran
           const current = await getSession();
-          if (!current?.active) return;
+          if (!current?.active) {
+            console.log('[ActiveSession] Session already inactive, skipping completion');
+            return;
+          }
+          
+          console.log('[ActiveSession] Timer reached zero, completing session...');
+          
           // Clear the session state immediately to prevent restart loops
           await setSession({ active: false, endAt: null, totalSeconds: null });
           
@@ -643,6 +661,9 @@ export default function ActiveSessionScreen({ navigation, route }) {
             endedEarly: false,
             apps,
           });
+          
+          console.log('[ActiveSession] Session record saved, cleaning up...');
+          
           // Rely on scheduled end notification; don't send another here to avoid duplicates
           
           // Clear any pending unblock timer
@@ -653,14 +674,28 @@ export default function ActiveSessionScreen({ navigation, route }) {
           // Cancel notifications and timers
           try { if (endOsNotifIdRef.current) { await Notifications.cancelScheduledNotificationAsync(endOsNotifIdRef.current); endOsNotifIdRef.current = null; } } catch {}
           try { if (notifyTimeoutRef.current) { clearTimeout(notifyTimeoutRef.current); notifyTimeoutRef.current = null; } } catch {}
-        } catch {}
+        } catch (e) {
+          console.log('[ActiveSession] Error during session completion:', e);
+        }
+        
         if (mountedRef.current) {
+          console.log('[ActiveSession] Navigating to Home...');
           // Navigate to Home tab after session completes
-          navigation.navigate('MainTabs', { screen: 'Home' });
+          try {
+            navigation.navigate('MainTabs', { screen: 'Home' });
+          } catch (navError) {
+            console.log('[ActiveSession] Navigation error:', navError);
+            // Fallback: try goBack
+            try {
+              navigation.goBack();
+            } catch {
+              console.log('[ActiveSession] goBack also failed');
+            }
+          }
         }
       })();
     }
-  }, [safeSeconds]);
+  }, [safeSeconds, sessionEndAt]);
 
   const { minutes, seconds: secs } = formatSeconds(safeSeconds);
   
@@ -672,59 +707,20 @@ export default function ActiveSessionScreen({ navigation, route }) {
   const strokeDashoffset = circumference - (safeProgress / 100) * circumference;
   
   const endEarly = async () => {
-    // Close modal first
+    // Close the confirmation modal
     setShowConfirm(false);
     
-    try {
-      // Unblock immediately if we used a selection id
-      if (blockingAvailable && DeviceActivity) {
-        try {
-          const stored = await getSelectedApps();
-          const selectionId = stored?.familyActivitySelectionId || FAMILY_SELECTION_ID;
-          if (selectionId) {
-            DeviceActivity.unblockSelection({ familyActivitySelectionId: selectionId });
-            console.log('[ActiveSession] Unblocked via selectionId on early end');
-          }
-          if (stored?.nativeFamilyActivitySelection) {
-            try { 
-              DeviceActivity.unblockSelection({ familyActivitySelection: stored.nativeFamilyActivitySelection }); 
-              console.log('[ActiveSession] Unblocked via native selection on early end');
-            } catch (_) {}
-          }
-          DeviceActivity.stopMonitoring(['focusSession']);
-          console.log('[ActiveSession] Stopped monitoring on early end');
-        } catch (e) {
-          console.log('[ActiveSession] Error during unblock on early end:', e);
-        }
-      }
-      const runSeconds = duration - seconds;
-      const endAt = Date.now();
-      await appendSessionRecord({
-        id: String(endAt),
-        startAt,
-        endAt,
-        durationSeconds: Math.max(1, runSeconds),
-        endedEarly: true,
-        apps,
-      });
-      await setSession({ active: false, endAt: null, totalSeconds: null });
-  // Cancel any scheduled/pending end notifications since we ended early
-  try { if (endNotifIdRef.current) { await Notifications.cancelScheduledNotificationAsync(endNotifIdRef.current); endNotifIdRef.current = null; } } catch {}
-  try { if (endOsNotifIdRef.current) { await Notifications.cancelScheduledNotificationAsync(endOsNotifIdRef.current); endOsNotifIdRef.current = null; } } catch {}
-  try { if (notifyTimeoutRef.current) { clearTimeout(notifyTimeoutRef.current); notifyTimeoutRef.current = null; } } catch {}
-      // Send an immediate early-end notification
-      try { await maybeNotifySessionEnd(true, runSeconds); } catch {}
-      if (unblockTimeoutRef.current) { clearTimeout(unblockTimeoutRef.current); unblockTimeoutRef.current = null; }
-    } catch (e) {
-      console.log('[ActiveSession] Error in endEarly cleanup:', e);
-    }
+    // Show sarcastic rejection message
+    setShowSarcasm(true);
     
-    // Wait a bit longer to ensure unblock commands are processed by the OS
-    await sleep(300);
+    // Auto-dismiss sarcasm modal after 3 seconds and return to session screen
+    setTimeout(() => {
+      setShowSarcasm(false);
+    }, 5000);
     
-    if (mountedRef.current) {
-      navigation.navigate('MainTabs', { screen: 'Home' });
-    }
+    // NO unblocking logic here - apps stay locked!
+    // User must wait for timer to finish or uninstall the app
+    console.log('[ActiveSession] Nice try! User attempted to end session early but was rejected 😂');
   };
 
   // Notify helper: silent if user hasn't granted notifications
@@ -908,6 +904,28 @@ export default function ActiveSessionScreen({ navigation, route }) {
                 style={{ flex: 1, marginLeft: spacing.sm }}
               />
             </View>
+          </GlassCard>
+        </View>
+      </Modal>
+
+      {/* Sarcastic Rejection Modal */}
+      <Modal visible={showSarcasm} transparent animationType="fade" onRequestClose={() => setShowSarcasm(false)}>
+        <View style={styles.modalOverlay}>
+          <GlassCard tint="dark" intensity={60} cornerRadius={24} contentStyle={{ padding: spacing['2xl'], alignItems: 'center' }} style={{ width: '100%', maxWidth: 400 }}>
+            <Image 
+              source={require('../../assets/grinning_face_with_sweat_animated.png')} 
+              style={{ width: 120, height: 120, marginBottom: spacing.md }}
+              resizeMode="contain"
+            />
+            <Text style={[styles.modalTitle, { textAlign: 'center', marginTop: spacing.lg }]}>
+              Nice try!!! 😂
+            </Text>
+            <Text style={[styles.modalDescription, { textAlign: 'center', marginTop: spacing.md }]}>
+              Nice try!!! Go back to work! 
+            </Text>
+            <Text style={[styles.motivationText, { textAlign: 'center'}]}>
+              Your apps will stay blocked until the timer ends.     
+            </Text>
           </GlassCard>
         </View>
       </Modal>

@@ -1,6 +1,9 @@
 // Centralized icon components using Expo vector icons (Feather set, similar to Lucide)
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
+import SarcasticLaughIcon from './Icons/SarcasticLaughIcon';
+
+export { SarcasticLaughIcon };
 
 export const ClockIcon = (props) => <Feather name="clock" size={20} {...props} />;
 export const BellIcon = (props) => <Feather name="bell" {...props} />;

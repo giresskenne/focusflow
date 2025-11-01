@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, Linking } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,6 +39,8 @@ export default function SettingsScreen({ navigation }) {
   const [hasCheckedMigration, setHasCheckedMigration] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
   const [showSyncPrompt, setShowSyncPrompt] = useState(false);
+  const [notifPerm, setNotifPerm] = useState({ status: 'unknown', canAskAgain: true });
+  const [screenTimePerm, setScreenTimePerm] = useState('unknown'); // 'approved' | 'denied' | 'unknown' | 'not-available'
 
   // Feature flag: enable actual cloud upload when explicitly turned on
   const ENABLE_MIGRATION_UPLOAD = process.env.EXPO_PUBLIC_ENABLE_MIGRATION_UPLOAD === 'true';
@@ -56,6 +59,25 @@ export default function SettingsScreen({ navigation }) {
 
       const storedUser = await getAuthUser();
       setAuthUserState(storedUser);
+
+      // Load permissions
+      try {
+        const np = await Notifications.getPermissionsAsync();
+        setNotifPerm({ status: np.status, canAskAgain: np.canAskAgain ?? true });
+      } catch {}
+
+      try {
+        let status = 'not-available';
+        if (Platform.OS === 'ios') {
+          let DeviceActivity = null;
+          try { DeviceActivity = require('react-native-device-activity'); } catch {}
+          if (DeviceActivity) {
+            const s = DeviceActivity.getAuthorizationStatus();
+            status = (s === 2 || s === 'approved') ? 'approved' : (s === 1 || s === 'denied') ? 'denied' : 'unknown';
+          }
+        }
+        setScreenTimePerm(status);
+      } catch {}
     })();
   }, []);
 
@@ -158,6 +180,65 @@ export default function SettingsScreen({ navigation }) {
     Alert.alert('Signed Out', 'You have been signed out.');
   };
 
+  // Permission handlers
+  const refreshNotifPerm = async () => {
+    try {
+      const np = await Notifications.getPermissionsAsync();
+      setNotifPerm({ status: np.status, canAskAgain: np.canAskAgain ?? true });
+    } catch {}
+  };
+
+  const requestNotifications = async () => {
+    try {
+      const result = await Notifications.requestPermissionsAsync();
+      setNotifPerm({ status: result.status, canAskAgain: result.canAskAgain ?? true });
+      if (result.status !== 'granted') {
+        Alert.alert(
+          'Notifications Disabled',
+          'Please enable notifications in iOS Settings to use reminders and session alerts.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings?.() },
+          ]
+        );
+      }
+    } catch {}
+  };
+
+  const refreshScreenTime = () => {
+    try {
+      if (Platform.OS !== 'ios') { setScreenTimePerm('not-available'); return; }
+      let DeviceActivity = null;
+      try { DeviceActivity = require('react-native-device-activity'); } catch {}
+      if (!DeviceActivity) { setScreenTimePerm('not-available'); return; }
+      const s = DeviceActivity.getAuthorizationStatus();
+      setScreenTimePerm((s === 2 || s === 'approved') ? 'approved' : (s === 1 || s === 'denied') ? 'denied' : 'unknown');
+    } catch {}
+  };
+
+  const requestScreenTime = async () => {
+    try {
+      if (Platform.OS !== 'ios') return;
+      let DeviceActivity = null;
+      try { DeviceActivity = require('react-native-device-activity'); } catch {}
+      if (!DeviceActivity) return;
+      await DeviceActivity.requestAuthorization();
+      refreshScreenTime();
+      const s = DeviceActivity.getAuthorizationStatus();
+      const ok = (s === 2 || s === 'approved');
+      if (!ok) {
+        Alert.alert(
+          'Screen Time Not Authorized',
+          'FocusFlow cannot block distracting apps without Screen Time authorization. You can enable this in Settings > Screen Time.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings?.() },
+          ]
+        );
+      }
+    } catch {}
+  };
+
   return (
     <GradientBackground>
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -234,6 +315,66 @@ export default function SettingsScreen({ navigation }) {
                 </TouchableOpacity>
               )}
             </View>
+          </GlassCard>
+        </View>
+
+        {/* Permissions Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>PERMISSIONS</Text>
+          <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
+            {/* Notifications Permission */}
+            <View style={styles.settingsItem}>
+              <View style={styles.settingsItemContent}>
+                <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
+                  <BellIcon color="#8900f5" size={20} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingsItemTitle}>Notifications</Text>
+                  <Text style={styles.settingsItemSubtitle}>
+                    {notifPerm.status === 'granted' ? 'Allowed' : notifPerm.status === 'denied' ? 'Denied' : 'Not determined'}
+                  </Text>
+                </View>
+              </View>
+              {notifPerm.status === 'granted' ? (
+                <Text style={styles.settingsItemSubtitle}>On</Text>
+              ) : notifPerm.canAskAgain ? (
+                <TouchableOpacity onPress={requestNotifications}>
+                  <Text style={[styles.upgradeButtonText, { color: colors.primary }]}>Allow</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => Linking.openSettings?.()}>
+                  <Text style={[styles.upgradeButtonText, { color: colors.primary }]}>Open Settings</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Screen Time (iOS) */}
+            {Platform.OS === 'ios' && (
+              <View style={styles.settingsItem}>
+                <View style={styles.settingsItemContent}>
+                  <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
+                    <ShieldIcon color="#8900f5" size={20} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingsItemTitle}>Screen Time</Text>
+                    <Text style={styles.settingsItemSubtitle}>
+                      {screenTimePerm === 'approved' ? 'Authorized' : screenTimePerm === 'denied' ? 'Denied' : screenTimePerm === 'not-available' ? 'Not available' : 'Not determined'}
+                    </Text>
+                  </View>
+                </View>
+                {screenTimePerm === 'approved' ? (
+                  <Text style={styles.settingsItemSubtitle}>On</Text>
+                ) : (
+                  <TouchableOpacity onPress={screenTimePerm === 'denied' ? () => Linking.openSettings?.() : requestScreenTime}>
+                    <Text style={[styles.upgradeButtonText, { color: colors.primary }]}>
+                      {screenTimePerm === 'denied' ? 'Open Settings' : 'Authorize'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </GlassCard>
         </View>
 
