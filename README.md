@@ -116,3 +116,23 @@ Note: The native scaffolding is present under `ios/` for development builds. Rea
 ## Tests
 
 Jest via `jest-expo`. Example unit test in `__tests__/time.test.js`.
+
+
+## app navigation
+Stack Navigator (main app navigation)
+├── Tab Navigator (bottom tabs for main app)
+│   ├── HomeScreen (Home tab)
+│   ├── AnalyticsScreen (Analytics tab)
+│   ├── RemindersScreen (Reminders tab)
+│   └── SettingsScreen (Settings tab)
+├── AppSelectionScreen (modal/stack screen)
+├── FocusSessionScreen (modal/stack screen)
+├── ActiveSessionScreen (modal/stack screen)
+├── SignInScreen (modal/stack screen)
+├── SignUpScreen (modal/stack screen)
+├── TermsScreen (modal/stack screen)
+├── PrivacyPolicyScreen (modal/stack screen)
+├── AccountScreen (modal/stack screen)
+├── PolicyScreen (modal/stack screen)
+├── EventModalScreen (modal/stack screen)
+└── EventEditModalScreen (modal/stack screen)

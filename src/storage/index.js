@@ -13,6 +13,7 @@ const KEYS = {
   dirtySince: 'ff:dirtySince',
   signInNudgeId: 'ff:signinNudgeId',
   signInNudgeOptOut: 'ff:signinNudgeOptOut',
+  templates: 'ff:templates', // saved template selections
 };
 
 export async function getSelectedApps() {
@@ -221,4 +222,33 @@ export async function getSignInNudgeOptOut() {
 
 export async function setSignInNudgeOptOut(value) {
   await AsyncStorage.setItem(KEYS.signInNudgeOptOut, value ? 'true' : 'false');
+}
+
+// ---- Template Storage ----
+// Shape: { [templateId]: { selectionToken: string, appCount: number, categoryCount: number, webDomainCount: number, savedAt: number } }
+export async function getTemplates() {
+  const raw = await AsyncStorage.getItem(KEYS.templates);
+  return raw ? JSON.parse(raw) : {};
+}
+
+export async function saveTemplate(templateId, selectionData) {
+  const templates = await getTemplates();
+  templates[templateId] = {
+    ...selectionData,
+    savedAt: Date.now(),
+  };
+  await AsyncStorage.setItem(KEYS.templates, JSON.stringify(templates));
+  await markDirty();
+}
+
+export async function getTemplate(templateId) {
+  const templates = await getTemplates();
+  return templates[templateId] || null;
+}
+
+export async function clearTemplate(templateId) {
+  const templates = await getTemplates();
+  delete templates[templateId];
+  await AsyncStorage.setItem(KEYS.templates, JSON.stringify(templates));
+  await markDirty();
 }

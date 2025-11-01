@@ -27,7 +27,7 @@ function StatCard({ label, value, sub }) {
 function BarChart({ buckets, labels = weekLabels, height = 120 }) {
   const max = Math.max(1, ...buckets);
   return (
-    <View style={{ paddingVertical: 12 }}>
+    <View style={{ paddingVertical: 8 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: height + 20 }}>
         {buckets.map((v, i) => (
           <View key={i} style={{ width: Math.max(12, 300 / buckets.length), alignItems: 'center' }}>
@@ -89,10 +89,10 @@ function ProductivityRing({ score, size = 80 }) {
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <View style={{
-        width: size - 12,
-        height: size - 12,
-        borderRadius: (size - 12) / 2,
-        borderWidth: 6,
+        width: size - 8,
+        height: size - 8,
+        borderRadius: (size - 8) / 2,
+        borderWidth: 5,
         borderColor: 'rgba(255, 255, 255, 0.15)',
         alignItems: 'center',
         justifyContent: 'center',
@@ -100,25 +100,29 @@ function ProductivityRing({ score, size = 80 }) {
       }}>
         <View style={{
           position: 'absolute',
-          width: size - 12,
-          height: size - 12,
-          borderRadius: (size - 12) / 2,
-          borderWidth: 6,
+          width: size - 8,
+          height: size - 8,
+          borderRadius: (size - 8) / 2,
+          borderWidth: 5,
           borderColor: score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444',
           borderRightColor: 'transparent',
           borderBottomColor: 'transparent',
           transform: [{ rotate: `${(score / 100) * 360 - 90}deg` }]
         }} />
-        <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff' }}>{score}</Text>
+        <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>{score}</Text>
       </View>
     </View>
   );
 }
 
 function TabButton({ active, onPress, icon: Icon, label }) {
-  if (active) {
-    return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+  return (
+    <TouchableOpacity 
+      onPress={onPress} 
+      activeOpacity={0.8}
+      style={{ flex: 1 }}
+    >
+      {active ? (
         <LinearGradient
           colors={['#8900f5', '#0072ff']}
           start={{ x: 0, y: 0 }}
@@ -128,18 +132,12 @@ function TabButton({ active, onPress, icon: Icon, label }) {
           <Icon size={16} color="#fff" />
           <Text style={styles.tabLabelActive}>{label}</Text>
         </LinearGradient>
-      </TouchableOpacity>
-    );
-  }
-  
-  return (
-    <TouchableOpacity 
-      style={styles.tab} 
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <Icon size={16} color="rgba(255, 255, 255, 0.4)" />
-      <Text style={styles.tabLabel}>{label}</Text>
+      ) : (
+        <View style={styles.tab}>
+          <Icon size={16} color="rgba(255, 255, 255, 0.4)" />
+          <Text style={styles.tabLabel}>{label}</Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -208,8 +206,8 @@ export default function AnalyticsScreen() {
   return (
     <GradientBackground>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 100 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.screenTitle, { color: '#fff' }]}>Analytics</Text>
             <Text style={[styles.screenSub, { color: themeColors.mutedForeground }]}>Your focus insights</Text>
@@ -262,9 +260,9 @@ export default function AnalyticsScreen() {
         <GlassCard tint="dark" intensity={60} style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <Text style={[styles.sectionTitle, { color: '#fff' }]}>Productivity Score</Text>
-            <ProductivityRing score={productivityScore} size={60} />
+            <ProductivityRing score={productivityScore} size={56} />
           </View>
-          <Text style={{ color: themeColors.mutedForeground, marginTop: 8, fontSize: 14 }}>
+          <Text style={{ color: themeColors.mutedForeground, marginTop: 6, fontSize: 13 }}>
             {productivityScore >= 80 ? 'Excellent! You\'re maintaining great focus habits.' :
              productivityScore >= 60 ? 'Good progress! Try to be more consistent.' :
              'Keep going! Small sessions add up to big results.'}
@@ -272,16 +270,16 @@ export default function AnalyticsScreen() {
         </GlassCard>
 
         <View style={styles.grid4}>
-          <GlassCard tint="dark" intensity={60} style={styles.card}>
+          <GlassCard tint="dark" intensity={60} style={[styles.card, styles.statCardFixed]}>
             <StatCard label="TOTAL SESSIONS" value={String(summary.totalSessions)} />
           </GlassCard>
-          <GlassCard tint="dark" intensity={60} style={styles.card}>
+          <GlassCard tint="dark" intensity={60} style={[styles.card, styles.statCardFixed]}>
             <StatCard label="FOCUS TIME" value={`${totalH}h`} />
           </GlassCard>
-          <GlassCard tint="dark" intensity={60} style={styles.card}>
+          <GlassCard tint="dark" intensity={60} style={[styles.card, styles.statCardFixed]}>
             <StatCard label="BEST STREAK" value={`${summary.bestStreakDays}`} sub="days" />
           </GlassCard>
-          <GlassCard tint="dark" intensity={60} style={styles.card}>
+          <GlassCard tint="dark" intensity={60} style={[styles.card, styles.statCardFixed]}>
             <StatCard label="AVG SESSION" value={`${avgM}m`} />
           </GlassCard>
         </View>
@@ -296,7 +294,7 @@ export default function AnalyticsScreen() {
 
         <GlassCard tint="dark" intensity={60} style={styles.card}>
           <Text style={[styles.sectionTitle, { color: '#fff' }]}>Quick Insight</Text>
-          <Text style={{ color: themeColors.mutedForeground, marginTop: 6 }}>
+          <Text style={{ color: themeColors.mutedForeground, marginTop: 4, fontSize: 13 }}>
             You're most productive on {insightDay}! Your average session length increases on that day compared to others.
           </Text>
         </GlassCard>
@@ -307,21 +305,21 @@ export default function AnalyticsScreen() {
   function renderTrendsTab() {
     return (
       <>
-  <View style={[styles.card, { borderColor: themeColors.border, backgroundColor: themeColors.card }]}>
+        <GlassCard tint="dark" intensity={60} style={styles.card}>
           <Text style={[styles.sectionTitle, { color: '#fff' }]}>30-Day Focus Trend</Text>
           <LineChart data={monthData} height={120} />
           <Text style={{ color: themeColors.mutedForeground, fontSize: 12, marginTop: 8 }}>
             Daily focus minutes over the last 30 days
           </Text>
-        </View>
+        </GlassCard>
 
-  <View style={[styles.card, { borderColor: themeColors.border, backgroundColor: themeColors.card }]}>
+        <GlassCard tint="dark" intensity={60} style={styles.card}>
           <Text style={[styles.sectionTitle, { color: '#fff' }]}>Weekly Progress</Text>
           <BarChart buckets={summary.weekBuckets} />
           <Text style={styles.badgeSuccess}>{changeText}</Text>
-        </View>
+        </GlassCard>
 
-  <View style={[styles.card, { borderColor: themeColors.border, backgroundColor: themeColors.card }]}>
+        <GlassCard tint="dark" intensity={60} style={styles.card}>
           <Text style={[styles.sectionTitle, { color: '#fff' }]}>Streak Analysis</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
             <TargetIcon size={24} color="#10b981" />
@@ -332,7 +330,7 @@ export default function AnalyticsScreen() {
               <Text style={{ color: themeColors.mutedForeground }}>Best streak</Text>
             </View>
           </View>
-        </View>
+        </GlassCard>
       </>
     );
   }
@@ -340,7 +338,7 @@ export default function AnalyticsScreen() {
   function renderAppsTab() {
     return (
       <>
-        <View style={[styles.card, { borderColor: themeColors.border, backgroundColor: themeColors.card }]}>
+        <GlassCard tint="dark" intensity={60} style={styles.card}>
           <Text style={[styles.sectionTitle, { color: '#fff' }]}>Time Saved by Blocking</Text>
           {timeSpentApps.slice(0, 5).map((app) => (
             <View key={app.id} style={{ marginTop: 12 }}>
@@ -357,9 +355,9 @@ export default function AnalyticsScreen() {
               </View>
             </View>
           ))}
-        </View>
+        </GlassCard>
 
-        <View style={[styles.card, { borderColor: themeColors.border, backgroundColor: themeColors.card }] }>
+        <GlassCard tint="dark" intensity={60} style={styles.card}>
           <Text style={[styles.sectionTitle, { color: '#fff' }]}>Most Blocked Apps</Text>
           {topApps.map((app) => (
             <View key={app.id} style={{ marginTop: 12 }}>
@@ -374,7 +372,7 @@ export default function AnalyticsScreen() {
               </View>
             </View>
           ))}
-        </View>
+        </GlassCard>
       </>
     );
   }
@@ -388,7 +386,7 @@ export default function AnalyticsScreen() {
 
     return (
       <>
-        <View style={[styles.card, { borderColor: themeColors.border, backgroundColor: themeColors.card }]}>
+        <GlassCard tint="dark" intensity={60} style={styles.card}>
           <Text style={[styles.sectionTitle, { color: '#fff' }]}>Peak Focus Time</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
             <ClockIcon size={24} color="#2f6bff" />
@@ -399,37 +397,40 @@ export default function AnalyticsScreen() {
               <Text style={{ color: themeColors.mutedForeground }}>Most productive hour</Text>
             </View>
           </View>
-        </View>
+        </GlassCard>
 
-        <View style={[styles.card, { borderColor: themeColors.border, backgroundColor: themeColors.card }]}>
+        <GlassCard tint="dark" intensity={60} style={styles.card}>
           <Text style={[styles.sectionTitle, { color: '#fff' }]}>Daily Focus Pattern</Text>
           <BarChart 
             buckets={hourlyPatterns} 
             labels={hourlyPatterns.map((_, i) => i % 4 === 0 ? `${i}` : '')}
             height={100}
           />
-        </View>
+        </GlassCard>
 
-        <View style={[styles.card, { borderColor: themeColors.border, backgroundColor: themeColors.card }]}>
-          <Text style={[styles.sectionTitle, { color: '#fff' }]}>Export & Share</Text>
-                    <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+        <GlassCard tint="dark" intensity={60} style={styles.card}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={[styles.sectionTitle, { color: '#fff' }]}>Export & Share</Text>
+            <Text style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: 12, fontWeight: '600' }}>coming soon</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
             <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => {}}
+              style={[styles.actionButton, { opacity: 0.5 }]}
+              disabled={true}
             >
               <ShareIcon size={18} color="#8900f5" />
               <Text style={{ color: '#8900f5', fontWeight: '600' }}>Share Report</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => {}}
+              style={[styles.actionButton, { opacity: 0.5 }]}
+              disabled={true}
             >
               <DownloadIcon size={18} color="#8900f5" />
               <Text style={{ color: '#8900f5', fontWeight: '600' }}>Export CSV</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </GlassCard>
       </>
     );
   }
@@ -437,15 +438,15 @@ export default function AnalyticsScreen() {
 
 const styles = StyleSheet.create({
   screenTitle: { 
-    fontSize: 32, 
+    fontSize: 28, 
     fontWeight: '800', 
-    letterSpacing: -1,
+    letterSpacing: -0.5,
     color: themeColors.foreground 
   },
   screenSub: { 
-    fontSize: 17,
-    marginTop: 4,
-    marginBottom: 16, 
+    fontSize: 15,
+    marginTop: 2,
+    marginBottom: 8, 
     color: themeColors.mutedForeground 
   },
   tabContainer: { 
@@ -453,7 +454,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.05)', 
     borderRadius: 12, 
     padding: 4, 
-    marginBottom: 20,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: themeColors.glassBorder,
   },
@@ -462,20 +463,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'center', 
-    paddingVertical: 8, 
+    paddingVertical: 10, 
     paddingHorizontal: 12, 
     borderRadius: 8,
-    gap: 6
+    gap: 6,
+    minHeight: 36,
   },
   tabActive: { 
     flex: 1, 
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'center', 
-    paddingVertical: 8, 
+    paddingVertical: 10, 
     paddingHorizontal: 12, 
     borderRadius: 8,
-    gap: 6
+    gap: 6,
+    minHeight: 36,
   },
   tabLabel: { 
     fontSize: 12, 
@@ -490,31 +493,35 @@ const styles = StyleSheet.create({
   grid4: { 
     flexDirection: 'row', 
     flexWrap: 'wrap', 
-    gap: 12 
+    gap: 8 
   },
   card: { 
     flex: 1, 
     minWidth: '48%', 
     borderRadius: 16, 
-    marginBottom: 12 
+    marginBottom: 8,
+  },
+  statCardFixed: {
+    minHeight: 85,
+    justifyContent: 'center',
   },
   sectionTitle: { 
-    fontSize: 16, 
-    fontWeight: '800',
+    fontSize: 15, 
+    fontWeight: '700',
     color: themeColors.foreground 
   },
   statCard: { 
     alignItems: 'flex-start' 
   },
   statLabel: { 
-    fontSize: 12, 
+    fontSize: 11, 
     color: themeColors.mutedForeground, 
     fontWeight: '700' 
   },
   statValue: { 
-    fontSize: 22, 
+    fontSize: 20, 
     fontWeight: '800', 
-    marginTop: 4,
+    marginTop: 2,
     color: themeColors.foreground 
   },
   statSub: { 
@@ -569,6 +576,19 @@ const styles = StyleSheet.create({
     backgroundColor: themeColors.glassBackground, 
     borderWidth: 1, 
     borderColor: themeColors.glassBorder 
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(137, 0, 245, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(137, 0, 245, 0.3)',
+    gap: 6,
   },
   exportOptionButton: {
     flex: 1,

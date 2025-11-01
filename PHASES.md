@@ -137,6 +137,39 @@ Acceptance Tests:
 
 Note: PRD v2.0 elevates "technically unbreakable blocking" to MVP. The app delivers core value (focus sessions, reminders, app selection) while blocking enforcement awaits approval.
 
+### Focus Session End Notifications (Complete ✅)
+
+**Challenge**: iOS foreground time-interval notifications fire immediately when scheduled while app is in foreground (iOS development quirk), causing "Focus Session Complete!" to appear at session START instead of END.
+
+**Solution**: Dual notification strategy with smart gating:
+
+1. **JS Timer (Foreground)**: `setTimeout` fires a trigger:null notification at exact session end
+   - Works perfectly even when app is backgrounded
+   - Provides precise timing control
+   - Primary notification delivery mechanism
+
+2. **OS Absolute Date (Fallback)**: System-scheduled notification for killed app scenarios
+   - Acts as safety net if app is force-quit
+   - Cancelled by JS timer before firing to prevent duplicates
+   - Ensures notification delivery in all states
+
+3. **Smart Handler Gating**: Global notification handler checks `intendedAt` timestamp with 5000ms tolerance
+   - Blocks premature notifications (prevents start-of-session false fires)
+   - Allows legitimately-scheduled notifications (accounts for OS scheduling precision variance)
+   - Prevents duplicate notifications from foreground/background transitions
+
+**Tested Scenarios**:
+- ✅ Foreground: Notification appears at exact session end
+- ✅ Backgrounded: Notification appears while app is backgrounded (not delayed until foreground)
+- ✅ Apps auto-unblock: DeviceActivity monitor stops automatically when notification fires
+- ✅ No duplicates: JS timer cancels OS fallback before firing
+
+**Implementation Details**:
+- `notifyTimeoutRef`: JS timer for foreground notification
+- `endOsNotifIdRef`: OS-scheduled fallback notification ID
+- `intendedAt` data field: Unix timestamp for premature detection
+- Notification action: "End Session Early" with response handler
+
 ## Phase 11 — Premium Features & IAP (Planned)
 - Implement IAP subscriptions (StoreKit 2/RevenueCat)
 - Entitlements cache and refresh

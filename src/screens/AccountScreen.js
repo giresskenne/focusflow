@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
-import UIButton from '../components/Ui/Button';
+import GradientButton from '../components/Ui/GradientButton';
+import GlassCard from '../components/GlassCard';
+import GradientBackground from '../components/GradientBackground';
 import { MailIcon, LockIcon, EyeIcon, EyeOffIcon, UserIcon } from '../components/Icons';
 import { colors, spacing, radius, typography } from '../theme';
 import { getSupabase } from '../lib/supabase';
@@ -10,6 +12,7 @@ import { getAuthUser, clearAuthUser } from '../storage';
 
 export default function AccountScreen({ navigation }) {
   const { colors: navColors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -51,159 +54,211 @@ export default function AccountScreen({ navigation }) {
       setNewPassword('');
       setConfirmPassword('');
     } catch (e) {
-      Alert.alert('Update Failed', e?.message || 'Unable to update password');
+      const msg = String(e?.message || '');
+      if (msg.includes('Network request failed')) {
+        Alert.alert('No Connection', 'Please check your internet connection and try again.');
+      } else {
+        Alert.alert('Update Failed', msg || 'Unable to update password');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSignOut = async () => {
-    try {
-      const supabase = getSupabase();
-      await supabase.auth.signOut();
-      await clearAuthUser();
-      Alert.alert('Signed Out', 'You have been signed out.');
-      navigation.navigate('MainTabs');
-    } catch (e) {
-      console.warn('[Account] Sign out error:', e);
-    }
-  };
-
-  const handleDeleteAccount = () => {
     Alert.alert(
-      'Delete Account',
-      'This will permanently delete your account and all data. This action cannot be undone.',
+      'Sign Out',
+      'Are you sure you want to sign out?',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert('Coming Soon', 'Account deletion will be implemented in a future update.');
+        { 
+          text: 'Sign Out', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              const supabase = getSupabase();
+              await supabase.auth.signOut();
+              await clearAuthUser();
+              Alert.alert('Signed Out', 'You have been signed out.');
+              navigation.navigate('MainTabs');
+            } catch (e) {
+              const msg = String(e?.message || '');
+              if (msg.includes('Network request failed')) {
+                Alert.alert('No Connection', 'Unable to sign out while offline. Please try again when you are online.');
+              } else {
+                Alert.alert('Sign Out Failed', msg || 'Unable to sign out.');
+              }
+            }
           }
         }
       ]
     );
   };
 
+  const handleDeleteAccount = () => {
+    const perform = () => {
+      Alert.alert('Coming Soon', 'Account deletion will be implemented in a future update.');
+    };
+
+    if (Platform.OS === 'ios' && Alert.prompt) {
+      Alert.prompt(
+        'Delete Account',
+        'Type DELETE to confirm. This action cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: (val) => {
+              if ((val || '').trim().toUpperCase() === 'DELETE') perform();
+              else Alert.alert('Confirmation Required', 'Please type DELETE to confirm account deletion.');
+            }
+          }
+        ],
+        'plain-text'
+      );
+    } else {
+      Alert.alert(
+        'Delete Account',
+        'Please confirm you want to permanently delete your account.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: perform }
+        ]
+      );
+    }
+  };
+
+  const containerStyle = {
+    flexGrow: 1,
+    padding: spacing.lg,
+    paddingTop: insets.top + spacing.lg,
+    paddingBottom: spacing['3xl'],
+  };
+
   if (!user) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>Please sign in to manage your account.</Text>
-          <UIButton
-            title="Sign In"
-            onPress={() => navigation.navigate('SignIn')}
-            style={{ marginTop: spacing.lg }}
-          />
-        </View>
-      </SafeAreaView>
+      <GradientBackground>
+        <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+          <ScrollView contentContainerStyle={[containerStyle, { justifyContent: 'center' }]}> 
+            {/* Back Button */}
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+              <Text style={styles.backText}>← Back</Text>
+            </TouchableOpacity>
+            <GlassCard>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: typography.base, color: colors.mutedForeground, textAlign: 'center' }}>
+                  Please sign in to manage your account.
+                </Text>
+                <GradientButton 
+                  title="Sign In"
+                  onPress={() => navigation.navigate('SignIn')}
+                  style={{ marginTop: spacing.lg, alignSelf: 'stretch' }}
+                />
+              </View>
+            </GlassCard>
+          </ScrollView>
+        </SafeAreaView>
+      </GradientBackground>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Profile Section */}
-        <View style={styles.card}>
-          <View style={styles.profileHeader}>
-            <View style={styles.avatar}>
-              <UserIcon size={32} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.profileName}>Account</Text>
-              <Text style={styles.profileEmail}>{user.email}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Change Password Section */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Change Password</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>NEW PASSWORD</Text>
-            <View style={styles.inputWrapper}>
-              <LockIcon size={20} color={colors.mutedForeground} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.textInput, { flex: 1 }]}
-                placeholder="Enter new password"
-                placeholderTextColor={colors.mutedForeground}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                secureTextEntry={!showPassword}
-                autoComplete="new-password"
-                autoCorrect={false}
-              />
-              <TouchableOpacity 
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeButton}
-              >
-                {showPassword ? (
-                  <EyeOffIcon size={20} color={colors.mutedForeground} />
-                ) : (
-                  <EyeIcon size={20} color={colors.mutedForeground} />
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>CONFIRM PASSWORD</Text>
-            <View style={styles.inputWrapper}>
-              <LockIcon size={20} color={colors.mutedForeground} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.textInput, { flex: 1 }]}
-                placeholder="Confirm new password"
-                placeholderTextColor={colors.mutedForeground}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-                autoComplete="new-password"
-                autoCorrect={false}
-              />
-              <TouchableOpacity 
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                style={styles.eyeButton}
-              >
-                {showConfirmPassword ? (
-                  <EyeOffIcon size={20} color={colors.mutedForeground} />
-                ) : (
-                  <EyeIcon size={20} color={colors.mutedForeground} />
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <UIButton
-            title={isLoading ? "Updating..." : "Update Password"}
-            onPress={handleChangePassword}
-            disabled={isLoading || !newPassword || !confirmPassword}
-            style={{ marginTop: spacing.lg }}
-          />
-        </View>
-
-        {/* Account Actions */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Account Actions</Text>
-          
-          <TouchableOpacity style={styles.actionButton} onPress={handleSignOut}>
-            <Text style={[styles.actionText, { color: colors.primary }]}>Sign Out</Text>
+    <GradientBackground>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={containerStyle} showsVerticalScrollIndicator={false}>
+          {/* Back Button */}
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
-          
-          <View style={styles.divider} />
-          
-          <TouchableOpacity style={styles.actionButton} onPress={handleDeleteAccount}>
-            <Text style={[styles.actionText, { color: colors.destructive }]}>Delete Account</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          {/* Header Card */}
+          <GlassCard style={{ marginBottom: spacing.md }}>
+            <View style={styles.profileHeader}>
+              <View style={styles.avatar}>
+                <UserIcon size={32} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.profileName}>Account</Text>
+                <Text style={styles.profileEmail}>{user.email}</Text>
+              </View>
+            </View>
+          </GlassCard>
+
+          {/* Change Password */}
+          <GlassCard style={{ marginBottom: spacing.md }}>
+            <Text style={styles.sectionTitle}>Change Password</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>NEW PASSWORD</Text>
+              <View style={styles.inputWrapperAlt}>
+                <LockIcon size={20} color={colors.mutedForeground} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.textInput, { flex: 1 }]}
+                  placeholder="Enter new password"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry={!showPassword}
+                  autoComplete="new-password"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
+                  {showPassword ? (
+                    <EyeOffIcon size={20} color={colors.mutedForeground} />
+                  ) : (
+                    <EyeIcon size={20} color={colors.mutedForeground} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>CONFIRM PASSWORD</Text>
+              <View style={styles.inputWrapperAlt}>
+                <LockIcon size={20} color={colors.mutedForeground} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.textInput, { flex: 1 }]}
+                  placeholder="Confirm new password"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  autoComplete="new-password"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeButton}>
+                  {showConfirmPassword ? (
+                    <EyeOffIcon size={20} color={colors.mutedForeground} />
+                  ) : (
+                    <EyeIcon size={20} color={colors.mutedForeground} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <GradientButton
+              title={isLoading ? 'Updating...' : 'Update Password'}
+              onPress={handleChangePassword}
+              disabled={isLoading || !newPassword || !confirmPassword}
+            />
+          </GlassCard>
+
+          {/* Account Actions */}
+          <GlassCard>
+            <Text style={styles.sectionTitle}>Account Actions</Text>
+            <TouchableOpacity style={styles.actionButton} onPress={handleSignOut}>
+              <Text style={[styles.actionText, { color: colors.primary }]}>Sign Out</Text>
+            </TouchableOpacity>
+            <View style={styles.divider} />
+            <TouchableOpacity style={styles.actionButton} onPress={handleDeleteAccount}>
+              <Text style={[styles.actionText, { color: colors.destructive }]}>Delete Account</Text>
+            </TouchableOpacity>
+          </GlassCard>
+        </ScrollView>
+      </SafeAreaView>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   content: { padding: spacing.lg, paddingBottom: spacing['3xl'] },
   emptyState: {
     flex: 1,
@@ -233,9 +288,11 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: radius.full,
-    backgroundColor: `${colors.primary}20`,
+    backgroundColor: 'rgba(137, 0, 245, 0.45)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)'
   },
   profileName: {
     fontSize: typography.lg,
@@ -268,12 +325,19 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: radius.xl,
     paddingHorizontal: spacing.lg,
-    height: 48,
+    height: 56,
+  },
+  // Alternate wrapper to avoid breaking any other references
+  inputWrapperAlt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: radius.xl,
+    paddingHorizontal: spacing.lg,
+    height: 56,
   },
   inputIcon: {
     marginRight: spacing.md,
@@ -300,5 +364,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginVertical: spacing.sm,
     opacity: 0.3,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  backText: {
+    color: colors.mutedForeground,
+    fontSize: typography.base,
+    fontWeight: typography.medium,
   },
 });

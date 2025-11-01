@@ -42,7 +42,12 @@ export default function LiquidGlass({
 const styles = StyleSheet.create({
   wrapper: {
     overflow: 'hidden',
-    // Minimal shadow matching screenshots
+    // No shadows
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   blur: {
     overflow: 'hidden',

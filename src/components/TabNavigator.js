@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Platform, TouchableOpacity, ImageBackground } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import AnalyticsScreen from '../screens/AnalyticsScreen';
 import RemindersScreen from '../screens/RemindersScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import { useTheme } from '@react-navigation/native';
+import GradientBackground from './GradientBackground';
 
 const Tab = createBottomTabNavigator();
 
@@ -42,7 +43,9 @@ export default function TabNavigator() {
   const { colors } = useTheme();
 
   return (
+    <GradientBackground>
     <Tab.Navigator
+      sceneContainerStyle={{ backgroundColor: 'transparent' }}
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
@@ -87,10 +90,18 @@ export default function TabNavigator() {
         tabBarShowLabel: false,
         tabBarBackground: () => (
           <View style={styles.tabBarBackground}>
+            {/* Provide a real image backdrop so iOS blur samples content instead of white */}
+            <ImageBackground 
+              source={require('../../assets/background-1.jpg')}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="cover"
+            >
+              <View style={styles.bgOverlay} />
+            </ImageBackground>
             <BlurView 
               tint="dark" 
               intensity={100} 
-              style={styles.blurView}
+              style={[styles.blurView, StyleSheet.absoluteFillObject]}
             >
               <View style={styles.glassOverlay} />
             </BlurView>
@@ -140,6 +151,7 @@ export default function TabNavigator() {
         }}
       />
     </Tab.Navigator>
+    </GradientBackground>
   );
 }
 
@@ -171,6 +183,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 20,
+  },
+  bgOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(30, 10, 50, 0.85)'
   },
   blurView: {
     flex: 1,

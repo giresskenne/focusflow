@@ -178,7 +178,7 @@ export default function App() {
       if (actionIdentifier === 'end-early') {
         // User tapped "End Session Early" - navigate to home and let ActiveSession cleanup
         if (navigationRef.isReady()) {
-          navigationRef.navigate('Main', { screen: 'Home' });
+          navigationRef.navigate('MainTabs', { screen: 'Home' });
         }
       }
     });

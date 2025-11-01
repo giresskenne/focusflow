@@ -27,6 +27,9 @@ if (Platform.OS === 'ios') {
   }
 }
 
+// Small helper for retry backoffs
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const MOCK_APPS = [
   { id: 'com.social.app', name: 'Instagram', Icon: CameraIcon },
   { id: 'com.twitter', name: 'Twitter', Icon: MessageIcon },
@@ -51,7 +54,9 @@ export default function ActiveSessionScreen({ navigation, route }) {
   const notifyTimeoutRef = useRef(null); // JS timer that fires the end notification exactly at end while foreground
   const endNotifIdRef = useRef(null);
   const endOsNotifIdRef = useRef(null); // OS-scheduled end notification id for background/killed fallback
-  const { colors: navColors } = useTheme();
+  // Guard useTheme for test environments that don't mount NavigationContainer
+  let navColors = {};
+  try { navColors = useTheme()?.colors || {}; } catch (_) { navColors = {}; }
   const [startAt, setStartAt] = useState(Date.now());
   const [apps, setApps] = useState([]);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -259,6 +264,7 @@ export default function ActiveSessionScreen({ navigation, route }) {
         const map = await getSelectedApps();
         let appIds = [];
         let selectionId = null;
+        let localSelectionFromApps = null; // fallback selection built from legacy boolean map
 
         if (map?.familyActivitySelectionId) {
           selectionId = map.familyActivitySelectionId;
@@ -281,10 +287,27 @@ export default function ActiveSessionScreen({ navigation, route }) {
           appIds = [selectionId];
           // Derive counts for UI and attempt recovery if empty by re-migrating token
           try {
-            let meta = DeviceActivity?.activitySelectionMetadata({ familyActivitySelectionId: selectionId });
-            const metaCount = (meta?.applicationCount || 0) + (meta?.categoryCount || 0) + (meta?.webDomainCount || meta?.webdomainCount || 0);
+            const readMetaWithRetry = async (id) => {
+              const delays = [0, 200, 500, 1000];
+              let lastMeta = null;
+              for (let i = 0; i < delays.length; i++) {
+                if (delays[i] > 0) await sleep(delays[i]);
+                try {
+                  lastMeta = DeviceActivity?.activitySelectionMetadata({ familyActivitySelectionId: id });
+                } catch (e) {
+                  lastMeta = null;
+                }
+                const count = (lastMeta?.applicationCount || 0) + (lastMeta?.categoryCount || 0) + ((lastMeta?.webDomainCount ?? lastMeta?.webdomainCount) || 0);
+                console.log('[ActiveSession] Metadata attempt', i + 1, '->', lastMeta);
+                if (count > 0) return lastMeta;
+              }
+              return lastMeta;
+            };
+
+            let meta = await readMetaWithRetry(selectionId);
+            const metaCount = (meta?.applicationCount || 0) + (meta?.categoryCount || 0) + ((meta?.webDomainCount ?? meta?.webdomainCount) || 0);
             if (!meta || metaCount === 0) {
-              // Try to re-migrate from stored raw token
+              // Try to re-migrate from stored raw token and retry once more
               if (map?.nativeFamilyActivitySelection && DeviceActivity) {
                 try {
                   console.log('[ActiveSession] Re-migrating selection token to id');
@@ -292,7 +315,7 @@ export default function ActiveSessionScreen({ navigation, route }) {
                     id: FAMILY_SELECTION_ID,
                     familyActivitySelection: map.nativeFamilyActivitySelection,
                   });
-                  meta = DeviceActivity?.activitySelectionMetadata({ familyActivitySelectionId: FAMILY_SELECTION_ID });
+                  meta = await readMetaWithRetry(FAMILY_SELECTION_ID);
                 } catch (e) {
                   console.log('[ActiveSession] Re-migration failed:', e);
                 }
@@ -305,6 +328,28 @@ export default function ActiveSessionScreen({ navigation, route }) {
           appIds = Object.entries(map || {})
             .filter(([, on]) => !!on)
             .map(([id]) => id);
+
+          // Attempt to build a transient FamilyActivitySelection from legacy map for this session
+          if (blockingAvailable && DeviceActivity && appIds.length > 0) {
+            try {
+              localSelectionFromApps = {
+                includeEntireCategory: false,
+                applicationTokens: appIds,
+                webDomainTokens: [],
+                categoryTokens: [],
+              };
+              console.log('[ActiveSession] Building transient selection from legacy app map with', appIds.length, 'apps');
+              DeviceActivity.setFamilyActivitySelectionId({ id: FAMILY_SELECTION_ID, familyActivitySelection: localSelectionFromApps });
+              selectionId = FAMILY_SELECTION_ID;
+              // Best-effort metadata set
+              try {
+                const meta = DeviceActivity?.activitySelectionMetadata({ familyActivitySelectionId: selectionId });
+                if (meta) setSelectionCounts(meta);
+              } catch {}
+            } catch (e) {
+              console.log('[ActiveSession] Failed to construct transient selection from legacy map (continuing):', e?.message || e);
+            }
+          }
         }
         setApps(appIds);
         
@@ -367,18 +412,18 @@ export default function ActiveSessionScreen({ navigation, route }) {
                     subtitle: contextualQuote,
                     primaryButtonLabel: 'Work It!',
                     
-                    // Simplified styling for better compatibility
-                    // NOTE: Native getColor divides by 255, so provide RGB in 0-255 range
-                    backgroundColor: { red: 12, green: 14, blue: 22, alpha: 0.96 },
-                    backgroundBlurStyle: 3, // favor darker blur if supported
+                    // FocusFlow brand colors
+                    // NOTE: Native getColor expects values in 0-255 range
+                    backgroundColor: { red: 137, green: 0, blue: 245, alpha: 0.95 }, // #8900f5 brand purple with slight transparency for depth
+                    backgroundBlurStyle: 4, // systemUltraThinMaterialDark adds layering
                     titleColor: { red: 255, green: 255, blue: 255, alpha: 1.0 },
-                    subtitleColor: { red: 220, green: 220, blue: 220, alpha: 1.0 },
+                    subtitleColor: { red: 200, green: 200, blue: 255, alpha: 1.0 }, // Light blue-tinted text
                     iconSystemName: 'hourglass',
-                    iconTint: { red: 137, green: 0, blue: 245, alpha: 1.0 },
+                    iconTint: { red: 0, green: 114, blue: 255, alpha: 1.0 }, // #0072ff brand blue icon
                     
-                    // Clear button styling
+                    // White rounded button with blue text
                     primaryButtonBackgroundColor: { red: 255, green: 255, blue: 255, alpha: 1.0 },
-                    primaryButtonLabelColor: { red: 0, green: 0, blue: 0, alpha: 1.0 },
+                    primaryButtonLabelColor: { red: 0, green: 114, blue: 255, alpha: 1.0 }, // #0072ff blue text
                   };
                   
                   console.log('[ActiveSession] Applying custom shield configuration');
@@ -404,9 +449,29 @@ export default function ActiveSessionScreen({ navigation, route }) {
 
                   // Immediately block as a runtime safety net (useful for short sessions)
                   try {
-                    const totalBlocked = (selectionCounts?.applicationCount || 0) + (selectionCounts?.categoryCount || 0) + ((selectionCounts?.webDomainCount ?? selectionCounts?.webdomainCount) || 0);
+                    let totalBlocked = (selectionCounts?.applicationCount || 0) + (selectionCounts?.categoryCount || 0) + ((selectionCounts?.webDomainCount ?? selectionCounts?.webdomainCount) || 0);
                     if (totalBlocked === 0) {
-                      console.log('[ActiveSession] Skipping immediate block; selection metadata reports zero items. Will rely on monitor start + JS timer.');
+                      // One more metadata refresh before deciding
+                      try {
+                        const refreshed = DeviceActivity?.activitySelectionMetadata({ familyActivitySelectionId: selectionIdToUse });
+                        const refreshedCount = (refreshed?.applicationCount || 0) + (refreshed?.categoryCount || 0) + ((refreshed?.webDomainCount ?? refreshed?.webdomainCount) || 0);
+                        if (refreshed) setSelectionCounts(refreshed);
+                        totalBlocked = refreshedCount;
+                      } catch {}
+                    }
+
+                    if (totalBlocked === 0) {
+                      console.log('[ActiveSession] Metadata is zero. Attempting best-effort immediate block anyway.');
+                      // Best-effort 1: block by selection id (may succeed even if metadata read fails)
+                      try { DeviceActivity.blockSelection({ familyActivitySelectionId: selectionIdToUse }); console.log('[ActiveSession] blockSelection by id issued'); } catch {}
+                      // Best-effort 2: block with native selection token if present
+                      if (map?.nativeFamilyActivitySelection) {
+                        try { DeviceActivity.blockSelection({ familyActivitySelection: map.nativeFamilyActivitySelection }); console.log('[ActiveSession] blockSelection by native selection issued'); } catch {}
+                      }
+                      // Best-effort 3: block with transient local selection built from legacy map
+                      if (localSelectionFromApps) {
+                        try { DeviceActivity.blockSelection({ familyActivitySelection: localSelectionFromApps }); console.log('[ActiveSession] blockSelection by transient app selection issued'); } catch {}
+                      }
                     } else {
                       console.log('[ActiveSession] Immediately blocking selection...');
                       DeviceActivity.blockSelection({ familyActivitySelectionId: selectionIdToUse });
@@ -590,7 +655,8 @@ export default function ActiveSessionScreen({ navigation, route }) {
           try { if (notifyTimeoutRef.current) { clearTimeout(notifyTimeoutRef.current); notifyTimeoutRef.current = null; } } catch {}
         } catch {}
         if (mountedRef.current) {
-          navigation.goBack();
+          // Navigate to Home tab after session completes
+          navigation.navigate('MainTabs', { screen: 'Home' });
         }
       })();
     }
@@ -606,6 +672,9 @@ export default function ActiveSessionScreen({ navigation, route }) {
   const strokeDashoffset = circumference - (safeProgress / 100) * circumference;
   
   const endEarly = async () => {
+    // Close modal first
+    setShowConfirm(false);
+    
     try {
       // Unblock immediately if we used a selection id
       if (blockingAvailable && DeviceActivity) {
@@ -614,12 +683,19 @@ export default function ActiveSessionScreen({ navigation, route }) {
           const selectionId = stored?.familyActivitySelectionId || FAMILY_SELECTION_ID;
           if (selectionId) {
             DeviceActivity.unblockSelection({ familyActivitySelectionId: selectionId });
+            console.log('[ActiveSession] Unblocked via selectionId on early end');
           }
           if (stored?.nativeFamilyActivitySelection) {
-            try { DeviceActivity.unblockSelection({ familyActivitySelection: stored.nativeFamilyActivitySelection }); } catch (_) {}
+            try { 
+              DeviceActivity.unblockSelection({ familyActivitySelection: stored.nativeFamilyActivitySelection }); 
+              console.log('[ActiveSession] Unblocked via native selection on early end');
+            } catch (_) {}
           }
           DeviceActivity.stopMonitoring(['focusSession']);
-        } catch {}
+          console.log('[ActiveSession] Stopped monitoring on early end');
+        } catch (e) {
+          console.log('[ActiveSession] Error during unblock on early end:', e);
+        }
       }
       const runSeconds = duration - seconds;
       const endAt = Date.now();
@@ -639,8 +715,16 @@ export default function ActiveSessionScreen({ navigation, route }) {
       // Send an immediate early-end notification
       try { await maybeNotifySessionEnd(true, runSeconds); } catch {}
       if (unblockTimeoutRef.current) { clearTimeout(unblockTimeoutRef.current); unblockTimeoutRef.current = null; }
-    } catch {}
-    navigation.goBack();
+    } catch (e) {
+      console.log('[ActiveSession] Error in endEarly cleanup:', e);
+    }
+    
+    // Wait a bit longer to ensure unblock commands are processed by the OS
+    await sleep(300);
+    
+    if (mountedRef.current) {
+      navigation.navigate('MainTabs', { screen: 'Home' });
+    }
   };
 
   // Notify helper: silent if user hasn't granted notifications

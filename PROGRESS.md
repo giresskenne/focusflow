@@ -51,13 +51,34 @@ Date: October 23, 2025
 - Real in-app purchases via RevenueCat (sandbox dev testing)
 
 ### Phase 10 — Real iOS Blocking (DEV Testing Checklist)
-- [ ] Build dev on physical iPhone (Family Controls enabled)
-- [ ] Request Family Controls authorization in-app
-- [ ] Start a 30-min session with 2–3 known bundle IDs
-- [ ] Open blocked app → Shield appears
-- [ ] Kill FocusFlow → Open blocked app → Shield still appears
-- [ ] End session (Emergency Override) → Shield removed
-- [ ] Log findings and any edge cases
+- [x] Build dev on physical iPhone (Family Controls enabled)
+- [x] Request Family Controls authorization in-app
+- [x] Start a 30-min session with 2–3 known bundle IDs
+- [x] Open blocked app → Shield appears
+- [x] Kill FocusFlow → Open blocked app → Shield still appears
+- [x] End session (Emergency Override) → Shield removed
+- [x] Log findings and any edge cases
+
+**DEV Testing Results** (October 30, 2025):
+- ✅ Authorization flow works correctly
+- ✅ Shield configuration applies (custom title, subtitle, button, dark theme)
+- ✅ Apps block immediately when session starts
+- ✅ Shield persists when app is killed/backgrounded
+- ✅ Apps unblock automatically when session ends
+- ✅ Circular countdown UI working perfectly
+- ✅ Focus session end notifications working in all scenarios
+
+**Notification Strategy** (Final Implementation):
+- **Problem**: iOS time-interval notifications fire immediately when scheduled in foreground
+- **Solution**: Dual notification strategy
+  1. JS timer (`setTimeout`) fires trigger:null notification at exact session end
+  2. OS absolute date schedule acts as fallback for killed app scenarios
+  3. Global handler gates notifications with `intendedAt` timestamp (5000ms tolerance)
+- **Results**: 
+  - ✅ Foreground: Notification at exact end
+  - ✅ Background: Notification appears while backgrounded (not delayed)
+  - ✅ Killed app: OS fallback ensures notification delivery
+  - ✅ No duplicates: JS timer cancels OS notification before firing
 
 Notes:
 - Managed Settings and DeviceActivity distribution entitlements are not required for DEV testing. Family Controls authorization is sufficient to validate the flow on device.
