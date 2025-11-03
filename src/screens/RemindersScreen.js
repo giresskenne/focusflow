@@ -13,6 +13,7 @@ import { FREE_REMINDER_LIMIT, canAddReminder } from '../utils/premium';
 import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
 import PremiumModal from '../components/PremiumModal';
+import { performUpgrade } from '../lib/premiumUpgrade';
 
 export default function RemindersScreen({ navigation }) {
   const tabBarHeight = useBottomTabBarHeight();
@@ -523,7 +524,13 @@ export default function RemindersScreen({ navigation }) {
         <PremiumModal
           visible={showPremium}
           onClose={() => setShowPremium(false)}
-          onUpgrade={() => setShowPremium(false)}
+          onUpgrade={async (plan) => {
+            const ok = await performUpgrade(plan, { onRequireSignIn: () => navigation.navigate('SignIn') });
+            if (ok) {
+              setIsPremium(true);
+              setShowPremium(false);
+            }
+          }}
         />
         </SafeAreaView>
       </GradientBackground>
@@ -623,7 +630,13 @@ export default function RemindersScreen({ navigation }) {
       <PremiumModal
         visible={showPremium}
         onClose={() => setShowPremium(false)}
-        onUpgrade={() => setShowPremium(false)}
+        onUpgrade={async (plan) => {
+          const ok = await performUpgrade(plan, { onRequireSignIn: () => navigation.navigate('SignIn') });
+          if (ok) {
+            setIsPremium(true);
+            setShowPremium(false);
+          }
+        }}
       />
       </SafeAreaView>
     </GradientBackground>

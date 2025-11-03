@@ -45,7 +45,7 @@ importers:
         specifier: ~19.0.17
         version: 19.0.17(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))
       expo-image:
-        specifier: ^3.0.10
+        specifier: ~3.0.10
         version: 3.0.10(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))(react-native-web@0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)
       expo-intent-launcher:
         specifier: ~13.0.7
@@ -77,6 +77,9 @@ importers:
       react-native-device-activity:
         specifier: ^0.5.0
         version: 0.5.0(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)
+      react-native-iap:
+        specifier: ^14.4.35
+        version: 14.4.35(react-native-nitro-modules@0.31.4(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)
       react-native-purchases:
         specifier: ^9.6.1
         version: 9.6.1(react-native-web@0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)
@@ -3331,8 +3334,21 @@ packages:
       react: '>=18.3'
       react-native: '>=0.76'
 
+  react-native-iap@14.4.35:
+    resolution: {integrity: sha512-HeZeep5a4YsnZPiZ3no/LP85U4OU6oA7x3M1YxSISrSsHQ6afkK8NNUCOQFqWZlMC+S380VcQLFLy2iPAFJ/sg==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
+      react-native-nitro-modules: ^0.31.1
+
   react-native-is-edge-to-edge@1.2.1:
     resolution: {integrity: sha512-FLbPWl/MyYQWz+KwqOZsSyj2JmLKglHatd3xLZWskXOpRaio4LfEDEz8E/A6uD8QoTHW6Aobw1jbEwK7KMgR7Q==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
+
+  react-native-nitro-modules@0.31.4:
+    resolution: {integrity: sha512-VIOD4lDMivexP6cqG6V3TyhAAGbnAVcBCv2LxWYHN5rQmRHgJHQ3fT2d/zbNChP5Be0ajR9QYF1xXEDDxbQT3w==}
     peerDependencies:
       react: '*'
       react-native: '*'
@@ -8491,7 +8507,18 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  react-native-iap@14.4.35(react-native-nitro-modules@0.31.4(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.28.5)(react@19.1.0)
+      react-native-nitro-modules: 0.31.4(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)
+
   react-native-is-edge-to-edge@1.2.1(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.28.5)(react@19.1.0)
+
+  react-native-nitro-modules@0.31.4(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0):
     dependencies:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.28.5)(react@19.1.0)

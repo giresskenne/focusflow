@@ -12,6 +12,7 @@ import { getSupabase } from '../lib/supabase';
 import PremiumModal from '../components/PremiumModal';
 import IAP from '../lib/iap';
 import StoreKitTest from '../lib/storekeittest';
+import { performUpgrade } from '../lib/premiumUpgrade';
 import {
   CrownIcon,
   BellIcon,
@@ -48,8 +49,17 @@ export default function SettingsScreen({ navigation }) {
 
   useEffect(() => {
     (async () => {
-      const premium = await getPremiumStatus();
-      setIsPremium(premium);
+      const storedUser = await getAuthUser();
+      
+      // If no user is signed in, ensure premium is false
+      if (!storedUser) {
+        await setPremiumStatus(false);
+        setIsPremium(false);
+      } else {
+        // User is signed in, load their actual premium status
+        const premium = await getPremiumStatus();
+        setIsPremium(premium);
+      }
       
       const settings = await getSettings();
       setReminderNotifs(settings.reminderNotifications);
@@ -57,7 +67,6 @@ export default function SettingsScreen({ navigation }) {
       setMotivationMsgs(settings.motivationMessages);
       setAnalytics(settings.analytics);
 
-      const storedUser = await getAuthUser();
       setAuthUserState(storedUser);
 
       // Load permissions
@@ -88,6 +97,12 @@ export default function SettingsScreen({ navigation }) {
       (async () => {
         const storedUser = await getAuthUser();
         if (isActive) setAuthUserState(storedUser);
+
+        // If no user, ensure premium is false (subscriptions require account)
+        if (!storedUser && isActive) {
+          await setPremiumStatus(false);
+          setIsPremium(false);
+        }
 
         // If signed in, check migration prompt conditions
         if (storedUser && isActive) {
@@ -127,6 +142,7 @@ export default function SettingsScreen({ navigation }) {
   };
 
   const handlePremiumPress = () => {
+    console.log('[Settings] Upgrade pressed. IAP ready?', IAP.isReady());
     setShowPremium(true);
   };
 
@@ -175,9 +191,23 @@ export default function SettingsScreen({ navigation }) {
       const supabase = getSupabase();
       await supabase.auth.signOut();
     } catch {}
+    
+    // Clear auth user and premium status (subscriptions are account-based)
     await clearAuthUser();
+    await setPremiumStatus(false);
+    
+    // Log out from IAP to clear RevenueCat session
+    if (IAP.isReady()) {
+      try {
+        await IAP.logOut();
+      } catch (e) {
+        console.warn('[SignOut] Failed to log out from RevenueCat:', e?.message);
+      }
+    }
+    
     setAuthUserState(null);
-    Alert.alert('Signed Out', 'You have been signed out.');
+    setIsPremium(false);
+    Alert.alert('Signed Out', 'You have been signed out. Premium features require sign-in.');
   };
 
   // Permission handlers
@@ -646,24 +676,49 @@ export default function SettingsScreen({ navigation }) {
             <TouchableOpacity
               style={styles.settingsItem}
               onPress={async () => {
+                // Require sign-in for restore purchases
+                if (!authUser) {
+                  Alert.alert(
+                    'Sign In Required',
+                    'Please sign in to restore your purchases. Subscriptions are linked to your account.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Sign In', onPress: handleSignIn }
+                    ]
+                  );
+                  return;
+                }
+
+                // Check if IAP is available before attempting restore
+                console.log('[Settings] Restore pressed. IAP ready?', IAP.isReady(), 'StoreKitTest ready?', StoreKitTest.isReady?.());
+                if (!IAP.isReady() && !StoreKitTest.isReady()) {
+                  Alert.alert(
+                    'Not Available',
+                    'In-app purchases are not enabled in this build. Please rebuild the app with:\n\nnpx expo prebuild --clean\nnpx expo run:ios --device',
+                    [{ text: 'OK' }]
+                  );
+                  return;
+                }
+
                 try {
                   if (IAP.isReady()) {
                     const info = await IAP.restorePurchases();
                     const active = IAP.hasPremiumEntitlement(info);
                     await setPremiumStatus(!!active);
                     setIsPremium(!!active);
-                    Alert.alert('Restore', active ? 'Purchases restored.' : 'No active subscription found.');
+                    console.log('[Settings] Restore via IAP complete. Active?', !!active);
+                    Alert.alert('Restore Complete', active ? 'Premium activated!' : 'No active subscription found.');
                   } else if (StoreKitTest.isReady()) {
                     const purchases = await StoreKitTest.restorePurchases();
                     const active = StoreKitTest.hasActivePurchase(purchases);
                     await setPremiumStatus(!!active);
                     setIsPremium(!!active);
-                    Alert.alert('Restore', active ? 'Purchases restored.' : 'No active subscription found.');
-                  } else {
-                    Alert.alert('Not available', 'In-app purchases are not enabled in this build.');
+                    console.log('[Settings] Restore via StoreKitTest complete. Active?', !!active);
+                    Alert.alert('Restore Complete', active ? 'Premium activated!' : 'No active subscription found.');
                   }
                 } catch (e) {
-                  Alert.alert('Restore Failed', e?.message || 'Could not restore purchases.');
+                  console.warn('[Settings] Restore error:', e?.message || e);
+                  Alert.alert('Restore Failed', e?.message || 'Could not restore purchases. Please try again.');
                 }
               }}
             >
@@ -705,26 +760,10 @@ export default function SettingsScreen({ navigation }) {
         visible={showPremium}
         onClose={() => setShowPremium(false)}
         onUpgrade={async (plan) => {
-          try {
-            if (IAP.isReady()) {
-              const info = await IAP.purchasePlan(plan === 'annual' ? 'annual' : 'monthly');
-              const active = IAP.hasPremiumEntitlement(info);
-              await setPremiumStatus(!!active);
-              setIsPremium(!!active);
-            } else if (StoreKitTest.isReady()) {
-              const result = await StoreKitTest.purchasePlan(plan);
-              if (result?.success) {
-                await setPremiumStatus(true);
-                setIsPremium(true);
-              }
-            } else {
-              // Dev fallback
-              await setPremiumStatus(true);
-              setIsPremium(true);
-            }
+          const ok = await performUpgrade(plan, { onRequireSignIn: () => { setShowPremium(false); handleSignIn(); } });
+          if (ok) {
+            setIsPremium(true);
             setShowPremium(false);
-          } catch (e) {
-            Alert.alert('Purchase', e?.message || 'Purchase was cancelled or failed.');
           }
         }}
       />

@@ -6,6 +6,7 @@ import { useTheme, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import UIButton from '../components/Ui/Button';
 import PremiumModal from '../components/PremiumModal';
+import { performUpgrade } from '../lib/premiumUpgrade';
 import GlassCard from '../components/Ui/GlassCard';
 import GradientBackground from '../components/GradientBackground';
 import { getSession, getReminders, getPremiumStatus, setPremiumStatus } from '../storage';
@@ -535,7 +536,13 @@ export default function HomeScreen({ navigation }) {
       <PremiumModal
         visible={showPremium}
         onClose={() => setShowPremium(false)}
-        onUpgrade={async () => { await setPremiumStatus(true); setIsPremium(true); setShowPremium(false); }}
+        onUpgrade={async (plan) => {
+          const ok = await performUpgrade(plan, { onRequireSignIn: () => navigation.navigate('SignIn') });
+          if (ok) {
+            setIsPremium(true);
+            setShowPremium(false);
+          }
+        }}
       />
         </ScrollView>
       </SafeAreaView>

@@ -63,9 +63,12 @@
         {
           "appleTeamId": "ZTB4YDKG8V",
           "appGroup": "group.com.giress.focusflow",
-          "modes": ["suppressShield"]
+          "modes": [
+            "suppressShield"
+          ]
         }
-      ]
+      ],
+      "react-native-iap"
     ],
     "extra": {
       "eas": {

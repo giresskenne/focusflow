@@ -102,18 +102,21 @@ export default function App() {
 
       // Configure IAP when enabled
       try {
+        console.log('[App] IAP ready at startup?', IAP.isReady());
         if (IAP.isReady()) {
           await IAP.configure(user?.id || null);
           const info = await IAP.getCustomerInfo();
           if (info != null) {
             const active = IAP.hasPremiumEntitlement(info);
             await setPremiumStatus(!!active);
+            console.log('[App] IAP configured. Premium active?', !!active);
           }
         } else if (StoreKitTest.isReady()) {
           await StoreKitTest.initConnection();
           const purchases = await StoreKitTest.restorePurchases();
           const active = StoreKitTest.hasActivePurchase(purchases);
           await setPremiumStatus(!!active);
+          console.log('[App] StoreKitTest active?', !!active);
         }
       } catch {}
     })();
@@ -123,6 +126,11 @@ export default function App() {
       setAuthUser(user);
       // Update sign-in nudge whenever auth state changes
       manageSignInNudge(user);
+
+      // Clear premium status if user signs out (subscriptions are account-based)
+      if (!user) {
+        await setPremiumStatus(false);
+      }
 
       // One-time migration flow on first sign-in
       try {
@@ -154,8 +162,10 @@ export default function App() {
 
       // Update IAP identity on auth changes
       try {
+        console.log('[Auth] IAP ready on auth change?', IAP.isReady(), 'user:', user?.id || null);
         if (IAP.isReady()) {
           await IAP.configure(user?.id || null);
+          console.log('[Auth] IAP configure called for user');
         }
       } catch {}
     });

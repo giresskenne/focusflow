@@ -5,6 +5,7 @@ import { useTheme } from '@react-navigation/native';
 import GradientButton from '../components/Ui/GradientButton';
 import { getSupabase } from '../lib/supabase';
 import { setAuthUser } from '../storage';
+import IAP from '../lib/iap';
 import { MailIcon, LockIcon, EyeIcon, EyeOffIcon, AppleIcon, UserIcon } from '../components/Icons';
 import { colors, spacing, radius, typography, shadows } from '../theme';
 import GradientBackground from '../components/GradientBackground';
@@ -55,6 +56,17 @@ export default function SignUpScreen({ navigation }) {
       }
       if (user) {
         await setAuthUser({ id: user.id, email: user.email });
+        
+        // Configure RevenueCat with user ID to link purchases to account
+        if (IAP.isReady()) {
+          try {
+            await IAP.configure(user.id);
+            console.log('[SignUp] RevenueCat configured with user ID:', user.id);
+          } catch (e) {
+            console.warn('[SignUp] Failed to configure RevenueCat:', e?.message);
+          }
+        }
+        
         Alert.alert('Account Created', 'You are now signed in.');
         navigation.navigate('MainTabs');
       } else {
