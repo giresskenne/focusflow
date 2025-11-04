@@ -4,7 +4,8 @@
 // - EXPO_PUBLIC_AI_TTS_VOICE optional (defaults to 'alloy'). Valid examples: 'alloy', 'aria', 'verse', 'sol', 'luna'
 // - expo-av and expo-file-system deps
 
-import * as FileSystem from 'expo-file-system';
+// Use legacy API for writeAsStringAsync/deleteAsync on Expo SDK 54+
+import * as FileSystem from 'expo-file-system/legacy';
 
 let Audio; // lazy import expo-av to avoid issues in web builds
 let currentSound = null;
@@ -20,11 +21,24 @@ function getEnv(name, fallback = undefined) {
   }
 }
 
-export function isAvailable() {
+let avCheckDone = false;
+let avAvailable = false;
+export async function isAvailable() {
   const key = getEnv('EXPO_PUBLIC_OPENAI_API_KEY');
-  const ok = !!key;
-  console.log('[OpenAI TTS] isAvailable:', ok);
-  return ok;
+  if (!key) { console.log('[OpenAI TTS] isAvailable: false (no API key)'); return false; }
+  try {
+    if (!avCheckDone) {
+      try {
+        Audio = await import('expo-av');
+        avAvailable = !!(Audio?.Audio?.Sound?.createAsync);
+      } catch (e) {
+        avAvailable = false;
+      }
+      avCheckDone = true;
+    }
+  } catch {}
+  console.log('[OpenAI TTS] isAvailable:', !!key && avAvailable);
+  return !!key && avAvailable;
 }
 
 // Encode Uint8Array → base64 without relying on global btoa/Buffer
@@ -90,6 +104,17 @@ async function ensureAudioMode() {
   } catch {}
 }
 
+async function fallbackSpeakWithSpeech(text, opts) {
+  try {
+    const Speech = await import('expo-speech');
+    const { language = 'en-US', pitch = 1.0, rate = 0.9, onDone, onError } = opts || {};
+    Speech?.stop?.();
+    Speech?.speak?.(String(text), { language, pitch, rate, onDone, onError });
+  } catch (e) {
+    console.warn('[OpenAI TTS] fallback to expo-speech failed:', e?.message);
+  }
+}
+
 export async function speak(text, opts = {}) {
   try {
     const key = getEnv('EXPO_PUBLIC_OPENAI_API_KEY');
@@ -103,7 +128,9 @@ export async function speak(text, opts = {}) {
 
     // Stop any existing sound
     await stop();
-    await ensureAudioMode();
+    try {
+      await ensureAudioMode();
+    } catch (e) {}
 
     // Call OpenAI TTS API
     const res = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -131,24 +158,39 @@ export async function speak(text, opts = {}) {
 
     // Write temp file
     const fileUri = FileSystem.cacheDirectory + `openai-tts-${Date.now()}.mp3`;
-    await FileSystem.writeAsStringAsync(fileUri, base64, { encoding: FileSystem.EncodingType.Base64 });
-
-    if (!Audio) {
-      Audio = await import('expo-av');
+    const encoding = FileSystem?.EncodingType?.Base64 ?? 'base64';
+    try {
+      await FileSystem.writeAsStringAsync(fileUri, base64, { encoding });
+    } catch (e) {
+      console.warn('[OpenAI TTS] write file failed, falling back to Speech:', e?.message);
+      await fallbackSpeakWithSpeech(text, opts);
+      return;
     }
-    const { sound } = await Audio.Audio.Sound.createAsync({ uri: fileUri }, { shouldPlay: true });
-    currentSound = sound;
 
-    // Auto cleanup on finish
-    sound.setOnPlaybackStatusUpdate(async (status) => {
-      try {
-        if (status?.didJustFinish || status?.isLoaded === false) {
-          await stop();
-          // remove file best-effort
-          FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
-        }
-      } catch {}
-    });
+    try {
+      if (!Audio) {
+        Audio = await import('expo-av');
+      }
+      const { sound } = await Audio.Audio.Sound.createAsync({ uri: fileUri }, { shouldPlay: true });
+      currentSound = sound;
+
+      // Auto cleanup on finish
+      sound.setOnPlaybackStatusUpdate(async (status) => {
+        try {
+          if (status?.didJustFinish || status?.isLoaded === false) {
+            await stop();
+            // remove file best-effort
+            FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
+          }
+        } catch {}
+      });
+    } catch (e) {
+      console.warn('[OpenAI TTS] playback failed, falling back to Speech:', e?.message);
+      await fallbackSpeakWithSpeech(text, opts);
+      // try to remove file best-effort
+      FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
+      return;
+    }
   } catch (e) {
     console.warn('[OpenAI TTS] speak error:', e?.message);
   }

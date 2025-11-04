@@ -21,6 +21,21 @@ function provider() {
   return p === 'openai' ? 'openai' : 'ios';
 }
 
+// Cache available voices to avoid async lookup on every speak call
+let voicesCache = null;
+let preferredVoiceId = null;
+(async () => {
+  try {
+    if (Speech?.getAvailableVoicesAsync) {
+      voicesCache = await Speech.getAvailableVoicesAsync();
+      // Try to choose an enhanced en-US voice if available
+      const enhanced = voicesCache?.find?.((v) => v?.identifier?.includes('en-US') && v?.quality === 'Enhanced');
+      preferredVoiceId = enhanced?.identifier || null;
+      console.log('[TTS] Prefetched voices:', Array.isArray(voicesCache) ? voicesCache.length : 0, 'preferred:', preferredVoiceId || '(none)');
+    }
+  } catch {}
+})();
+
 export function isAvailable() {
   const p = provider();
   if (p === 'openai') return openaiAvailable();
@@ -52,29 +67,43 @@ export function speak(text, opts = {}) {
     console.log('[TTS] speak provider:', p, 'text len:', (text || '').length);
     if (!text) return;
     if (p === 'openai') {
-      // Fire-and-forget; openai-tts-service manages playback
-      openaiSpeak(text, opts);
-      return;
+      // If OpenAI TTS isn't actually available (e.g., missing native expo-av), fall back to iOS
+      if (!openaiAvailable()) {
+        console.warn('[TTS] OpenAI provider selected but not available; falling back to iOS Speech');
+      } else {
+        // Fire-and-forget; openai-tts-service manages playback
+        openaiSpeak(text, opts);
+        return;
+      }
     }
     if (!isAvailable()) return;
     const {
       language = 'en-US',
       pitch = 1.0,
       rate = 0.85,
-      voice: voiceId = 'com.apple.voice.enhanced.en-US.Samantha',
+      voice: requestedVoiceId = 'com.apple.voice.enhanced.en-US.Samantha',
+      volume = 1.0,
       onDone,
       onError,
     } = opts || {};
     // Cancel any ongoing utterance to avoid overlap
     if (Speech?.stop) Speech.stop();
-    Speech.speak(String(text), { 
-      language, 
-      pitch, 
-      rate,
-      voice: voiceId,
-      onDone, 
-      onError 
-    });
+    // Determine a safe voice to use; if requested isn't available, fall back
+    let voiceToUse = requestedVoiceId;
+    try {
+      if (Array.isArray(voicesCache) && voicesCache.length > 0) {
+        const matchRequested = voicesCache.find((v) => v?.identifier === requestedVoiceId);
+        if (!matchRequested) {
+          // Prefer our prefetched enhanced en-US, else any en-US, else omit
+          const enUS = voicesCache.find((v) => v?.identifier?.includes('en-US'));
+          voiceToUse = preferredVoiceId || enUS?.identifier || null;
+        }
+      }
+    } catch {}
+    const speakOptions = { language, pitch, rate, onDone, onError, volume };
+    if (voiceToUse) speakOptions.voice = voiceToUse;
+    console.log('[TTS] iOS speak voice:', voiceToUse || '(default)', 'rate:', rate, 'pitch:', pitch, 'volume:', volume);
+    Speech.speak(String(text), speakOptions);
   } catch (e) {
     console.warn('[TTS] speak error:', e?.message);
   }
