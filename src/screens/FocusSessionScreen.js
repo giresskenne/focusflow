@@ -11,7 +11,6 @@ import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { upsertAlias } from '../modules/ai/aliases/alias-store';
-import { upsertAlias } from '../modules/ai/aliases/alias-store';
 
 // Import react-native-device-activity for DeviceActivitySelectionView
 let DeviceActivity = null;

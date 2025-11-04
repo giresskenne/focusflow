@@ -1,32 +1,19 @@
 // Native alias/token helpers per spec §5 with graceful fallbacks
-import { NativeModules, Platform } from 'react-native';
-import { upsertAlias } from './alias-store';
+import { Platform } from 'react-native';
 
-const Picker = NativeModules?.PickerModule; // expected native bridge
-
-export function isFamilyPickerAvailable() {
-  return Platform.OS === 'ios' && !!Picker && typeof Picker.showPicker === 'function';
-}
-
-// Opens the FamilyActivityPicker (native) and returns a TokenBundle
-// TokenBundle shape: { apps?: string[], categories?: string[], domains?: string[] }
-export async function showFamilyPicker() {
-  if (!isFamilyPickerAvailable()) return null;
+// Check if react-native-device-activity is available
+let DeviceActivity = null;
+let DeviceActivitySelectionView = null;
+if (Platform.OS === 'ios') {
   try {
-    const res = await Picker.showPicker();
-    if (!res || typeof res !== 'object') return null;
-    const { apps = [], categories = [], domains = [] } = res || {};
-    return { apps, categories, domains };
-  } catch (e) {
-    console.warn('[AliasNative] showFamilyPicker failed:', e?.message);
-    return null;
+    const lib = require('react-native-device-activity');
+    DeviceActivity = lib;
+    DeviceActivitySelectionView = lib.DeviceActivitySelectionView;
+  } catch (error) {
+    console.log('[AliasNative] react-native-device-activity not available:', error.message);
   }
 }
 
-// Create alias via picker, save, and return the saved alias
-export async function createAliasViaPicker(nickname) {
-  const tokens = await showFamilyPicker();
-  if (!tokens) return null;
-  const alias = await upsertAlias(String(nickname || '').trim(), tokens, []);
-  return alias;
+export function isFamilyPickerAvailable() {
+  return Platform.OS === 'ios' && DeviceActivitySelectionView !== null;
 }
