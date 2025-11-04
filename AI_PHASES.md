@@ -124,32 +124,28 @@
 
 ---
 
-## Phase 7: Voice Quality Upgrades 📋 TODO
+## Phase 7: Voice Quality Upgrades ✅ COMPLETE (OpenAI TTS)
 **Goal**: Natural, human-like responses
 
-### Options
-
-#### Option A: OpenAI TTS API
-- Use same OpenAI endpoint as NLU
-- Voices: alloy, echo, fable, onyx, nova, shimmer
-- Streaming support for low latency
-- Cost: ~$15 per million characters
-
-#### Option B: ElevenLabs
-- Ultra-realistic voices
-- Voice cloning for custom "Mada" voice
-- Higher cost but best quality
-
-#### Option C: Google Cloud TTS
-- Neural2 voices
-- SSML support for prosody control
-- Wavenet quality
+### What we shipped
+- ✅ OpenAI TTS API integration (gpt-4o-mini-tts model)
+- ✅ Provider toggle via `EXPO_PUBLIC_AI_TTS_PROVIDER` (ios|openai)
+- ✅ Voice selection via `EXPO_PUBLIC_AI_TTS_VOICE` (alloy, aria, verse, sol, luna)
+- ✅ Audio playback via expo-av with auto-cleanup
+- ✅ Graceful fallback to iOS expo-speech when OpenAI unavailable
+- ✅ Availability check with native module detection
+- ✅ iOS voice prefetch and dynamic selection for better quality
 
 ### Implementation
-- [ ] Add TTS provider config to .env
-- [ ] Implement OpenAI TTS service
-- [ ] Cache audio locally for common phrases
-- [ ] Fallback to iOS system voice
+- `src/modules/ai/voice/openai-tts-service.js` — OpenAI audio fetch + expo-av playback
+- `src/modules/ai/voice/tts-service.js` — Unified provider with fallback logic
+- Uses `expo-file-system/legacy` for Expo SDK 54 compatibility
+
+### Optional future enhancements
+- [ ] Audio caching for common phrases
+- [ ] Streaming support for lower latency
+- [ ] ElevenLabs integration for ultra-realistic voices
+- [ ] Custom "Mada" voice cloning
 
 ---
 

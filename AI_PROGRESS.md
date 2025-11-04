@@ -2,25 +2,33 @@
 
 **Last Updated**: November 4, 2025  
 **Branch**: `ai-voice-assistant-implementation`  
-**Current Phase**: Phase 4 - Native iOS Integration (COMPLETE ✅)
+**Current Phase**: Phase 5 - Siri Shortcuts & App Intents (TODO)
 
 ---
 
 ## ✅ Nov 4, 2025 Update
 
+### Voice-initiated blocking working end-to-end ✅
 - Voice-initiated sessions now block apps via the same ActiveSession path as manual sessions.
 - Registered the Screen Time selection before navigation and standardized the selection id to `focusflow_selection` for consistent metadata and id-based blocking.
 - Verified end-to-end with WhatsApp: shield applied, monitoring started, end notification scheduled, and unblock timer set.
 - Commits:
         - fix(voice): register selection id with DeviceActivity before navigating
         - fix(voice): align selectionId with manual flow ('focusflow_selection') for consistent metadata and blocking
+        - fix(active-session): robust unblocking at session end + trim metadata polling
 
-Add-on:
+### OpenAI TTS provider shipped ✅
 - TTS provider toggle implemented: `EXPO_PUBLIC_AI_TTS_PROVIDER=ios|openai` with optional `EXPO_PUBLIC_AI_TTS_VOICE`.
 - OpenAI TTS plays via expo-av; falls back to iOS `expo-speech` when provider is `ios` or key missing.
+- iOS voice selection improved with prefetch and dynamic fallback for better quality.
+- Graceful degradation when expo-av native module unavailable.
+- Commits:
+        - feat(tts): add OpenAI TTS provider with env toggle and voice selection
+        - fix(tts): use expo-file-system/legacy for SDK 54 compatibility; add availability check and iOS fallback
 
 Notes:
-- Initial metadata reads can return zero immediately after registration; blocking still succeeds via id/native selection calls and monitoring. We may later add a tiny delay before the first metadata fetch to reduce noisy retries.
+- Initial metadata reads can return zero immediately after registration; blocking still succeeds via id/native selection calls and monitoring. We added a small delay before the first metadata fetch to reduce noisy retries.
+- expo-av native module requires rebuild: `npx expo prebuild && npx expo run:ios` for OpenAI TTS audio playback.
 
 ---
 
@@ -111,23 +119,61 @@ After:  Voice → FocusSession → Native Picker (opaque tokens)
 
 ---
 
-## 🔭 What’s next
+---
 
-### Phase 5: Siri Shortcuts & App Intents
-- App Intent for “Start Focus Session” (duration + alias)
-- App Intent for “Stop Blocking”
-- Suggested shortcuts and background execution
+## 🔭 What's Next
 
-### Polish (small, low risk)
-- Trim verbose logs in ActiveSession once stable
-- Optional: small prefetch delay is in place; keep or tune based on telemetry
-- Add a basic E2E test for voice → picker → ActiveSession unblock flow
-- Light docs pass on the voice-to-picker architecture
+### Phase 5: Siri Shortcuts & App Intents (Priority)
+**Goal**: Let users trigger focus sessions via Siri without opening the app.
 
-### Optional (defer if not needed now)
-- App Group alias storage for cross-target sharing (Siri/widgets)
-- Telemetry on block/unblock round trips and selection metadata availability timing
-- Tune OpenAI TTS latency and add basic caching
+#### Core deliverables
+- [ ] App Intent: "Start Focus Session" (with alias + duration parameters)
+- [ ] App Intent: "Stop Blocking" (terminates active session)
+- [ ] Suggested shortcuts registration in iOS Settings
+- [ ] Background execution support (App Intents can run in background)
+
+#### Implementation approach
+1. Create Swift App Intents in `ios/AppIntents/`
+2. Register intents in Info.plist (NSUserActivityTypes)
+3. Wire intents to existing JS executor via RN bridge or shared storage
+4. Test via Shortcuts.app and "Hey Siri" commands
+
+**Why next**: High user value; complements voice flow; leverages existing alias/executor logic.
+
+---
+
+### Polish & Optional Enhancements (Low risk, defer if needed)
+- [ ] Trim verbose logs in ActiveSession once stable in production
+- [ ] Add basic E2E test for voice → picker → ActiveSession → unblock flow
+- [ ] Optional: App Group alias storage for cross-target sharing (Siri/widgets)
+- [ ] Optional: Telemetry on block/unblock round trips and selection metadata timing
+- [ ] Optional: Audio caching for common TTS phrases (reduce OpenAI API calls)
+
+---
+
+## 📋 Deferred Phases (Future Roadmap)
+
+### Phase 6: Wake Word Detection
+- "Hey Mada" activation without touching the device
+- Continuous low-power listening mode
+- Privacy controls and battery optimization
+
+### Phase 8: Conversation Context
+- Multi-turn dialogues ("Block it for longer" → remembers last app)
+- Command chaining ("Block social and work apps for an hour")
+- Personalized shortcuts ("My usual focus session")
+
+### Phase 9: UI Polish & Onboarding
+- Voice tutorial on first launch
+- In-app alias management UI (edit/delete nicknames)
+- Permission request flow with better UX explanations
+
+### Phase 10: Testing & Rollout
+- Comprehensive E2E and device testing
+- Gradual rollout with feature flags (listen-only → parse-only → full)
+- Performance profiling (battery, CPU, memory)
+
+---
 
 ---
 
@@ -144,28 +190,32 @@ After:  Voice → FocusSession → Native Picker (opaque tokens)
 - Battery optimization
 
 ### Phase 7: Voice Quality (Partially Complete)
-- OpenAI TTS API integration (env-toggle selectable)
-- Natural voice responses (initial voices available)
-- Audio caching (TODO)
+- ✅ OpenAI TTS API integration (env-toggle selectable)
+- ✅ Natural voice responses (alloy, aria, verse, sol, luna available)
+- ✅ Graceful fallback to iOS expo-speech
+- ⏸️ Audio caching (deferred)
+- ⏸️ Streaming support for lower latency (deferred)
 
 ---
 
 ## 🐛 Known Issues
 
-### High Priority
-1. **Dev Picker uses bundle IDs** - Will be replaced by native picker with real tokens in Phase 4
-2. **AsyncStorage alias persistence** - Will migrate to App Group storage in Phase 4
-3. **DevStub doesn't actually block** - Will be replaced by ManagedSettings in Phase 4
+### Fixed
+- ✅ ~~Dev Picker uses bundle IDs~~ — Now using native picker with real opaque tokens
+- ✅ ~~AsyncStorage alias persistence~~ — Works for MVP; App Group storage optional
+- ✅ ~~DevStub doesn't actually block~~ — Now using real Screen Time blocking via ActiveSession
+- ✅ ~~Infinite loop on alias save~~ — Fixed race condition and token storage
+- ✅ ~~Blocking not applied~~ — Fixed selection id registration and alignment
+- ✅ ~~Unblocking not applied at end~~ — Robust cleanup with id/token unblock + monitoring stop
+- ✅ ~~TTS not working~~ — Fixed iOS voice prefetch and OpenAI expo-av integration
 
-### Medium Priority
-1. **No duplicate alert guard in executor** - Executor may show alert when mic already handled it
-2. **Speech recognition permission not prompted on first launch** - Only shows after first mic tap
-3. **TTS logs too verbose** - Need to remove debug logs once stable
+### Active (Low priority)
+1. **Speech recognition permission not prompted on first launch** - Only shows after first mic tap (acceptable UX)
+2. **Non-serializable navigation params warning** - onAliasCreated function in FocusSession params (React Navigation limitation; doesn't affect functionality)
 
-### Low Priority
-1. **iOS system voice is robotic** - Will upgrade to OpenAI TTS in Phase 7
+### Deferred/Future
+1. **No conversation context** - Planned for Phase 8
 2. **No wake word detection** - Planned for Phase 6
-3. **No conversation context** - Planned for Phase 8
 
 ---
 
