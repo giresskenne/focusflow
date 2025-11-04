@@ -1,22 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, TouchableOpacity, Modal, TextInput, Text, StyleSheet, Alert, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { colors, radius, spacing, typography } from '../../theme';
 import { FLAGS, STTService, handleUtterance } from '../../modules/ai';
 import { speak as ttsSpeak, stop as ttsStop, isAvailable as ttsAvailable } from '../../modules/ai/voice/tts-service';
-import { isFamilyPickerAvailable, createAliasViaPicker } from '../../modules/ai/aliases/alias-native';
-import { upsertAlias } from '../../modules/ai/aliases/alias-store';
+import { isFamilyPickerAvailable } from '../../modules/ai/aliases/alias-native';
 import { parseIntent } from '../../modules/ai/nlu/intent-parser';
 
 export default function VoiceMicButton({ style }) {
+  const navigation = useNavigation();
   const enabled = FLAGS.AI_VOICE_ENABLED;
   const [manualOpen, setManualOpen] = useState(false);
   const [text, setText] = useState('');
   const [listening, setListening] = useState(false);
-  const [devPickerOpen, setDevPickerOpen] = useState(false);
-  const [devPickerNickname, setDevPickerNickname] = useState('');
-  const [devSelectedApps, setDevSelectedApps] = useState({});
-  const [devCustomBundleId, setDevCustomBundleId] = useState('');
   const pulse = useRef(new Animated.Value(1)).current;
   const busyRef = useRef(false);
   const lastUtteranceRef = useRef('');
@@ -38,36 +35,37 @@ export default function VoiceMicButton({ style }) {
       return;
     }
     
-    // Check if plan is noop (alias not found) → offer FamilyActivityPicker per spec §7B
+    // Check if plan is noop (alias not found) → navigate to FocusSessionScreen with voice params
     if (res.isNoop || res.plan?.action === 'noop') {
+      const target = res.intent?.target || res.plan?.target;
+      
       if (isFamilyPickerAvailable()) {
-        if (ttsEnabled) ttsSpeak(`I couldn't find a nickname for ${res.intent?.target || res.plan?.target}. Pick the apps once, and I'll remember it.`);
+        // Native picker available - navigate to FocusSessionScreen
+        if (ttsEnabled) ttsSpeak(`I couldn't find a nickname for ${target}. Pick the apps once, and I'll remember it.`);
         Alert.alert(
           'Teach Mada a name',
-          `Pick the apps/categories for "${res.intent?.target || res.plan?.target}" once. Mada will remember this name.`,
+          `Pick the apps/categories for "${target}" once. Mada will remember this name.`,
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Pick apps', onPress: async () => {
-                const target = res.intent?.target || res.plan?.target;
-                const alias = await createAliasViaPicker(target);
-                if (!alias || !(alias.tokens?.apps?.length || alias.tokens?.categories?.length || alias.tokens?.domains?.length)) {
-                  Alert.alert('No selection', 'No apps/categories were selected.');
-                  return;
-                }
-                // Re-run the same utterance now that alias exists
-                await runText(utterance);
+            { 
+              text: 'Pick apps', 
+              onPress: () => {
+                navigation.navigate('FocusSession', {
+                  voiceAlias: target,
+                  onAliasCreated: () => runText(utterance)  // Re-run command after alias saved
+                });
               }
             },
           ]
         );
       } else {
-        // Dev fallback picker (JS-only) to keep the flow testable until native bridge lands
-  const target = res.intent?.target || res.plan?.target;
-  if (ttsEnabled) ttsSpeak(`I couldn't find a nickname for ${target}. I'll show a picker so you can choose the apps.`);
-        setDevPickerNickname(target || '');
-        setDevSelectedApps({});
-        setDevCustomBundleId('');
-        setDevPickerOpen(true);
+        // Native picker not available - inform user (dev environment)
+        if (ttsEnabled) ttsSpeak(`I couldn't find a nickname for ${target}. Native app picker is not available in this build.`);
+        Alert.alert(
+          'Native Picker Required',
+          `The FamilyActivityPicker is not available. This feature requires:\n\n• Physical iOS device (not simulator)\n• react-native-device-activity installed\n• Custom dev client rebuild`,
+          [{ text: 'OK' }]
+        );
       }
       return;
     }
@@ -242,64 +240,6 @@ export default function VoiceMicButton({ style }) {
           </View>
         </View>
       </Modal>
-      {/* Dev Family Picker (JS fallback) */}
-      <Modal visible={devPickerOpen} transparent animationType="fade" onRequestClose={() => setDevPickerOpen(false)}>
-        <View style={styles.overlay}>
-          <View style={styles.card}>
-            <Text style={styles.title}>Pick apps for “{devPickerNickname}”</Text>
-            <Text style={{ color: colors.mutedForeground, marginBottom: spacing.md }}>
-              Temporary developer picker. The native FamilyActivityPicker isn’t available in this build.
-            </Text>
-            {DEV_APPS.map((app) => (
-              <TouchableOpacity key={app.id} style={styles.row}
-                onPress={() => setDevSelectedApps((prev) => ({ ...prev, [app.id]: !prev[app.id] }))}>
-                <View style={[styles.checkbox, devSelectedApps[app.id] && styles.checkboxOn]} />
-                <Text style={styles.rowText}>{app.name}</Text>
-                <Text style={styles.bundleText}>{app.id}</Text>
-              </TouchableOpacity>
-            ))}
-            <View style={{ height: spacing.sm }} />
-            <Text style={{ color: colors.mutedForeground, marginBottom: spacing.xs }}>Or add a bundle id</Text>
-            <TextInput
-              value={devCustomBundleId}
-              onChangeText={setDevCustomBundleId}
-              placeholder="e.g., com.example.app"
-              placeholderTextColor={colors.mutedForeground}
-              style={styles.input}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <View style={{ height: spacing.md }} />
-            <TouchableOpacity
-              style={styles.btn}
-              onPress={async () => {
-                const apps = [
-                  ...Object.entries(devSelectedApps).filter(([, on]) => on).map(([id]) => id),
-                  ...(devCustomBundleId.trim() ? [devCustomBundleId.trim()] : []),
-                ];
-                if (!apps.length) {
-                  Alert.alert('No selection', 'Pick at least one app or enter a bundle id.');
-                  return;
-                }
-                try {
-                  await upsertAlias(devPickerNickname || 'alias', { apps }, []);
-                  setDevPickerOpen(false);
-                  // Re-run the same utterance now that alias exists
-                  const phrase = lastUtteranceRef.current || `Block ${devPickerNickname} for 30 minutes`;
-                  await runText(phrase);
-                } catch (e) {
-                  Alert.alert('Save failed', String(e?.message || e));
-                }
-              }}
-            >
-              <Text style={styles.btnText}>Save & Continue</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setDevPickerOpen(false)}>
-              <Text style={styles.cancel}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </>
   );
 }
@@ -320,40 +260,53 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
   },
+  fabActive: {
+    backgroundColor: colors.secondary,
+  },
   overlay: {
-    flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)'
+    flex: 1, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: 'rgba(0,0,0,0.5)'
   },
   card: {
-    width: '86%', maxWidth: 420, borderRadius: radius['2xl'],
-    backgroundColor: '#11151a', padding: spacing['2xl'], borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)'
+    width: '86%', 
+    maxWidth: 420, 
+    borderRadius: radius['2xl'],
+    backgroundColor: '#11151a', 
+    padding: spacing['2xl'], 
+    borderWidth: 1, 
+    borderColor: 'rgba(255,255,255,0.08)'
   },
-  title: { color: '#fff', fontSize: typography.lg, fontWeight: typography.bold, marginBottom: spacing.md },
+  title: { 
+    color: '#fff', 
+    fontSize: typography.lg, 
+    fontWeight: typography.bold, 
+    marginBottom: spacing.md 
+  },
   input: {
-    height: 48, borderRadius: radius.xl, backgroundColor: '#0b0f14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: spacing.lg, color: '#fff'
+    height: 48, 
+    borderRadius: radius.xl, 
+    backgroundColor: '#0b0f14', 
+    borderWidth: 1, 
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: spacing.lg, 
+    color: '#fff'
   },
   btn: {
-    height: 44, borderRadius: radius.xl, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center'
+    height: 44, 
+    borderRadius: radius.xl, 
+    backgroundColor: colors.primary, 
+    alignItems: 'center', 
+    justifyContent: 'center'
   },
-  btnText: { color: '#fff', fontWeight: typography.semibold },
-  cancel: { color: colors.mutedForeground, textAlign: 'center', marginTop: spacing.sm },
-  row: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10
+  btnText: { 
+    color: '#fff', 
+    fontWeight: typography.semibold 
   },
-  rowText: { color: '#fff', flex: 0 },
-  bundleText: { color: colors.mutedForeground, fontSize: 12, flex: 1, textAlign: 'right' },
-  checkbox: {
-    width: 18, height: 18, borderRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)'
+  cancel: { 
+    color: colors.mutedForeground, 
+    textAlign: 'center', 
+    marginTop: spacing.sm 
   },
-  checkboxOn: { backgroundColor: colors.primary, borderColor: colors.primary },
 });
-
-// Small curated list of common apps for quick dev testing
-const DEV_APPS = [
-  { name: 'TikTok', id: 'com.zhiliaoapp.musically' },
-  { name: 'Facebook', id: 'com.facebook.Facebook' },
-  { name: 'Instagram', id: 'com.burbn.instagram' },
-  { name: 'YouTube', id: 'com.google.ios.youtube' },
-  { name: 'Snapchat', id: 'com.toyopagroup.picaboo' },
-  { name: 'WhatsApp', id: 'net.whatsapp.WhatsApp' },
-];
