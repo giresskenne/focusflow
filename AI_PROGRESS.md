@@ -15,6 +15,10 @@
         - fix(voice): register selection id with DeviceActivity before navigating
         - fix(voice): align selectionId with manual flow ('focusflow_selection') for consistent metadata and blocking
 
+Add-on:
+- TTS provider toggle implemented: `EXPO_PUBLIC_AI_TTS_PROVIDER=ios|openai` with optional `EXPO_PUBLIC_AI_TTS_VOICE`.
+- OpenAI TTS plays via expo-av; falls back to iOS `expo-speech` when provider is `ios` or key missing.
+
 Notes:
 - Initial metadata reads can return zero immediately after registration; blocking still succeeds via id/native selection calls and monitoring. We may later add a tiny delay before the first metadata fetch to reduce noisy retries.
 
@@ -107,128 +111,23 @@ After:  Voice → FocusSession → Native Picker (opaque tokens)
 
 ---
 
-## 🔨 Next Phase: Phase 5 - Production Polish
+## 🔭 What’s next
 
-**Started**: Nov 3, 2025  
-**Target**: Real Screen Time blocking with opaque tokens
+### Phase 5: Siri Shortcuts & App Intents
+- App Intent for “Start Focus Session” (duration + alias)
+- App Intent for “Stop Blocking”
+- Suggested shortcuts and background execution
 
-### Active Tasks
+### Polish (small, low risk)
+- Trim verbose logs in ActiveSession once stable
+- Optional: small prefetch delay is in place; keep or tune based on telemetry
+- Add a basic E2E test for voice → picker → ActiveSession unblock flow
+- Light docs pass on the voice-to-picker architecture
 
-#### 1. FamilyActivityPicker Bridge (PickerModule.mm)
-**Status**: Not Started  
-**Priority**: Critical
-
-**Requirements**:
-- Present native FamilyActivitySelection UI
-- Return selected tokens as JSON-safe format
-- Handle user cancellation
-- Support multi-select (apps, categories, web domains)
-
-**Interface**:
-```javascript
-// JS side
-const result = await NativeModules.PickerModule.showPicker();
-// Returns: { apps: [...], categories: [...], domains: [...] }
-```
-
-**Acceptance Criteria**:
-- User can select multiple apps/categories
-- Tokens are serialized and returned to JS
-- Picker dismisses properly on save/cancel
-- Works on physical device (not simulator)
-
----
-
-#### 2. ManagedSettings Bridge (ManagedSettingsModule.mm)
-**Status**: Not Started  
-**Priority**: Critical
-
-**Requirements**:
-- Apply shield to apps using opaque tokens
-- Schedule automatic unshield after duration
-- Support manual unshield (stop blocking)
-- Handle authorization flow
-
-**Interface**:
-```javascript
-// JS side
-await NativeModules.ManagedSettingsModule.shieldApps(tokens, durationSeconds);
-await NativeModules.ManagedSettingsModule.removeShield();
-```
-
-**Acceptance Criteria**:
-- Apps are blocked immediately when shield applied
-- Shield removes automatically after duration
-- User can manually stop blocking early
-- Authorization prompt shown if needed
-
----
-
-#### 3. App Group Alias Storage (AliasesStore.swift)
-**Status**: Not Started  
-**Priority**: High
-
-**Requirements**:
-- Read/write aliases.json to App Group container
-- Sync between main app and extensions
-- Handle concurrent access safely
-- Migrate from AsyncStorage on first launch
-
-**Interface**:
-```javascript
-// JS side
-const aliases = await NativeModules.AliasesStore.loadAliases();
-await NativeModules.AliasesStore.saveAliases(aliases);
-```
-
-**Acceptance Criteria**:
-- Aliases persist across app restarts
-- Extensions can read aliases (for Siri)
-- No data loss during migration
-- Thread-safe read/write operations
-
----
-
-#### 4. Token Serialization (TokensCodable.swift)
-**Status**: Not Started  
-**Priority**: Critical
-
-**Requirements**:
-- Encode opaque tokens to Data
-- Decode Data back to tokens
-- Handle all token types (apps, categories, domains)
-- Support JSON serialization for JS bridge
-
-**Implementation**:
-```swift
-struct SerializableToken: Codable {
-  let type: String // "app", "category", "domain"
-  let data: Data   // Opaque token bytes
-}
-```
-
-**Acceptance Criteria**:
-- Tokens round-trip correctly (encode → decode → same token)
-- JS can receive and store token data
-- Works with FamilyActivitySelection results
-
----
-
-### Integration Checklist
-
-- [ ] Create Xcode workspace with native modules
-- [ ] Add FamilyControls framework import
-- [ ] Implement PickerModule.mm bridge
-- [ ] Implement ManagedSettingsModule.mm bridge
-- [ ] Create TokensCodable.swift helpers
-- [ ] Create AliasesStore.swift with App Group access
-- [ ] Update alias-store.js to use native storage
-- [ ] Update AppBlocker.js to use ManagedSettingsModule
-- [ ] Remove DevStub and bundle ID logic
-- [ ] Test on physical device (required for Screen Time)
-- [ ] Handle authorization request flow
-- [ ] Add error handling for all native calls
-- [ ] Document native module APIs
+### Optional (defer if not needed now)
+- App Group alias storage for cross-target sharing (Siri/widgets)
+- Telemetry on block/unblock round trips and selection metadata availability timing
+- Tune OpenAI TTS latency and add basic caching
 
 ---
 
@@ -244,10 +143,10 @@ struct SerializableToken: Codable {
 - Continuous listening mode
 - Battery optimization
 
-### Phase 7: Voice Quality (Not Started)
-- OpenAI TTS API integration
-- Natural voice responses
-- Audio caching
+### Phase 7: Voice Quality (Partially Complete)
+- OpenAI TTS API integration (env-toggle selectable)
+- Natural voice responses (initial voices available)
+- Audio caching (TODO)
 
 ---
 

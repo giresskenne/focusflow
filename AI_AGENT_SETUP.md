@@ -30,6 +30,9 @@ This handles:
 ```bash
 EXPO_PUBLIC_OPENAI_API_KEY=sk-your-key-here
 EXPO_PUBLIC_AI_INTENTS_ENABLED=true
+EXPO_PUBLIC_AI_TTS_PROVIDER=ios   # or 'openai'
+EXPO_PUBLIC_AI_TTS_VOICE=alloy    # only used when provider is 'openai'
+EXPO_PUBLIC_AI_TTS_ENABLED=true
 ```
 
 ### 3. Restart the dev server
@@ -62,6 +65,9 @@ If OpenAI is unavailable (no API key, network error, timeout), it falls back to 
 | `EXPO_PUBLIC_AI_INTENT_MODEL` | `gpt-4o-mini` | Model name (try `gpt-4o` for better accuracy) |
 | `EXPO_PUBLIC_AI_TEMPERATURE` | `0.2` | Creativity (0 = deterministic, 1 = creative) |
 | `EXPO_PUBLIC_AI_INTENTS_ENABLED` | `true` | Master flag to enable AI parsing |
+| `EXPO_PUBLIC_AI_TTS_PROVIDER` | `ios` | `ios` (expo-speech) or `openai` |
+| `EXPO_PUBLIC_AI_TTS_VOICE` | `alloy` | OpenAI TTS voice id (alloy, aria, verse, sol, luna) |
+| `EXPO_PUBLIC_AI_TTS_ENABLED` | `true` | Enable TTS feedback for prompts/confirmations |
 
 ## Testing
 

@@ -60,71 +60,33 @@
 
 ---
 
-## Phase 4: Native iOS Bridges 🔨 IN PROGRESS
-**Goal**: Replace bundle IDs with real Screen Time opaque tokens
+## Phase 4: Native iOS Integration ✅ COMPLETE
+**Goal**: Use real Screen Time opaque tokens via existing libraries; unify manual and voice flows
 
-### Critical Native Modules
+### What we shipped
+- ✅ Integrated `react-native-device-activity` for FamilyActivitySelection (native picker component) and Screen Time blocking
+- ✅ Single source of truth: manual and voice flows both use `FocusSessionScreen` → `ActiveSessionScreen`
+- ✅ Opaque tokens persisted in alias store; voice-created aliases store `tokens.opaqueToken`
+- ✅ Stable selection id: `focusflow_selection` shared across flows for consistent metadata/blocking
+- ✅ Pre-register selection id before navigating to `ActiveSession` so metadata loads and id-based blocking works
+- ✅ Robust unblock at end: unblock by id and token, stop monitoring, and clear ManagedSettings shields as safety net
 
-#### 4.1 FamilyActivityPicker Bridge
-**File**: `ios/PickerModule.mm`
-```objective-c
-// Present FamilyActivityPicker and return serialized tokens
-RCT_EXPORT_METHOD(showPicker:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject)
-{
-  // Present FamilyActivitySelection view
-  // Return JSON: { apps: [...], categories: [...], domains: [...] }
-}
-```
+### Key files (JS)
+- `src/screens/FocusSessionScreen.js` — native picker + alias save (voice mode auto-open)
+- `src/modules/ai/executor/focus-executor.js` — register selection id, hand off to ActiveSession
+- `src/screens/ActiveSessionScreen.js` — shield config, block/unblock, monitoring, timers
+- `src/components/ai/VoiceMicButton.js` — navigate to picker on first use, then to ActiveSession
 
-#### 4.2 ManagedSettings Shield Bridge
-**File**: `ios/ManagedSettingsModule.mm`
-```objective-c
-// Apply shields using opaque tokens
-RCT_EXPORT_METHOD(shieldApps:(NSArray *)tokenStrings
-                  durationSeconds:(NSInteger)duration
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject)
-{
-  // Decode tokens, apply shield, schedule end time
-}
+### Native pieces in repo
+- `ios/Modules/ManagedSettingsModule.m` — provides `removeShield()` used as a final cleanup step
 
-RCT_EXPORT_METHOD(removeShield:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject)
-{
-  // Clear all shields
-}
-```
+### Deferred/Optional (not required for current MVP)
+- App Group alias storage (`AliasesStore.swift`) for cross-target sharing (e.g., Siri) — optional
+- Token serialization helpers (`TokensCodable.swift`) — unnecessary while we store base64 payloads in JS
 
-#### 4.3 App Group Alias Storage
-**File**: `ios/AliasesStore.swift`
-```swift
-// Read/write aliases.json to App Group container
-func loadAliases() -> [String: Alias]
-func saveAliases(_ aliases: [String: Alias])
-```
-
-#### 4.4 Token Serialization
-**File**: `ios/TokensCodable.swift`
-```swift
-// Encode/decode ApplicationToken, WebDomainToken, etc.
-struct SerializableToken: Codable {
-  let type: String // "app", "category", "domain"
-  let data: Data   // Opaque token bytes
-}
-```
-
-### Integration Tasks
-- [ ] Create native module stubs in Xcode
-- [ ] Implement FamilyActivityPicker presentation
-- [ ] Wire picker results to JS bridge
-- [ ] Implement ManagedSettings shield application
-- [ ] Add App Group entitlement and container access
-- [ ] Implement token serialization helpers
-- [ ] Update alias-store.js to use native storage
-- [ ] Update AppBlocker to use ManagedSettings
-- [ ] Replace DevStub with real native calls
-- [ ] Test end-to-end with real Screen Time blocking
+### Notes
+- We did not implement a custom FamilyActivityPicker bridge; the library’s `DeviceActivitySelectionView` covers it.
+- Monitoring windows are set conservatively (≥30m) with JS-timer unblock at the requested end for reliability during dev.
 
 ---
 

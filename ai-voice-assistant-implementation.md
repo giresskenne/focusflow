@@ -199,8 +199,22 @@ All new imports are **lazy** and **guarded** by flags so nothing touches existin
 **Phase 4 — Siri & quality**  
 - App Intents for lock-screen entry.  
 - Fuzzy matching & synonyms; “Auto-apply” toggle (OFF by default).
+ - Voice feedback (TTS) provider toggle: `ios` (expo-speech) or `openai` with env-configurable voice.
 
 > At any time, if flags are OFF, app reverts to today’s behavior.
+
+### TTS configuration
+
+Set the following in `.env` (or use `config/ai.sample.env`):
+
+```
+EXPO_PUBLIC_AI_TTS_ENABLED=true
+EXPO_PUBLIC_AI_TTS_PROVIDER=ios   # or 'openai'
+EXPO_PUBLIC_AI_TTS_VOICE=alloy    # only used when provider is 'openai'
+EXPO_PUBLIC_OPENAI_API_KEY=sk-your-key-here
+```
+
+When `provider=openai`, audio is fetched from OpenAI TTS (gpt-4o-mini-tts) and played via expo-av. On iOS provider, we use expo-speech.
 
 ---
 

@@ -35,6 +35,9 @@ importers:
       expo:
         specifier: ~54.0.20
         version: 54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)
+      expo-av:
+        specifier: ~14.0.5
+        version: 14.0.7(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))
       expo-blur:
         specifier: ^15.0.7
         version: 15.0.7(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)
@@ -63,6 +66,9 @@ importers:
         specifier: ^15.0.7
         version: 15.0.7(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))
       expo-sharing:
+        specifier: ~14.0.7
+        version: 14.0.7(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))
+      expo-speech:
         specifier: ~14.0.7
         version: 14.0.7(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))
       expo-status-bar:
@@ -2006,6 +2012,11 @@ packages:
       react: '*'
       react-native: '*'
 
+  expo-av@14.0.7:
+    resolution: {integrity: sha512-FvKZxyy+2/qcCmp+e1GTK3s4zH8ZO1RfjpqNxh7ARlS1oH8HPtk1AyZAMo52tHz3yQ3UIqxQ2YbI9CFb4065lA==}
+    peerDependencies:
+      expo: '*'
+
   expo-blur@15.0.7:
     resolution: {integrity: sha512-SugQQbQd+zRPy8z2G5qDD4NqhcD7srBF7fN7O7yq6q7ZFK59VWvpDxtMoUkmSfdxgqONsrBN/rLdk00USADrMg==}
     peerDependencies:
@@ -2122,6 +2133,11 @@ packages:
 
   expo-sharing@14.0.7:
     resolution: {integrity: sha512-t/5tR8ZJNH6tMkHXlF7453UafNIfrpfTG+THN9EMLC4Wsi4bJuESPm3NdmWDg2D4LDALJI/LQo0iEnLAd5Sp4g==}
+    peerDependencies:
+      expo: '*'
+
+  expo-speech@14.0.7:
+    resolution: {integrity: sha512-Ff/seq4tfj6AnGZj8Mj83EGnHj636f2mO30bPr3qQJzF9zn3ArakuUQTK8UrkVy0OS0E12z28d+9Fe+AgSUB0w==}
     peerDependencies:
       expo: '*'
 
@@ -6790,6 +6806,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  expo-av@14.0.7(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)):
+    dependencies:
+      expo: 54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)
+
   expo-blur@15.0.7(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0):
     dependencies:
       expo: 54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)
@@ -6921,6 +6941,10 @@ snapshots:
   expo-server@1.0.2: {}
 
   expo-sharing@14.0.7(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)):
+    dependencies:
+      expo: 54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)
+
+  expo-speech@14.0.7(expo@54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)):
     dependencies:
       expo: 54.0.20(@babel/core@7.28.5)(react-native@0.81.5(@babel/core@7.28.5)(react@19.1.0))(react@19.1.0)
 
