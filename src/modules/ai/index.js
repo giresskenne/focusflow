@@ -42,6 +42,13 @@ export async function handleUtterance(text, { confirm = true } = {}) {
 
   const applied = await applyPlan(plan);
   console.log('[AI] applyPlan result:', applied);
+  
+  // Check if plan needs navigation to ActiveSession
+  if (applied && typeof applied === 'object' && applied.needsNavigation) {
+    console.log('[AI] Plan requires ActiveSession navigation');
+    return { ok: true, intent, plan, applied: true, needsNavigation: true, durationSeconds: applied.durationSeconds };
+  }
+  
   return { ok: applied, intent, plan, applied };
 }
 

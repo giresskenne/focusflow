@@ -74,7 +74,15 @@ export default function VoiceMicButton({ style }) {
       const msg = `Block ${res.intent.target} for ${res.plan.durationMinutes} minutes (ends ${res.plan.endLabel})?`;
       Alert.alert('Confirm', msg, [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'OK', onPress: async () => { await handleUtterance(utterance, { confirm: false }); } }
+        { text: 'OK', onPress: async () => { 
+          const applyRes = await handleUtterance(utterance, { confirm: false });
+          
+          // Check if we need to navigate to ActiveSession
+          if (applyRes.needsNavigation && applyRes.durationSeconds) {
+            console.log('[VoiceMicButton] Navigating to ActiveSession');
+            navigation.navigate('ActiveSession', { durationSeconds: applyRes.durationSeconds });
+          }
+        }}
       ]);
     }
   };
