@@ -2,21 +2,11 @@
 
 **Last Updated**: November 4, 2025  
 **Branch**: `ai-voice-assistant-implementation`  
-**Current Phase**: Phase 5 - Siri Shortcuts & App Intents (COMPLETE ✅)
+**Current Phase**: Phase 5 - Siri Shortcuts & App Intents (TODO)
 
 ---
 
 ## ✅ Nov 4, 2025 Update
-
-### Siri Shortcuts & App Intents shipped ✅
-- Implemented `StartFocusIntent` with alias and duration parameters
-- Implemented `StopBlockingIntent` for ending sessions
-- Deep link handler (`focusflow://siri`) routes to existing voice flow
-- Suggested shortcuts automatically appear in iOS Settings and Shortcuts.app
-- Reuses all existing alias resolution and confirmation logic
-- Commits:
-        - feat(siri): implement Siri Shortcuts with StartFocusIntent and StopBlockingIntent; add deep link handler and documentation
-- Documentation: SIRI_SHORTCUTS_GUIDE.md with setup, testing, and troubleshooting
 
 ### Voice-initiated blocking working end-to-end ✅
 - Voice-initiated sessions now block apps via the same ActiveSession path as manual sessions.
@@ -189,20 +179,17 @@ After:  Voice → FocusSession → Native Picker (opaque tokens)
 
 ## 📋 Upcoming Phases
 
-### Phase 5: Siri Shortcuts (COMPLETE ✅)
-- ✅ App Intent for "Start Focus Session" with alias + duration
-- ✅ App Intent for "Stop Blocking"
-- ✅ Deep link handling via focusflow://siri
-- ✅ Suggested shortcuts registration
-- ✅ Routes to existing voice flow (reuses alias resolution, confirmation)
-- ⏸️ Background execution (future enhancement - requires additional config)
+### Phase 5: Siri Shortcuts (Not Started)
+- App Intents for voice shortcuts
+- Background execution
+- Suggested shortcuts
 
 ### Phase 6: Wake Word Detection (Not Started)
 - "Hey Mada" activation
 - Continuous listening mode
 - Battery optimization
 
-### Phase 7: Voice Quality (COMPLETE ✅)
+### Phase 7: Voice Quality (Partially Complete)
 - ✅ OpenAI TTS API integration (env-toggle selectable)
 - ✅ Natural voice responses (alloy, aria, verse, sol, luna available)
 - ✅ Graceful fallback to iOS expo-speech

@@ -29,7 +29,6 @@ import { setPremiumStatus } from './src/storage';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { setupGlobalErrorHandling } from './src/utils/errorHandling';
 import PolicyScreen from './src/screens/PolicyScreen';
-import { initializeSiriIntents } from './src/modules/ai/siri-intents';
 
 const Stack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -70,13 +69,6 @@ export default function App() {
   useEffect(() => {
     // Initialize global error handling
     setupGlobalErrorHandling();
-
-    // Initialize Siri intent handler
-    try {
-      initializeSiriIntents();
-    } catch (e) {
-      console.warn('[App] Failed to initialize Siri intents:', e?.message);
-    }
 
     // Global notifications behavior: prevent premature foreground alerts for
     // our "focus-end" notifications by checking an intended fire timestamp.
