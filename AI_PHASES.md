@@ -149,15 +149,68 @@
 
 ---
 
-## Phase 8: Conversation Context 📋 TODO
-**Goal**: Multi-turn conversations and memory
+## Phase 8: Conversation Context ✅ COMPLETE
+**Goal**: Multi-turn conversations and conversational assistant behavior
 
-### Features
-- [ ] Session context (remember last command)
-- [ ] Clarification prompts ("Which app?", "For how long?")
-- [ ] Command chaining ("Block social and work apps")
-- [ ] Personalization ("My usual focus session")
-- [ ] History and analytics
+### What we shipped
+- ✅ Intent classification system - Detects if user request is on-topic (block/remind/focus)
+- ✅ Conversational guidance - Politely redirects off-topic requests with helpful suggestions
+- ✅ Action detection - Validates presence of action verbs (block, stop, remind, start)
+- ✅ Smart clarification - Asks "Which apps?" or "For how long?" when info missing
+- ✅ Conversation context store with AsyncStorage (5-minute TTL)
+- ✅ Pronoun resolution ("block it", "that app", "do it again")
+- ✅ Relative duration support ("for longer", "add 10 minutes")
+- ✅ Context-aware suggestions based on conversation history
+- ✅ Reminder command support (one-time, daily, weekly, custom)
+
+### Implementation
+- `src/modules/ai/nlu/intent-classifier.js` — Classifies intent as 'valid', 'off-topic', or 'unclear-action'
+  - Detects action keywords: block, stop, remind, start, focus
+  - Validates against known aliases and app names
+  - Returns guidance prompts for different scenarios
+- `src/modules/ai/conversation-context.js` — Context store and smart prompts
+  - `getGuidancePrompt()` — Returns helpful messages based on classification
+  - `resolvePronouns()` — Replace "it", "that", "them" with last target
+  - `resolveRelativeDuration()` — Handle "longer", "add X minutes"
+  - `needsClarification()` — Check if intent needs user input
+- `src/modules/ai/nlu/intent-parser.js` — Context-aware parsing with classification
+- `src/components/ai/VoiceMicButton.js` — Classification-first flow with guidance
+
+### Conversational Behavior
+**Off-topic requests:**
+- User: "What's the weather?"
+- Mada: "I help you block distracting apps and set focus reminders. Try saying 'Block social media for 30 minutes' or 'Remind me to check messages in 1 hour'."
+
+**Unclear action:**
+- User: "Instagram 30 minutes" (missing verb)
+- Mada: "Did you want to block Instagram for 30 minutes? Say 'yes' to confirm."
+
+**Missing target:**
+- User: "Block stuff" or "Start focus session"
+- Mada: "Which apps would you like to block? Try 'social apps', 'Instagram', or say an app name."
+
+**Missing duration:**
+- User: "Block social apps"
+- Mada: "For how long? Try '30 minutes', '1 hour', or say a duration."
+
+**Reminder support:**
+- User: "Remind me to exercise in 30 minutes" → One-time reminder
+- User: "Remind me to drink water every day at 9 AM" → Daily reminder
+- User: "Remind me to check emails every Monday" → Weekly reminder
+- User: "Remind me on Mondays and Wednesdays at 2 PM" → Custom reminder
+
+### User Experience Improvements
+- **Focused assistant**: Only handles app blocking and reminders, politely redirects other requests
+- **Natural conversation**: Feels like talking to a personal assistant, not a command parser
+- **Helpful guidance**: Suggests what Mada can do when user is unclear
+- **Context continuity**: "Block it for longer" → extends last app automatically
+- **Smart suggestions**: Prompts include last-used values for faster input
+
+### Optional future enhancements
+- [ ] Location-based reminders ("Remind me when I get home")
+- [ ] Reminder editing/deletion via voice
+- [ ] Reminder list view with voice navigation
+- [ ] Smart reminder suggestions based on patterns
 
 ---
 

@@ -7,6 +7,8 @@ import { FLAGS, STTService, handleUtterance } from '../../modules/ai';
 import { speak as ttsSpeak, stop as ttsStop, isAvailable as ttsAvailable } from '../../modules/ai/voice/tts-service';
 import { isFamilyPickerAvailable } from '../../modules/ai/aliases/alias-native';
 import { parseIntent } from '../../modules/ai/nlu/intent-parser';
+import { updateContext, needsClarification } from '../../modules/ai/conversation-context';
+import { getGuidancePrompt, isConfirmation } from '../../modules/ai/nlu/intent-classifier';
 
 export default function VoiceMicButton({ style }) {
   const navigation = useNavigation();
@@ -17,6 +19,7 @@ export default function VoiceMicButton({ style }) {
   const pulse = useRef(new Animated.Value(1)).current;
   const busyRef = useRef(false);
   const lastUtteranceRef = useRef('');
+  const pendingIntentRef = useRef(null); // For storing unclear-action intents
 
   const sttAvailable = useMemo(() => STTService.isAvailable?.() || false, []);
   const ttsEnabled = FLAGS.AI_TTS_ENABLED;
@@ -27,12 +30,153 @@ export default function VoiceMicButton({ style }) {
     if (!utterance?.trim()) return;
     lastUtteranceRef.current = utterance;
     console.log('[VoiceMicButton] Running utterance:', utterance);
+    
+    // Check if this is a confirmation response to a pending intent
+    if (pendingIntentRef.current) {
+      const confirmation = isConfirmation(utterance);
+      if (confirmation === true) {
+        // User confirmed, execute the pending intent
+        const pendingIntent = pendingIntentRef.current;
+        pendingIntentRef.current = null;
+        
+        // Re-construct command from pending intent
+        const reconstructed = `Block ${pendingIntent.classification.detectedTarget} for 30 minutes`;
+        console.log('[VoiceMicButton] User confirmed, executing:', reconstructed);
+        return runText(reconstructed);
+      } else if (confirmation === false) {
+        // User cancelled
+        pendingIntentRef.current = null;
+        if (ttsEnabled) ttsSpeak('Okay, cancelled.');
+        return;
+      }
+      // If unclear, continue processing as new command
+      pendingIntentRef.current = null;
+    }
+    
+    // Parse intent first (includes classification)
+    const intent = await parseIntent(utterance, { allowDefaultDuration: false });
+    
+    // Handle classification-based guidance
+    if (intent?.needsGuidance && intent.classification) {
+      console.log('[VoiceMicButton] Needs guidance:', intent.classification.type);
+      
+      const guidance = getGuidancePrompt(intent.classification, intent);
+      if (guidance) {
+        if (guidance.shouldSpeak && ttsEnabled) {
+          ttsSpeak(guidance.message);
+        }
+        
+        // For unclear-action, store intent and wait for confirmation
+        if (intent.classification.type === 'unclear-action') {
+          pendingIntentRef.current = intent;
+        }
+        
+        // Show alert with suggestions
+        Alert.alert(
+          intent.classification.type === 'off-topic' ? 'How I can help' : 'Did I understand correctly?',
+          guidance.message,
+          [
+            ...guidance.suggestions.map((sugg) => ({
+              text: sugg,
+              onPress: () => {
+                if (sugg === 'Cancel') {
+                  pendingIntentRef.current = null;
+                  return;
+                }
+                runText(sugg);
+              }
+            })),
+            { text: 'Type instead', onPress: () => setManualOpen(true) },
+          ]
+        );
+        return;
+      }
+    }
+    
+    // Check if we need clarification on a valid intent
+    const clarification = needsClarification(intent, null);
+    if (clarification) {
+      console.log('[VoiceMicButton] Needs clarification:', clarification.question);
+      
+      if (clarification.missing === 'duration') {
+        // Missing duration - prompt with suggestions
+        if (ttsEnabled) ttsSpeak(clarification.question);
+        Alert.alert(clarification.question, 'Choose a duration:', [
+          ...clarification.suggestions.map((sugg, idx) => ({
+            text: sugg,
+            onPress: () => {
+              // Extract number from suggestion
+              const match = sugg.match(/(\d+)\s*(minutes?|mins?|hours?|hrs?)/i);
+              if (match) {
+                const num = parseInt(match[1], 10);
+                const unit = match[2].toLowerCase();
+                const mins = unit.startsWith('h') ? num * 60 : num;
+                runText(`${utterance} for ${mins} minutes`);
+              } else {
+                runText(`${utterance} for ${sugg}`);
+              }
+            }
+          })),
+          { text: 'Type', onPress: () => setManualOpen(true) },
+          { text: 'Cancel', style: 'cancel' },
+        ]);
+        return;
+      }
+      
+      if (clarification.missing === 'target') {
+        // Missing target - prompt with suggestions
+        if (ttsEnabled) ttsSpeak(clarification.question);
+        Alert.alert(clarification.question, 'Choose apps to block:', [
+          ...clarification.suggestions.map((sugg) => ({
+            text: sugg,
+            onPress: () => runText(`Block ${sugg}`)
+          })),
+          { text: 'Type', onPress: () => setManualOpen(true) },
+          { text: 'Cancel', style: 'cancel' },
+        ]);
+        return;
+      }
+      
+      if (clarification.missing === 'message' || clarification.missing === 'time') {
+        // Missing reminder details - prompt with suggestions
+        if (ttsEnabled) ttsSpeak(clarification.question);
+        Alert.alert(clarification.question, 'Choose or say:', [
+          ...clarification.suggestions.map((sugg) => ({
+            text: sugg,
+            onPress: () => runText(`Remind me to ${sugg}`)
+          })),
+          { text: 'Type', onPress: () => setManualOpen(true) },
+          { text: 'Cancel', style: 'cancel' },
+        ]);
+        return;
+      }
+    }
+    
+    // Handle reminder action (placeholder - actual implementation needed)
+    if (intent?.action === 'remind') {
+      console.log('[VoiceMicButton] Reminder intent:', intent);
+      if (ttsEnabled) ttsSpeak('Reminder feature coming soon! For now, I can help you block apps.');
+      Alert.alert('Coming Soon', 'Reminder feature is under development. I can help you block distracting apps for now!');
+      return;
+    }
+    
     const res = await handleUtterance(utterance, { confirm: true });
     console.log('[VoiceMicButton] handleUtterance result:', res);
     
     if (!res.ok) {
       Alert.alert('Try again', "I didn't catch that. Try: Block Social for 30 minutes");
       return;
+    }
+    
+    // Save conversation context for next command
+    if (res.intent && res.plan) {
+      updateContext({
+        action: res.intent.action,
+        target: res.intent.target,
+        durationMinutes: res.plan.durationMinutes || res.intent.durationMinutes,
+        intent: res.intent,
+        plan: res.plan,
+      });
     }
     
     // Check if plan is noop (alias not found) → navigate to FocusSessionScreen with voice params
@@ -162,22 +306,53 @@ export default function VoiceMicButton({ style }) {
               
               // Parse the last captured utterance
               const intent = await parseIntent(lastUtterance, { allowDefaultDuration: false });
-              const readyToApply = (intent && intent.action === 'stop') || 
-                                   (intent && intent.action === 'block' && intent.durationMinutes >= 1);
               
-              if (!readyToApply && intent && intent.action === 'block') {
-                // Has intent but no duration - prompt
+              // Check if we need clarification
+              const clarification = needsClarification(intent, null);
+              if (clarification && clarification.missing === 'duration') {
+                // Has intent but no duration - prompt with smart suggestions
                 accepted = true;
                 await cleanup();
-                if (ttsEnabled) ttsSpeak('For how long? You can choose two minutes, thirty minutes, or type a duration.');
-                Alert.alert('For how long?', 'Choose a duration:', [
-                  { text: '2 min', onPress: () => runText(`${lastUtterance} for 2 minutes`) },
-                  { text: '30 min', onPress: () => runText(`${lastUtterance} for 30 minutes`) },
+                if (ttsEnabled) ttsSpeak(clarification.question);
+                Alert.alert(clarification.question, 'Choose a duration:', [
+                  ...clarification.suggestions.map((sugg) => ({
+                    text: sugg,
+                    onPress: () => {
+                      const match = sugg.match(/(\d+)\s*(minutes?|mins?|hours?|hrs?)/i);
+                      if (match) {
+                        const num = parseInt(match[1], 10);
+                        const unit = match[2].toLowerCase();
+                        const mins = unit.startsWith('h') ? num * 60 : num;
+                        runText(`${lastUtterance} for ${mins} minutes`);
+                      } else {
+                        runText(`${lastUtterance} for ${sugg}`);
+                      }
+                    }
+                  })),
                   { text: 'Type', onPress: () => setManualOpen(true) },
                   { text: 'Cancel', style: 'cancel' },
                 ]);
                 return;
               }
+              
+              if (clarification && clarification.missing === 'target') {
+                // Has action but no target - prompt
+                accepted = true;
+                await cleanup();
+                if (ttsEnabled) ttsSpeak(clarification.question);
+                Alert.alert(clarification.question, 'Choose apps to block:', [
+                  ...clarification.suggestions.map((sugg) => ({
+                    text: sugg,
+                    onPress: () => runText(`Block ${sugg}`)
+                  })),
+                  { text: 'Type', onPress: () => setManualOpen(true) },
+                  { text: 'Cancel', style: 'cancel' },
+                ]);
+                return;
+              }
+              
+              const readyToApply = (intent && intent.action === 'stop') || 
+                                   (intent && intent.action === 'block' && intent.durationMinutes >= 1);
               
               if (readyToApply) {
                 // Valid complete command - execute it
