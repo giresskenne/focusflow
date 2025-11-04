@@ -84,7 +84,8 @@ export async function applyPlan(plan) {
   if (plan.needsActiveSession && plan.opaqueToken) {
     console.log('[FocusExecutor] Preparing for ActiveSession navigation');
     // Create a stable selection id for this request and register it natively
-    const selectionId = `voice_${plan.alias.nickname}_${Date.now()}`;
+  // Use the same fixed id as the manual flow so native code recognizes it consistently
+  const selectionId = 'focusflow_selection';
     try {
       if (DeviceActivity) {
         // Register the opaque token with this id so metadata and id-based blocking work
