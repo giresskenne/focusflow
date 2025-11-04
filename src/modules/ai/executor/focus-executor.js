@@ -83,9 +83,24 @@ export async function applyPlan(plan) {
   // If plan needs ActiveSession navigation (opaque token), just prepare state
   if (plan.needsActiveSession && plan.opaqueToken) {
     console.log('[FocusExecutor] Preparing for ActiveSession navigation');
-    // Store the opaque token selection so ActiveSessionScreen can use it
+    // Create a stable selection id for this request and register it natively
+    const selectionId = `voice_${plan.alias.nickname}_${Date.now()}`;
+    try {
+      if (DeviceActivity) {
+        // Register the opaque token with this id so metadata and id-based blocking work
+        DeviceActivity.setFamilyActivitySelectionId({
+          id: selectionId,
+          familyActivitySelection: plan.opaqueToken,
+        });
+        console.log('[FocusExecutor] Registered selection id with DeviceActivity:', selectionId);
+      }
+    } catch (e) {
+      console.log('[FocusExecutor] Failed to register selection id (continuing):', e?.message || e);
+    }
+
+    // Persist selection so ActiveSessionScreen can load it
     await setSelectedApps({
-      familyActivitySelectionId: `voice_${plan.alias.nickname}_${Date.now()}`,
+      familyActivitySelectionId: selectionId,
       nativeFamilyActivitySelection: plan.opaqueToken,
     });
     // Return true with special flag - caller should navigate
