@@ -11,6 +11,7 @@ import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { upsertAlias } from '../modules/ai/aliases/alias-store';
+import { upsertAlias } from '../modules/ai/aliases/alias-store';
 
 // Import react-native-device-activity for DeviceActivitySelectionView
 let DeviceActivity = null;
@@ -66,7 +67,7 @@ export default function FocusSessionScreen({ navigation, route }) {
   const [confirmClearTemplate, setConfirmClearTemplate] = useState(null); // Template ID pending clear confirmation
   const FAMILY_SELECTION_ID = 'focusflow_selection';
   
-  // Voice mode: when navigated from voice assistant for alias creation
+  // Voice mode state - triggered when navigated from voice command with unknown alias
   const voiceAlias = route?.params?.voiceAlias;
   const onAliasCreated = route?.params?.onAliasCreated;
   const isVoiceMode = !!voiceAlias;
@@ -141,6 +142,15 @@ export default function FocusSessionScreen({ navigation, route }) {
       setTemplateMetadata({ social, gaming, entertainment, all });
     })();
   }, []);
+
+  // Voice mode: auto-open native picker when navigated from voice command
+  useEffect(() => {
+    if (isVoiceMode && nativePickerAvailable) {
+      console.log('[FocusSession] Voice mode detected, auto-opening picker for alias:', voiceAlias);
+      setPendingTemplateId(`voice:${voiceAlias}`); // Special template ID for voice aliases
+      setShowNativePicker(true);
+    }
+  }, [isVoiceMode, voiceAlias, nativePickerAvailable]);
 
   // Voice mode: auto-open native picker for alias creation
   useEffect(() => {
@@ -696,6 +706,30 @@ export default function FocusSessionScreen({ navigation, route }) {
                               webDomainCount: webDomainCount || 0,
                             });
                             
+                            // If voice mode, also save to alias store
+                            if (isVoiceMode && voiceAlias) {
+                              console.log('[FocusSession] Voice mode: saving alias:', voiceAlias);
+                              try {
+                                await upsertAlias(
+                                  voiceAlias,
+                                  { 
+                                    apps: [], 
+                                    categories: [],
+                                    domains: []
+                                  },
+                                  [{
+                                    selectionToken: familyActivitySelection,
+                                    appCount: applicationCount || 0,
+                                    categoryCount: categoryCount || 0,
+                                    webDomainCount: webDomainCount || 0,
+                                  }]
+                                );
+                                console.log('[FocusSession] Alias saved successfully');
+                              } catch (e) {
+                                console.error('[FocusSession] Failed to save alias:', e);
+                              }
+                            }
+                            
                             // Update local template metadata
                             setTemplateMetadata(prev => ({
                               ...prev,
@@ -749,42 +783,16 @@ export default function FocusSessionScreen({ navigation, route }) {
                     onPress={async () => {
                       console.log('[FocusSession] Closing picker');
                       setShowNativePicker(false);
-                      
-                      // Voice mode: save alias and trigger callback
-                      if (isVoiceMode && familyActivitySelection) {
-                        const { applicationCount, categoryCount, webDomainCount, familyActivitySelection: token } = familyActivitySelection;
-                        const hasSelection = (applicationCount + categoryCount + webDomainCount) > 0;
-                        
-                        if (hasSelection && token) {
-                          console.log('[FocusSession] Voice mode: saving alias:', voiceAlias);
-                          try {
-                            // Save to alias store with opaque tokens
-                            await upsertAlias(voiceAlias, {
-                              tokens: {
-                                apps: applicationCount > 0 ? [token] : [],
-                                categories: categoryCount > 0 ? [token] : [],
-                                domains: webDomainCount > 0 ? [token] : [],
-                              },
-                              selectionToken: token,
-                            }, []);
-                            
-                            console.log('[FocusSession] Alias saved, navigating back and triggering callback');
-                            navigation.goBack();
-                            
-                            // Call the callback to re-run the voice command
-                            if (onAliasCreated) {
-                              setTimeout(() => onAliasCreated(), 300);
-                            }
-                          } catch (e) {
-                            console.error('[FocusSession] Error saving voice alias:', e);
-                          }
-                        } else {
-                          console.log('[FocusSession] No selection made in voice mode');
-                          navigation.goBack();
-                        }
-                      }
-                      
                       setPendingTemplateId(null);
+                      
+                      // Voice mode: call callback to re-run voice command, then navigate back
+                      if (isVoiceMode && onAliasCreated) {
+                        console.log('[FocusSession] Voice mode: calling onAliasCreated callback');
+                        // Call the callback (which will re-run the voice command)
+                        onAliasCreated();
+                        // Navigate back to where we came from
+                        navigation.goBack();
+                      }
                     }}
                   />
                 </View>
