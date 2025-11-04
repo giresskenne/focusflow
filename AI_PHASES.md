@@ -90,20 +90,35 @@
 
 ---
 
-## Phase 5: Siri Shortcuts & App Intents 📋 TODO
+## Phase 5: Siri Shortcuts & App Intents ✅ COMPLETE
 **Goal**: Voice commands from Siri without opening app
 
-### Deliverables
-- [ ] App Intent for "Start Focus Session"
-- [ ] App Intent for "Stop Blocking"
-- [ ] Shortcuts.app integration
-- [ ] Suggested shortcuts on device
-- [ ] Background execution support
+### What we shipped
+- ✅ App Intent for "Start Focus Session" with alias and duration parameters
+- ✅ App Intent for "Stop Blocking" to end active sessions
+- ✅ Deep link handler (`focusflow://siri`) routes intents to existing voice flow
+- ✅ Suggested shortcuts automatically registered in iOS
+- ✅ Reuses all existing logic: alias resolution, fuzzy matching, confirmation flow
+- ✅ Works via Siri voice commands and Shortcuts.app
 
-### Key Files
-- `ios/AppIntents/StartFocusIntent.swift`
-- `ios/AppIntents/StopBlockingIntent.swift`
-- `app.json` - NSUserActivityTypes
+### Implementation
+- `ios/focusflowapp/AppIntents/StartFocusIntent.swift` — Swift App Intent with parameters
+- `ios/focusflowapp/AppIntents/StopBlockingIntent.swift` — Swift App Intent for stopping
+- `src/modules/ai/siri-intents.js` — Deep link listener and intent processor
+- `App.js` — Initialize Siri intent listener on app startup
+- `SIRI_SHORTCUTS_GUIDE.md` — Complete setup, testing, and troubleshooting guide
+
+### How it works
+1. User says "Hey Siri, start a focus session" or creates shortcut in Shortcuts.app
+2. Swift App Intent opens app with `focusflow://siri?action=start_focus&alias=X&duration=Y`
+3. JS deep link handler parses parameters and constructs utterance: "Block X for Y minutes"
+4. Routes to existing `handleUtterance` function (same as voice button)
+5. Alias resolution, confirmation, and blocking work identically to voice flow
+
+### Deferred/Future
+- [ ] Background execution (requires app extension and additional configuration)
+- [ ] Widget support for home screen quick access
+- [ ] Spotlight integration
 
 ---
 
