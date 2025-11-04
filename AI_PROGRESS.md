@@ -1,8 +1,22 @@
 # AI Voice Assistant Progress Report
 
-**Last Updated**: November 3, 2025  
+**Last Updated**: November 4, 2025  
 **Branch**: `ai-voice-assistant-implementation`  
 **Current Phase**: Phase 4 - Native iOS Integration (COMPLETE ✅)
+
+---
+
+## ✅ Nov 4, 2025 Update
+
+- Voice-initiated sessions now block apps via the same ActiveSession path as manual sessions.
+- Registered the Screen Time selection before navigation and standardized the selection id to `focusflow_selection` for consistent metadata and id-based blocking.
+- Verified end-to-end with WhatsApp: shield applied, monitoring started, end notification scheduled, and unblock timer set.
+- Commits:
+        - fix(voice): register selection id with DeviceActivity before navigating
+        - fix(voice): align selectionId with manual flow ('focusflow_selection') for consistent metadata and blocking
+
+Notes:
+- Initial metadata reads can return zero immediately after registration; blocking still succeeds via id/native selection calls and monitoring. We may later add a tiny delay before the first metadata fetch to reduce noisy retries.
 
 ---
 

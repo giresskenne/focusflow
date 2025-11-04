@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, AppState, Image } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, AppState, Image, NativeModules } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
@@ -66,6 +66,25 @@ export default function ActiveSessionScreen({ navigation, route }) {
   const FAMILY_SELECTION_ID = 'focusflow_selection';
   const mountedRef = useRef(true);
   useEffect(() => { return () => { mountedRef.current = false; }; }, []);
+
+  // Helper: robust unblocking and cleanup at session end
+  const safelyUnblockAll = async (selectionIdParam) => {
+    try {
+      const stored = await getSelectedApps();
+      const selectionId = selectionIdParam || stored?.familyActivitySelectionId || FAMILY_SELECTION_ID;
+      // 1) Unblock by selection id
+      try { if (DeviceActivity && selectionId) DeviceActivity.unblockSelection({ familyActivitySelectionId: selectionId }); } catch {}
+      // 2) Unblock by native selection token (if any)
+      try { if (DeviceActivity && stored?.nativeFamilyActivitySelection) DeviceActivity.unblockSelection({ familyActivitySelection: stored.nativeFamilyActivitySelection }); } catch {}
+      // 3) Stop monitoring
+      try { if (DeviceActivity) DeviceActivity.stopMonitoring(['focusSession']); } catch {}
+      // 4) Clear any residual ManagedSettings shields as a final safety net
+      try { await NativeModules?.ManagedSettingsModule?.removeShield?.(); } catch {}
+      console.log('[ActiveSession] Completed unblock cleanup');
+    } catch (e) {
+      console.log('[ActiveSession] safelyUnblockAll error:', e?.message || e);
+    }
+  };
 
   // Debug: log notifications received/responses to diagnose early or duplicate notifications
   useEffect(() => {
@@ -211,22 +230,8 @@ export default function ActiveSessionScreen({ navigation, route }) {
               // Complete the session
               await setSession({ active: false, endAt: null, totalSeconds: null });
               
-              // Unblock apps
-              if (blockingAvailable && DeviceActivity) {
-                try {
-                  const stored = await getSelectedApps();
-                  const selectionId = stored?.familyActivitySelectionId || FAMILY_SELECTION_ID;
-                  if (selectionId) {
-                    DeviceActivity.unblockSelection({ familyActivitySelectionId: selectionId });
-                  }
-                  if (stored?.nativeFamilyActivitySelection) {
-                    try { DeviceActivity.unblockSelection({ familyActivitySelection: stored.nativeFamilyActivitySelection }); } catch (_) {}
-                  }
-                  DeviceActivity.stopMonitoring(['focusSession']);
-                } catch (e) {
-                  console.log('[ActiveSession] Error unblocking on state change:', e);
-                }
-              }
+              // Unblock apps (robust)
+              await safelyUnblockAll();
               
               // Record the session
               await appendSessionRecord({
@@ -289,7 +294,8 @@ export default function ActiveSessionScreen({ navigation, route }) {
           // Derive counts for UI and attempt recovery if empty by re-migrating token
           try {
             const readMetaWithRetry = async (id) => {
-              const delays = [0, 200, 500, 1000];
+              // Small initial delay helps native metadata become available and reduces noisy zero-count logs
+              const delays = [200, 500, 1000];
               let lastMeta = null;
               for (let i = 0; i < delays.length; i++) {
                 if (delays[i] > 0) await sleep(delays[i]);
@@ -562,16 +568,7 @@ export default function ActiveSessionScreen({ navigation, route }) {
                         return;
                       }
 
-                      try {
-                        DeviceActivity.unblockSelection({ familyActivitySelectionId: selectionIdToUse });
-                        if (map?.nativeFamilyActivitySelection) {
-                          try { DeviceActivity.unblockSelection({ familyActivitySelection: map.nativeFamilyActivitySelection }); } catch (_) {}
-                        }
-                        try { DeviceActivity.stopMonitoring(['focusSession']); } catch (_) {}
-                        console.log('[ActiveSession] Unblock + stopMonitoring invoked');
-                      } catch (e) {
-                        console.log('[ActiveSession] Error unblocking on JS timer:', e?.message || e);
-                      }
+                      await safelyUnblockAll(selectionIdToUse);
 
                       try {
                         await setSession({ active: false, endAt: null, totalSeconds: null });
@@ -651,6 +648,9 @@ export default function ActiveSessionScreen({ navigation, route }) {
           
           // Clear the session state immediately to prevent restart loops
           await setSession({ active: false, endAt: null, totalSeconds: null });
+
+          // Ensure apps are unblocked even if JS timer didn't fire
+          await safelyUnblockAll();
           
           const endAt = Date.now();
           await appendSessionRecord({
