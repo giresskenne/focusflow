@@ -10,6 +10,7 @@ import { getInstalledApps } from '../native/installedApps';
 import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { upsertAlias } from '../modules/ai/aliases/alias-store';
 
 // Import react-native-device-activity for DeviceActivitySelectionView
 let DeviceActivity = null;
@@ -64,6 +65,11 @@ export default function FocusSessionScreen({ navigation, route }) {
   const [pendingTemplateId, setPendingTemplateId] = useState(null); // Track which template is being configured
   const [confirmClearTemplate, setConfirmClearTemplate] = useState(null); // Template ID pending clear confirmation
   const FAMILY_SELECTION_ID = 'focusflow_selection';
+  
+  // Voice mode: when navigated from voice assistant for alias creation
+  const voiceAlias = route?.params?.voiceAlias;
+  const onAliasCreated = route?.params?.onAliasCreated;
+  const isVoiceMode = !!voiceAlias;
   
   // Check if native picker is available
   const nativePickerAvailable = DeviceActivitySelectionView !== null;
@@ -135,6 +141,15 @@ export default function FocusSessionScreen({ navigation, route }) {
       setTemplateMetadata({ social, gaming, entertainment, all });
     })();
   }, []);
+
+  // Voice mode: auto-open native picker for alias creation
+  useEffect(() => {
+    if (isVoiceMode && nativePickerAvailable && !showNativePicker) {
+      console.log('[FocusSession] Voice mode detected, opening native picker for:', voiceAlias);
+      setPendingTemplateId(`voice:${voiceAlias}`);
+      setShowNativePicker(true);
+    }
+  }, [isVoiceMode, nativePickerAvailable, voiceAlias]);
 
   // Create lookup for selected apps and filter based on search
   const filteredApps = useMemo(() => {
@@ -417,6 +432,24 @@ export default function FocusSessionScreen({ navigation, route }) {
         <ScrollView contentContainerStyle={styles.container}>
         <View style={{ width: '100%', maxWidth: 520 }}>
           <Text style={styles.sectionHeader}>SELECT APPS TO BLOCK</Text>
+          
+          {/* Voice Mode Instruction Banner */}
+          {isVoiceMode && (
+            <GlassCard 
+              tint="primary" 
+              intensity={60} 
+              style={styles.voiceBanner}
+              contentStyle={styles.voiceBannerContent}
+            >
+              <Ionicons name="mic" size={20} color={colors.secondary} />
+              <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                <Text style={styles.voiceBannerTitle}>Teaching Mada a name</Text>
+                <Text style={styles.voiceBannerText}>
+                  Pick apps for "{voiceAlias}". I'll remember this name for next time.
+                </Text>
+              </View>
+            </GlassCard>
+          )}
           
           {/* Quick Start Templates */}
           <View style={styles.subsectionHeaderContainer}>
@@ -713,9 +746,44 @@ export default function FocusSessionScreen({ navigation, route }) {
                 }}>
                   <UIButton
                     title="Done"
-                    onPress={() => {
+                    onPress={async () => {
                       console.log('[FocusSession] Closing picker');
                       setShowNativePicker(false);
+                      
+                      // Voice mode: save alias and trigger callback
+                      if (isVoiceMode && familyActivitySelection) {
+                        const { applicationCount, categoryCount, webDomainCount, familyActivitySelection: token } = familyActivitySelection;
+                        const hasSelection = (applicationCount + categoryCount + webDomainCount) > 0;
+                        
+                        if (hasSelection && token) {
+                          console.log('[FocusSession] Voice mode: saving alias:', voiceAlias);
+                          try {
+                            // Save to alias store with opaque tokens
+                            await upsertAlias(voiceAlias, {
+                              tokens: {
+                                apps: applicationCount > 0 ? [token] : [],
+                                categories: categoryCount > 0 ? [token] : [],
+                                domains: webDomainCount > 0 ? [token] : [],
+                              },
+                              selectionToken: token,
+                            }, []);
+                            
+                            console.log('[FocusSession] Alias saved, navigating back and triggering callback');
+                            navigation.goBack();
+                            
+                            // Call the callback to re-run the voice command
+                            if (onAliasCreated) {
+                              setTimeout(() => onAliasCreated(), 300);
+                            }
+                          } catch (e) {
+                            console.error('[FocusSession] Error saving voice alias:', e);
+                          }
+                        } else {
+                          console.log('[FocusSession] No selection made in voice mode');
+                          navigation.goBack();
+                        }
+                      }
+                      
                       setPendingTemplateId(null);
                     }}
                   />
@@ -1135,5 +1203,25 @@ const styles = StyleSheet.create({
     textTransform: 'lowercase',
     textAlign: 'center',
     opacity: 0.8,
+  },
+  voiceBanner: {
+    marginBottom: spacing.xl,
+    borderRadius: radius.xl,
+  },
+  voiceBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  voiceBannerTitle: {
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
+    color: colors.foreground,
+    marginBottom: spacing.xs,
+  },
+  voiceBannerText: {
+    fontSize: typography.sm,
+    color: colors.mutedForeground,
+    lineHeight: 20,
   },
 });
