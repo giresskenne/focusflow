@@ -4,7 +4,6 @@
 import { Alert } from 'react-native';
 import AppBlocker from '../../../components/AppBlocker';
 import { resolveAlias } from '../aliases/alias-store';
-import { isFamilyPickerAvailable, createAliasViaPicker } from '../aliases/alias-native';
 import { formatMinutesToEndTime } from '../../../utils/time';
 import { speak as ttsSpeak } from '../voice/tts-service';
 
@@ -13,15 +12,29 @@ export async function planFromIntent(intent) {
   if (intent.action === 'stop') {
     return { action: 'stop' };
   }
-  // Resolve alias to tokens; MVP: use apps only
+  // Resolve alias to tokens
   const alias = await resolveAlias(intent.target);
-  if (!alias || !alias.tokens || !Array.isArray(alias.tokens.apps) || alias.tokens.apps.length === 0) {
+  if (!alias || !alias.tokens) {
     return { action: 'noop', reason: 'alias-not-found', target: intent.target };
   }
-  const apps = alias.tokens.apps;
+  
+  // Check if alias has either opaqueToken or apps array
+  const hasOpaqueToken = alias.tokens.opaqueToken && typeof alias.tokens.opaqueToken === 'string';
+  const hasApps = Array.isArray(alias.tokens.apps) && alias.tokens.apps.length > 0;
+  
+  if (!hasOpaqueToken && !hasApps) {
+    return { action: 'noop', reason: 'alias-not-found', target: intent.target };
+  }
+  
   const durationMinutes = Math.max(1, intent.durationMinutes || 30);
   const endLabel = formatMinutesToEndTime(durationMinutes);
-  return { action: 'block', apps, durationMinutes, endLabel, alias };
+  
+  // Return plan with either opaque token or apps array
+  if (hasOpaqueToken) {
+    return { action: 'block', opaqueToken: alias.tokens.opaqueToken, durationMinutes, endLabel, alias };
+  } else {
+    return { action: 'block', apps: alias.tokens.apps, durationMinutes, endLabel, alias };
+  }
 }
 
 export async function applyPlan(plan) {
@@ -31,31 +44,7 @@ export async function applyPlan(plan) {
     return true;
   }
   if (plan.action === 'noop') {
-    // Offer to create alias via FamilyActivityPicker when available (spec §7B)
-    if (isFamilyPickerAvailable()) {
-      return await new Promise((resolve) => {
-        ttsSpeak(`I couldn't find a nickname for ${plan.target}. Pick the apps once, and I'll remember it.`);
-        Alert.alert(
-          'Teach Mada a name',
-          `Pick the apps/categories for "${plan.target}" once. Mada will remember this name.`,
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Pick apps', style: 'default', onPress: async () => {
-              const alias = await createAliasViaPicker(plan.target);
-              if (!alias || !alias.tokens?.apps?.length) {
-                Alert.alert('No selection', 'No apps/categories were selected.');
-                return resolve(false);
-              }
-              // Re-plan and apply with the new alias
-              const nextPlan = await planFromIntent({ ...plan, action: 'block', target: plan.target, durationMinutes: plan.durationMinutes || 30 });
-              const ok = await applyPlan(nextPlan);
-              resolve(ok);
-            }},
-          ]
-        );
-      });
-    }
-    Alert.alert('Not found', `I couldn't find an alias for "${plan.target}". Create a nickname first from Settings.`);
+    // Alias not found - caller (VoiceMicButton) should handle navigation to picker
     return false;
   }
   if (!AppBlocker.isAvailable) {

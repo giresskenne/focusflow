@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, Modal } from 'react-native';
 import { useTheme } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -70,6 +70,9 @@ export default function FocusSessionScreen({ navigation, route }) {
   const voiceAlias = route?.params?.voiceAlias;
   const onAliasCreated = route?.params?.onAliasCreated;
   const isVoiceMode = !!voiceAlias;
+  
+  // Track save completion for voice mode to avoid race condition
+  const aliasSavePromiseRef = useRef(null);
   
   // Check if native picker is available
   const nativePickerAvailable = DeviceActivitySelectionView !== null;
@@ -708,25 +711,26 @@ export default function FocusSessionScreen({ navigation, route }) {
                             // If voice mode, also save to alias store
                             if (isVoiceMode && voiceAlias) {
                               console.log('[FocusSession] Voice mode: saving alias:', voiceAlias);
-                              try {
-                                await upsertAlias(
-                                  voiceAlias,
-                                  { 
-                                    apps: [], 
-                                    categories: [],
-                                    domains: []
-                                  },
-                                  [{
-                                    selectionToken: familyActivitySelection,
-                                    appCount: applicationCount || 0,
-                                    categoryCount: categoryCount || 0,
-                                    webDomainCount: webDomainCount || 0,
-                                  }]
-                                );
-                                console.log('[FocusSession] Alias saved successfully');
-                              } catch (e) {
-                                console.error('[FocusSession] Failed to save alias:', e);
-                              }
+                              // Store the save promise so Done button can await it
+                              aliasSavePromiseRef.current = (async () => {
+                                try {
+                                  await upsertAlias(
+                                    voiceAlias,
+                                    { 
+                                      // Store the opaque token - this is what the blocker uses
+                                      opaqueToken: familyActivitySelection,
+                                      // Keep arrays for potential future use
+                                      apps: [], 
+                                      categories: [],
+                                      domains: []
+                                    },
+                                    [] // synonyms
+                                  );
+                                  console.log('[FocusSession] Alias saved successfully');
+                                } catch (e) {
+                                  console.error('[FocusSession] Failed to save alias:', e);
+                                }
+                              })();
                             }
                             
                             // Update local template metadata
@@ -784,8 +788,14 @@ export default function FocusSessionScreen({ navigation, route }) {
                       setShowNativePicker(false);
                       setPendingTemplateId(null);
                       
-                      // Voice mode: call callback to re-run voice command, then navigate back
+                      // Voice mode: ensure alias save completes, then call callback
                       if (isVoiceMode && onAliasCreated) {
+                        // Wait for any pending alias save to complete
+                        if (aliasSavePromiseRef.current) {
+                          console.log('[FocusSession] Waiting for alias save to complete...');
+                          await aliasSavePromiseRef.current;
+                          aliasSavePromiseRef.current = null;
+                        }
                         console.log('[FocusSession] Voice mode: calling onAliasCreated callback');
                         // Call the callback (which will re-run the voice command)
                         onAliasCreated();
