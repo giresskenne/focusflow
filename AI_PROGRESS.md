@@ -2,7 +2,7 @@
 
 **Last Updated**: November 3, 2025  
 **Branch**: `ai-voice-assistant-implementation`  
-**Current Phase**: Phase 4 - Native iOS Bridges
+**Current Phase**: Phase 4 - Native iOS Integration (COMPLETE ✅)
 
 ---
 
@@ -62,7 +62,38 @@
 
 ---
 
-## 🔨 Current Phase: Phase 4 - Native iOS Bridges
+### Phase 4: Native iOS Integration ✅
+**Completed**: Nov 3, 2025
+
+- ✅ Voice flow integrated with production FocusSessionScreen
+- ✅ Native FamilyActivityPicker via react-native-device-activity
+- ✅ Opaque Screen Time tokens properly stored
+- ✅ Single source of truth: one picker for manual + voice flows
+- ✅ Auto-open picker when voice alias not found
+- ✅ Voice instruction banner UI
+- ✅ Alias store integration with tokens
+- ✅ Callback mechanism to re-run voice command
+- ✅ Removed dev mock picker (clean architecture)
+
+**Key Achievements**:
+- **No custom native bridge needed!** Using existing `react-native-device-activity` library (v0.5.0)
+- Voice and manual flows use same beautiful template card UI
+- Real Screen Time blocking with Apple's opaque tokens
+- Seamless UX: speak → navigate → pick → save → auto-retry → confirm → shield applied
+- Zero duplicate code between voice and manual picker flows
+
+**Architecture Decision**:
+```
+Before: Voice → Dev Mock Picker (bundle IDs)
+        Manual → FocusSession → Native Picker (opaque tokens)
+        
+After:  Voice → FocusSession → Native Picker (opaque tokens)
+        Manual → FocusSession → Native Picker (opaque tokens)
+```
+
+---
+
+## 🔨 Next Phase: Phase 5 - Production Polish
 
 **Started**: Nov 3, 2025  
 **Target**: Real Screen Time blocking with opaque tokens
