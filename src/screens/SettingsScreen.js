@@ -25,9 +25,10 @@ import {
 } from '../components/Icons';
 import Switch from '../components/Ui/Switch';
 import { colors, spacing, radius, typography } from '../theme';
-import AppBlocker from '../../components/AppBlocker';
+import AppBlocker from '../components/AppBlocker';
 import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
+import { seedDevAliases, clearDevAliases } from '../utils/devAliasSeeder';
 
 export default function SettingsScreen({ navigation }) {
   const [isPremium, setIsPremium] = useState(false);
@@ -46,6 +47,8 @@ export default function SettingsScreen({ navigation }) {
   // Feature flag: enable actual cloud upload when explicitly turned on
   const ENABLE_MIGRATION_UPLOAD = process.env.EXPO_PUBLIC_ENABLE_MIGRATION_UPLOAD === 'true';
   const ENABLE_IOS_BLOCKING_DEV = process.env.EXPO_PUBLIC_ENABLE_IOS_BLOCKING_DEV === 'true';
+  const AI_VOICE_ENABLED = process.env.EXPO_PUBLIC_AI_VOICE_ENABLED === 'true';
+  const IS_DEV = process.env.EXPO_PUBLIC_ENV === 'development';
 
   useEffect(() => {
     (async () => {
@@ -628,6 +631,48 @@ export default function SettingsScreen({ navigation }) {
             </TouchableOpacity>
 
             <View style={styles.divider} />
+
+            {/* AI Dev: Seed test aliases - only in development */}
+            {IS_DEV && AI_VOICE_ENABLED && (
+              <>
+                <TouchableOpacity style={styles.settingsItem} onPress={async () => {
+                  const success = await seedDevAliases();
+                  Alert.alert(
+                    success ? 'Seeded' : 'Failed',
+                    success
+                      ? 'Created 5 test aliases: social, entertainment, news, shopping, safari. Try: "Block social for 30 minutes"'
+                      : 'Could not seed aliases. Check console for errors.'
+                  );
+                }}>
+                  <View style={styles.settingsItemContent}>
+                    <InfoIcon color="#8900f5" size={20} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.settingsItemTitle}>Seed AI Test Aliases</Text>
+                      <Text style={styles.settingsItemSubtitle}>Dev only: Add sample aliases for voice testing</Text>
+                    </View>
+                  </View>
+                  <ChevronRightIcon color={colors.mutedForeground} size={20} />
+                </TouchableOpacity>
+
+                <View style={styles.divider} />
+
+                <TouchableOpacity style={styles.settingsItem} onPress={async () => {
+                  const success = await clearDevAliases();
+                  Alert.alert(success ? 'Cleared' : 'Failed', success ? 'Test aliases removed' : 'Could not clear aliases');
+                }}>
+                  <View style={styles.settingsItemContent}>
+                    <InfoIcon color={colors.mutedForeground} size={20} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.settingsItemTitle}>Clear AI Test Aliases</Text>
+                      <Text style={styles.settingsItemSubtitle}>Remove sample aliases</Text>
+                    </View>
+                  </View>
+                  <ChevronRightIcon color={colors.mutedForeground} size={20} />
+                </TouchableOpacity>
+
+                <View style={styles.divider} />
+              </>
+            )}
 
             <TouchableOpacity style={styles.settingsItem} onPress={handleRateApp}>
               <View style={styles.settingsItemContent}>

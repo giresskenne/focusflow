@@ -23,7 +23,9 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "NSFamilyControlsUsageDescription": "FocusFlow needs access to Screen Time to block distracting apps during your focus sessions."
+        "NSFamilyControlsUsageDescription": "FocusFlow needs access to Screen Time to block distracting apps during your focus sessions.",
+        "NSSpeechRecognitionUsageDescription": "FocusFlow uses voice commands to help you start focus sessions hands-free.",
+        "NSMicrophoneUsageDescription": "FocusFlow needs microphone access to recognize your voice commands."
       },
       "splash": {
         "image": "./assets/splash-icon.png",
@@ -44,6 +46,7 @@
     },
     "plugins": [
       "expo-notifications",
+      "@react-native-voice/voice",
       [
         "./plugins/app-blocker-plugin",
         {

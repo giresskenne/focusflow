@@ -9,6 +9,7 @@ import PremiumModal from '../components/PremiumModal';
 import { performUpgrade } from '../lib/premiumUpgrade';
 import GlassCard from '../components/Ui/GlassCard';
 import GradientBackground from '../components/GradientBackground';
+import VoiceMicButton from '../components/ai/VoiceMicButton';
 import { getSession, getReminders, getPremiumStatus, setPremiumStatus } from '../storage';
 import { ClockIcon, BellIcon, BarChartIcon, SettingsIcon, CrownIcon } from '../components/Icons';
 import { colors, spacing, radius, typography, shadows } from '../theme';
@@ -544,6 +545,8 @@ export default function HomeScreen({ navigation }) {
           }
         }}
       />
+      {/* AI Voice Mic (feature-gated; non-destructive) */}
+      <VoiceMicButton />
         </ScrollView>
       </SafeAreaView>
     </GradientBackground>

@@ -10,7 +10,7 @@ const ENABLE_IAP = process.env.EXPO_PUBLIC_ENABLE_IAP === 'true';
 const ENTITLEMENT_ID = process.env.EXPO_PUBLIC_RC_ENTITLEMENT || 'premium';
 // Prefer EXPO_PUBLIC_ vars at runtime; fallback to non-public if provided
 const IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || process.env.REVENUECAT_IOS_API_KEY || '';
-const DEBUG = true; // set to false to quiet logs
+const DEBUG = false; // set to false to quiet logs
 
 function log(...args) {
   if (!DEBUG) return;
@@ -62,17 +62,35 @@ const INFO_TTL_MS = 20_000; // 20s cache to avoid spamming RC
 async function ensureConfigured() {
   if (!isReady()) return false;
   if (configured) return true;
+  // If SDK reports already configured (e.g., after Fast Refresh), honor it
+  try {
+    if (Purchases?.isConfigured?.()) {
+      configured = true;
+      return true;
+    }
+  } catch {}
   if (!IOS_API_KEY) {
     log('ensureConfigured(): missing IOS_API_KEY');
     return false;
   }
   try {
+    // Quiet RevenueCat logs BEFORE any potential output from configure
+    try { Purchases.setLogLevel?.(Purchases.LOG_LEVEL?.ERROR || 'ERROR'); } catch {}
+    try { Purchases.setDebugLogsEnabled?.(false); } catch {}
+    try {
+      // Swallow non-error logs entirely; forward only errors if needed
+      Purchases.setLogHandler?.((level, message) => {
+        const isError =
+          level === 'ERROR' || level === Purchases?.LOG_LEVEL?.ERROR || String(level).toUpperCase() === 'ERROR';
+        if (isError) {
+          try { console.error('[RevenueCat]', message); } catch {}
+        }
+      });
+    } catch {}
+
     // Configure once with API key; user identity handled via logIn/logOut
     log('Purchases.configure(apiKey)');
     await Purchases.configure({ apiKey: IOS_API_KEY });
-    // Enable verbose logging only in dev
-    try { Purchases.setLogLevel?.(Purchases.LOG_LEVEL?.DEBUG || 'DEBUG'); } catch {}
-    try { Purchases.setDebugLogsEnabled?.(true); } catch {}
     configured = true;
     return true;
   } catch (e) {

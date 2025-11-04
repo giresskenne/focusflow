@@ -12,20 +12,24 @@ const nativeAvailable = Platform.OS === 'ios' && !!Native;
 // Dev stub for simulator/testing — mimics the API shape
 let devActive = false;
 const DevStub = {
-  isAvailable: false,
+  isAvailable: ENABLE_IOS_BLOCKING_DEV, // true when dev flag is on
   async requestAuthorization() {
-    return null;
+    console.log('[AppBlocker DevStub] requestAuthorization (simulated)');
+    return true; // Simulate approval
   },
   async selectApps() {
+    console.log('[AppBlocker DevStub] selectApps (simulated)');
     return [];
   },
-  async startBlocking() {
+  async startBlocking(bundleIds = [], durationSeconds = 1800) {
+    console.log('[AppBlocker DevStub] startBlocking (simulated):', bundleIds, `for ${durationSeconds}s`);
     devActive = true;
-    return null;
+    return true; // Simulate success
   },
   async stopBlocking() {
+    console.log('[AppBlocker DevStub] stopBlocking (simulated)');
     devActive = false;
-    return null;
+    return true; // Simulate success
   },
   async isBlocking() {
     return devActive;
