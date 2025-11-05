@@ -9,6 +9,7 @@ import { isFamilyPickerAvailable } from '../../modules/ai/aliases/alias-native';
 import { parseIntent } from '../../modules/ai/nlu/intent-parser';
 import { updateContext, needsClarification } from '../../modules/ai/conversation-context';
 import { getGuidancePrompt, isConfirmation } from '../../modules/ai/nlu/intent-classifier';
+import { executeReminder } from '../../modules/ai/executor/reminder-executor';
 
 export default function VoiceMicButton({ style }) {
   const navigation = useNavigation();
@@ -152,11 +153,56 @@ export default function VoiceMicButton({ style }) {
       }
     }
     
-    // Handle reminder action (placeholder - actual implementation needed)
+    // Handle reminder action
     if (intent?.action === 'remind') {
       console.log('[VoiceMicButton] Reminder intent:', intent);
-      if (ttsEnabled) ttsSpeak('Reminder feature coming soon! For now, I can help you block apps.');
-      Alert.alert('Coming Soon', 'Reminder feature is under development. I can help you block distracting apps for now!');
+      
+      const reminderResult = await executeReminder(intent, { confirm: true });
+      console.log('[VoiceMicButton] executeReminder result:', reminderResult);
+      
+      if (!reminderResult.ok) {
+        if (reminderResult.needsPermission) {
+          // Permission denied
+          if (ttsEnabled) ttsSpeak('I need notification permissions to set reminders. Please enable them in Settings.');
+          Alert.alert(
+            'Permission Required',
+            'Notification permissions are needed to set reminders. Please enable them in Settings.',
+            [{ text: 'OK' }]
+          );
+        } else {
+          // Other error
+          if (ttsEnabled) ttsSpeak('Sorry, I couldn\'t set that reminder. Please try again.');
+          Alert.alert('Error', reminderResult.error || 'Failed to set reminder');
+        }
+        return;
+      }
+      
+      if (reminderResult.pendingConfirmation && reminderResult.plan) {
+        // Confirm reminder before applying
+        const confirmMsg = reminderResult.plan.confirmMessage || 'Set this reminder?';
+        if (ttsEnabled) ttsSpeak(confirmMsg);
+        
+        Alert.alert('Confirm Reminder', confirmMsg, [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Set Reminder', 
+            onPress: async () => {
+              const applyResult = await executeReminder(intent, { confirm: false });
+              
+              if (applyResult.ok && applyResult.confirmation) {
+                // Success - speak confirmation
+                if (ttsEnabled) ttsSpeak(applyResult.confirmation);
+                Alert.alert('Reminder Set', applyResult.confirmation);
+              } else {
+                // Error applying
+                if (ttsEnabled) ttsSpeak('Sorry, I couldn\'t set that reminder.');
+                Alert.alert('Error', applyResult.error || 'Failed to set reminder');
+              }
+            }
+          },
+        ]);
+      }
+      
       return;
     }
     
@@ -307,6 +353,28 @@ export default function VoiceMicButton({ style }) {
               // Parse the last captured utterance
               const intent = await parseIntent(lastUtterance, { allowDefaultDuration: false });
               
+              // If the utterance is off-topic or unclear, guide immediately instead of timing out
+              if (intent?.needsGuidance && intent.classification) {
+                accepted = true;
+                await cleanup();
+                const guidance = getGuidancePrompt(intent.classification, intent);
+                if (guidance) {
+                  if (guidance.shouldSpeak && ttsEnabled) ttsSpeak(guidance.message);
+                  Alert.alert(
+                    intent.classification.type === 'off-topic' ? 'How I can help' : 'Did I understand correctly?',
+                    guidance.message,
+                    [
+                      ...guidance.suggestions.map((sugg) => ({
+                        text: sugg,
+                        onPress: () => runText(sugg),
+                      })),
+                      { text: 'Type instead', onPress: () => setManualOpen(true) },
+                    ]
+                  );
+                }
+                return;
+              }
+              
               // Check if we need clarification
               const clarification = needsClarification(intent, null);
               if (clarification && clarification.missing === 'duration') {
@@ -351,10 +419,40 @@ export default function VoiceMicButton({ style }) {
                 return;
               }
               
-              const readyToApply = (intent && intent.action === 'stop') || 
-                                   (intent && intent.action === 'block' && intent.durationMinutes >= 1);
+              if (clarification && (clarification.missing === 'message' || clarification.missing === 'time')) {
+                // Missing reminder details - prompt with suggestions
+                accepted = true;
+                await cleanup();
+                if (ttsEnabled) ttsSpeak(clarification.question);
+                Alert.alert(clarification.question, 'Choose or say:', [
+                  ...clarification.suggestions.map((sugg) => ({
+                    text: sugg,
+                    onPress: () => runText(`Remind me to ${sugg}`)
+                  })),
+                  { text: 'Type', onPress: () => setManualOpen(true) },
+                  { text: 'Cancel', style: 'cancel' },
+                ]);
+                return;
+              }
               
-              if (readyToApply) {
+              // Determine if the command is ready to execute (stop, block with duration, or a complete reminder)
+              const remindReady = !!(intent && intent.action === 'remind' && (
+                (intent.durationMinutes && intent.durationMinutes >= 1) ||
+                (intent.time && (
+                  intent.reminderType === 'daily' ||
+                  (intent.reminderType === 'weekly' && Array.isArray(intent.days) && intent.days.length > 0) ||
+                  (intent.reminderType === 'custom' && Array.isArray(intent.days) && intent.days.length > 0)
+                ))
+              ));
+
+              const readyToApply = (intent && intent.action === 'stop') || 
+                                   (intent && intent.action === 'block' && intent.durationMinutes >= 1) ||
+                                   remindReady;
+              
+              console.log('[VoiceMicButton][STT] Parsed intent:', JSON.stringify(intent));
+              console.log('[VoiceMicButton][STT] readyToApply:', readyToApply, 'remindReady:', remindReady);
+
+              if (readyToApply || (intent && intent.action === 'remind')) {
                 // Valid complete command - execute it
                 accepted = true;
                 await cleanup();

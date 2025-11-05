@@ -214,6 +214,118 @@
 
 ---
 
+## Phase 8.5: AI Voice Reminders Execution ✅ COMPLETE
+**Goal**: Execute parsed reminder intents with notifications
+
+### Deliverables
+- [x] Reminder parsing (completed in Phase 8)
+- [x] Notification scheduling system
+- [x] One-time reminder execution (X minutes/hours from now)
+- [x] Daily reminder execution (every day at HH:MM)
+- [x] Weekly reminder execution (every Monday/Tuesday/etc at HH:MM)
+- [x] Custom reminder execution (multiple days at HH:MM)
+- [x] Reminder storage and persistence
+- [x] Notification permissions handling
+- [x] Voice confirmation after setting reminder
+- [x] Number word parsing (e.g., "five minutes", "one hour")
+- [x] Special phrase support ("half an hour", "quarter hour")
+- [x] Legacy storage integration (reminders appear in UI immediately)
+
+### Implementation
+- `src/modules/reminders/reminder-scheduler.js` — Schedule notifications with expo-notifications
+  - Android-only notification channel setup
+  - Correct weekday mapping (Sunday=1 for Expo)
+  - One-time, daily, weekly, custom scheduling
+  - Permission requests with settings deep-link
+- `src/modules/reminders/reminder-store.js` — Persist reminders in AsyncStorage
+  - CRUD operations for reminder metadata
+  - Notification ID tracking for cancellation
+- `src/modules/ai/executor/reminder-executor.js` — Execute reminder intents (plan/apply pattern)
+  - Validation and permission checks
+  - Dual storage (new + legacy for UI)
+  - Confirmation message generation
+- `src/modules/ai/nlu/intent-parser.js` — Enhanced reminder parsing
+  - Number word support: "five", "twenty-five", "an hour"
+  - Special phrases: "half an hour" → 30 min
+- `src/components/ai/VoiceMicButton.js` — Full reminder flow integration
+  - STT inline handling for reminders (no timeout)
+  - Confirmation dialog before scheduling
+  - TTS success confirmations
+
+### Reminder Types
+
+**One-time:**
+```javascript
+{
+  action: 'remind',
+  message: 'exercise',
+  reminderType: 'one-time',
+  durationMinutes: 30
+}
+→ Schedule notification 30 minutes from now
+```
+
+**Daily:**
+```javascript
+{
+  action: 'remind',
+  message: 'drink water',
+  reminderType: 'daily',
+  time: '9 AM'
+}
+→ Schedule repeating notification daily at 9:00 AM
+```
+
+**Weekly:**
+```javascript
+{
+  action: 'remind',
+  message: 'check emails',
+  reminderType: 'weekly',
+  days: ['monday'],
+  time: '2 PM'
+}
+→ Schedule notification every Monday at 2:00 PM
+```
+
+**Custom:**
+```javascript
+{
+  action: 'remind',
+  message: 'team meeting',
+  reminderType: 'custom',
+  days: ['monday', 'wednesday', 'friday'],
+  time: '10 AM'
+}
+→ Schedule notification on Mon/Wed/Fri at 10:00 AM
+```
+
+### User Experience
+- Voice: "Remind me to exercise in 30 minutes"
+- Mada: "Set a reminder to exercise in 30 minutes?"
+- User: [taps "Set Reminder"]
+- Mada: "I'll remind you to exercise in 30 minutes. Notification set for 3:45 PM."
+- At 3:45 PM: Notification appears with "Time to exercise!"
+
+**What works:**
+- ✅ "Remind me to [action] in five minutes" → One-time (number word support)
+- ✅ "Remind me to [action] in one hour" → One-time (60 minutes)
+- ✅ "Remind me to [action] in half an hour" → One-time (30 minutes)
+- ✅ "Remind me to [action] every day at 9 AM" → Daily
+- ✅ "Remind me to [action] every Monday at 6 PM" → Weekly
+- ✅ "Remind me to [action] on Mondays and Wednesdays at 2 PM" → Custom
+- ✅ Confirmation dialog with natural language message
+- ✅ TTS confirmation after successful scheduling
+- ✅ Reminders appear immediately in Reminders screen
+- ✅ Permission guidance with Settings deep-link
+
+### Dependencies
+- `expo-notifications` — Scheduling and permission management
+- `AsyncStorage` — Dual storage (new store + legacy UI store)
+- Permission handling — iOS notification permissions with guidance alerts
+
+---
+
 ## Phase 9: UI Polish & Onboarding 📋 TODO
 **Goal**: Smooth first-time experience
 

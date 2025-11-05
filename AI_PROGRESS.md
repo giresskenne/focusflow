@@ -2,20 +2,39 @@
 
 **Last Updated**: November 4, 2025  
 **Branch**: `ai-voice-assistant-implementation`  
-**Current Phase**: Phase 8 - Conversation Context (COMPLETE)
+**Current Phase**: Phase 8.5 - AI Voice Reminders (COMPLETE)
 
 ---
 
 ## ✅ Nov 4, 2025 Update
+
+### AI Voice Reminders shipped ✅
+- Voice reminder execution complete with full notification scheduling and storage.
+- One-time reminders: "Remind me to [action] in five minutes" → schedules notification with number word support.
+- Daily reminders: "Remind me to [action] every day at 9 AM" → repeating daily notification.
+- Weekly reminders: "Remind me to [action] every Monday at 6 PM" → repeating weekly notification.
+- Custom reminders: "Remind me to [action] on Mondays and Wednesdays at 2 PM" → multiple day notification.
+- Number word parsing: supports "five", "one hour", "half an hour", "quarter hour".
+- Dual storage: new reminder store + legacy UI storage for immediate visibility.
+- Permission handling: requests iOS notification permissions with Settings deep-link guidance.
+- STT inline handling: reminders no longer timeout; off-topic/unclear get immediate guidance.
+- Commits:
+        - feat(reminders): implement reminder execution with scheduling and storage
+        - fix(reminders): Android notification channel setup and weekday mapping
+        - feat(reminders): number word parsing and legacy storage integration
+        - fix(voice): STT inline reminder handling with guidance prompts
 
 ### Conversation Context shipped ✅
 - Multi-turn conversation memory enables natural follow-up commands like "block it for longer", "do it again", "add 10 minutes".
 - Smart clarification prompts ask "For how long?" or "Which apps?" when information is missing, with context-aware suggestions.
 - Pronoun resolution translates "it", "that", "them" to the last target automatically.
 - Context expires after 5 minutes of inactivity for privacy.
+- Classification-first conversational assistant: politely redirects off-topic requests with helpful suggestions.
+- Intent classification detects valid commands vs off-topic/unclear and provides guidance.
 - Commits:
         - feat(ai): implement conversation context with pronoun resolution and relative duration support
         - feat(ai): add smart clarification prompts with context-aware suggestions
+        - feat(ai): classification-first conversational assistant with guidance prompts
         - docs(ai): mark Phase 8 complete and add PHASE_8_TESTING.md
 
 ### OpenAI TTS provider shipped ✅
@@ -174,6 +193,37 @@ After:  Voice → FocusSession → Native Picker (opaque tokens)
 - AsyncStorage-based persistence with TTL
 - Context-aware intent parsing
 - Clarification UI in VoiceMicButton
+
+---
+
+### Phase 8.5: AI Voice Reminders ✅
+**Completed**: Nov 4, 2025
+
+- ✅ Reminder parsing with number word support
+- ✅ One-time reminder execution (X minutes/hours from now)
+- ✅ Daily reminder execution (every day at HH:MM)
+- ✅ Weekly reminder execution (every day of week at HH:MM)
+- ✅ Custom reminder execution (multiple days at HH:MM)
+- ✅ Notification scheduling with expo-notifications
+- ✅ Dual storage (new store + legacy UI store)
+- ✅ Permission handling with guidance alerts
+- ✅ Voice confirmation after setting reminder
+- ✅ STT inline handling (no timeout for reminders)
+
+**Key Achievements**:
+- Number word parsing: "five minutes", "one hour", "half an hour" all work
+- Special phrase support: "half an hour" → 30 min, "quarter hour" → 15 min
+- Platform-specific notification setup (Android channel, iOS weekday mapping)
+- Immediate UI visibility: reminders appear on screen right after voice creation
+- Permission flow: deep-links to Settings if notifications denied
+- Classification-first: off-topic/unclear get immediate guidance instead of timeout
+
+**Implementation**:
+- `reminder-scheduler.js`: expo-notifications scheduling for all reminder types
+- `reminder-store.js`: AsyncStorage persistence with notification ID tracking
+- `reminder-executor.js`: plan/apply pattern with validation and dual storage
+- `intent-parser.js`: number word conversion (wordsToNumber helper)
+- `VoiceMicButton.js`: STT inline reminder handling with confirmation flow
 
 ---
 

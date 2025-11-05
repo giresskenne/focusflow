@@ -84,7 +84,13 @@ export async function parseIntent(text, { allowDefaultDuration = true, aliases =
     }
   }
 
-  // Fallback: Regex-based parser for offline/no-API scenarios
+  // If the utterance is a reminder, handle via reminder parser even if the grammar doesn't parse
+  if (/\b(remind|reminder)\b/i.test(resolvedText)) {
+    console.log('[parseIntent] Reminder keyword detected, using reminder parser');
+    return parseReminderIntent(resolvedText, null);
+  }
+
+  // Fallback: Regex/grammar-based parser for block/stop intents
   const cmd = parseCommand(resolvedText);
   if (!cmd) return null;
 
@@ -182,15 +188,34 @@ function parseReminderIntent(text, cmd) {
       time = timeMatch[1].trim();
     }
   }
-  // One-time: "in X minutes/hours", "in 30 minutes"
-  else if (/\bin\s+\d+/i.test(lowerText)) {
+  // One-time: "in X minutes/hours", supporting digits and number words
+  else if (/\bin\s+/i.test(lowerText)) {
     reminderType = 'one-time';
-    // Extract duration
-    const durationMatch = lowerText.match(/in\s+(\d+)\s*(minute|minutes|min|mins|hour|hours|hr|hrs)/i);
-    if (durationMatch) {
-      const num = parseInt(durationMatch[1], 10);
-      const unit = durationMatch[2].toLowerCase();
+    // First try digits
+    let dm = lowerText.match(/in\s+(\d+)\s*(minute|minutes|min|mins|hour|hours|hr|hrs)/i);
+    if (dm) {
+      const num = parseInt(dm[1], 10);
+      const unit = dm[2].toLowerCase();
       durationMinutes = unit.startsWith('h') ? num * 60 : num;
+    } else {
+      // Try number words (e.g., "five", "twenty five", "a", "an")
+      const wm = lowerText.match(/in\s+([a-z\-\s]+?)\s*(minute|minutes|min|mins|hour|hours|hr|hrs)\b/i);
+      if (wm) {
+        const quantity = wm[1].trim();
+        const unit = wm[2].toLowerCase();
+
+        // Special phrases
+        if (/half\s+(an\s+)?hour/.test(lowerText)) {
+          durationMinutes = 30;
+        } else if (/(quarter\s+of\s+an\s+hour|quarter\s+hour)/.test(lowerText)) {
+          durationMinutes = 15;
+        } else {
+          const num = wordsToNumber(quantity);
+          if (Number.isFinite(num) && num > 0) {
+            durationMinutes = unit.startsWith('h') ? num * 60 : num;
+          }
+        }
+      }
     }
   }
 
@@ -202,4 +227,42 @@ function parseReminderIntent(text, cmd) {
     durationMinutes,
     days: days.length > 0 ? days : null,
   };
+}
+
+// Convert simple English number words to ints (covers 0-99 + 'a'/'an')
+function wordsToNumber(words) {
+  if (!words) return NaN;
+  const s = words.trim().toLowerCase().replace(/\s+-\s+/g, '-');
+  if (s === 'a' || s === 'an' || s === 'one') return 1;
+  const ones = {
+    zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+    ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16,
+    seventeen: 17, eighteen: 18, nineteen: 19,
+  };
+  const tens = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+
+  // direct match
+  if (s in ones) return ones[s];
+  if (s in tens) return tens[s];
+
+  // hyphenated like twenty-five
+  if (s.includes('-')) {
+    const [t, o] = s.split('-');
+    const tv = tens[t] || 0;
+    const ov = ones[o] || 0;
+    const v = tv + ov;
+    return v || NaN;
+  }
+
+  // two words like 'twenty five'
+  const parts = s.split(/\s+/);
+  if (parts.length === 2 && parts[0] in tens && parts[1] in ones) {
+    return tens[parts[0]] + ones[parts[1]];
+  }
+
+  // fallback: try to parse a leading number if present
+  const m = s.match(/^(\d+)/);
+  if (m) return parseInt(m[1], 10);
+
+  return NaN;
 }
