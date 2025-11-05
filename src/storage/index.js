@@ -14,6 +14,7 @@ const KEYS = {
   signInNudgeId: 'ff:signinNudgeId',
   signInNudgeOptOut: 'ff:signinNudgeOptOut',
   templates: 'ff:templates', // saved template selections
+  onboardingCompleted: 'ff:onboardingCompleted', // track if user completed onboarding
 };
 
 export async function getSelectedApps() {
@@ -222,6 +223,16 @@ export async function getSignInNudgeOptOut() {
 
 export async function setSignInNudgeOptOut(value) {
   await AsyncStorage.setItem(KEYS.signInNudgeOptOut, value ? 'true' : 'false');
+}
+
+// ---- Onboarding Completion ----
+export async function getOnboardingCompleted() {
+  const raw = await AsyncStorage.getItem(KEYS.onboardingCompleted);
+  return raw === 'true';
+}
+
+export async function setOnboardingCompleted(value) {
+  await AsyncStorage.setItem(KEYS.onboardingCompleted, value ? 'true' : 'false');
 }
 
 // ---- Template Storage ----

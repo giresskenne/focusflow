@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, Modal } from 'react-native';
 import { useTheme } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { getInstalledApps } from '../native/installedApps';
 import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { upsertAlias } from '../modules/ai/aliases/alias-store';
 
 // Import react-native-device-activity for DeviceActivitySelectionView
 let DeviceActivity = null;
@@ -64,6 +65,14 @@ export default function FocusSessionScreen({ navigation, route }) {
   const [pendingTemplateId, setPendingTemplateId] = useState(null); // Track which template is being configured
   const [confirmClearTemplate, setConfirmClearTemplate] = useState(null); // Template ID pending clear confirmation
   const FAMILY_SELECTION_ID = 'focusflow_selection';
+  
+  // Voice mode state - triggered when navigated from voice command with unknown alias
+  const voiceAlias = route?.params?.voiceAlias;
+  const onAliasCreated = route?.params?.onAliasCreated;
+  const isVoiceMode = !!voiceAlias;
+  
+  // Track save completion for voice mode to avoid race condition
+  const aliasSavePromiseRef = useRef(null);
   
   // Check if native picker is available
   const nativePickerAvailable = DeviceActivitySelectionView !== null;
@@ -135,6 +144,24 @@ export default function FocusSessionScreen({ navigation, route }) {
       setTemplateMetadata({ social, gaming, entertainment, all });
     })();
   }, []);
+
+  // Voice mode: auto-open native picker when navigated from voice command
+  useEffect(() => {
+    if (isVoiceMode && nativePickerAvailable) {
+      console.log('[FocusSession] Voice mode detected, auto-opening picker for alias:', voiceAlias);
+      setPendingTemplateId(`voice:${voiceAlias}`); // Special template ID for voice aliases
+      setShowNativePicker(true);
+    }
+  }, [isVoiceMode, voiceAlias, nativePickerAvailable]);
+
+  // Voice mode: auto-open native picker for alias creation
+  useEffect(() => {
+    if (isVoiceMode && nativePickerAvailable && !showNativePicker) {
+      console.log('[FocusSession] Voice mode detected, opening native picker for:', voiceAlias);
+      setPendingTemplateId(`voice:${voiceAlias}`);
+      setShowNativePicker(true);
+    }
+  }, [isVoiceMode, nativePickerAvailable, voiceAlias]);
 
   // Create lookup for selected apps and filter based on search
   const filteredApps = useMemo(() => {
@@ -418,6 +445,24 @@ export default function FocusSessionScreen({ navigation, route }) {
         <View style={{ width: '100%', maxWidth: 520 }}>
           <Text style={styles.sectionHeader}>SELECT APPS TO BLOCK</Text>
           
+          {/* Voice Mode Instruction Banner */}
+          {isVoiceMode && (
+            <GlassCard 
+              tint="primary" 
+              intensity={60} 
+              style={styles.voiceBanner}
+              contentStyle={styles.voiceBannerContent}
+            >
+              <Ionicons name="mic" size={20} color={colors.secondary} />
+              <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                <Text style={styles.voiceBannerTitle}>Teaching Mada a name</Text>
+                <Text style={styles.voiceBannerText}>
+                  Pick apps for "{voiceAlias}". I'll remember this name for next time.
+                </Text>
+              </View>
+            </GlassCard>
+          )}
+          
           {/* Quick Start Templates */}
           <View style={styles.subsectionHeaderContainer}>
             <Ionicons name="flash" size={16} color={colors.secondary} style={{ marginRight: spacing.sm, alignSelf: 'center' }} />
@@ -663,6 +708,31 @@ export default function FocusSessionScreen({ navigation, route }) {
                               webDomainCount: webDomainCount || 0,
                             });
                             
+                            // If voice mode, also save to alias store
+                            if (isVoiceMode && voiceAlias) {
+                              console.log('[FocusSession] Voice mode: saving alias:', voiceAlias);
+                              // Store the save promise so Done button can await it
+                              aliasSavePromiseRef.current = (async () => {
+                                try {
+                                  await upsertAlias(
+                                    voiceAlias,
+                                    { 
+                                      // Store the opaque token - this is what the blocker uses
+                                      opaqueToken: familyActivitySelection,
+                                      // Keep arrays for potential future use
+                                      apps: [], 
+                                      categories: [],
+                                      domains: []
+                                    },
+                                    [] // synonyms
+                                  );
+                                  console.log('[FocusSession] Alias saved successfully');
+                                } catch (e) {
+                                  console.error('[FocusSession] Failed to save alias:', e);
+                                }
+                              })();
+                            }
+                            
                             // Update local template metadata
                             setTemplateMetadata(prev => ({
                               ...prev,
@@ -713,10 +783,25 @@ export default function FocusSessionScreen({ navigation, route }) {
                 }}>
                   <UIButton
                     title="Done"
-                    onPress={() => {
+                    onPress={async () => {
                       console.log('[FocusSession] Closing picker');
                       setShowNativePicker(false);
                       setPendingTemplateId(null);
+                      
+                      // Voice mode: ensure alias save completes, then call callback
+                      if (isVoiceMode && onAliasCreated) {
+                        // Wait for any pending alias save to complete
+                        if (aliasSavePromiseRef.current) {
+                          console.log('[FocusSession] Waiting for alias save to complete...');
+                          await aliasSavePromiseRef.current;
+                          aliasSavePromiseRef.current = null;
+                        }
+                        console.log('[FocusSession] Voice mode: calling onAliasCreated callback');
+                        // Call the callback (which will re-run the voice command)
+                        onAliasCreated();
+                        // Navigate back to where we came from
+                        navigation.goBack();
+                      }
                     }}
                   />
                 </View>
@@ -1135,5 +1220,25 @@ const styles = StyleSheet.create({
     textTransform: 'lowercase',
     textAlign: 'center',
     opacity: 0.8,
+  },
+  voiceBanner: {
+    marginBottom: spacing.xl,
+    borderRadius: radius.xl,
+  },
+  voiceBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  voiceBannerTitle: {
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
+    color: colors.foreground,
+    marginBottom: spacing.xs,
+  },
+  voiceBannerText: {
+    fontSize: typography.sm,
+    color: colors.mutedForeground,
+    lineHeight: 20,
   },
 });

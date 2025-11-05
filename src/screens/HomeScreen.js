@@ -6,8 +6,10 @@ import { useTheme, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import UIButton from '../components/Ui/Button';
 import PremiumModal from '../components/PremiumModal';
+import { performUpgrade } from '../lib/premiumUpgrade';
 import GlassCard from '../components/Ui/GlassCard';
 import GradientBackground from '../components/GradientBackground';
+import VoiceMicButton from '../components/ai/VoiceMicButton';
 import { getSession, getReminders, getPremiumStatus, setPremiumStatus } from '../storage';
 import { ClockIcon, BellIcon, BarChartIcon, SettingsIcon, CrownIcon } from '../components/Icons';
 import { colors, spacing, radius, typography, shadows } from '../theme';
@@ -535,8 +537,16 @@ export default function HomeScreen({ navigation }) {
       <PremiumModal
         visible={showPremium}
         onClose={() => setShowPremium(false)}
-        onUpgrade={async () => { await setPremiumStatus(true); setIsPremium(true); setShowPremium(false); }}
+        onUpgrade={async (plan) => {
+          const ok = await performUpgrade(plan, { onRequireSignIn: () => navigation.navigate('SignIn') });
+          if (ok) {
+            setIsPremium(true);
+            setShowPremium(false);
+          }
+        }}
       />
+      {/* AI Voice Mic (feature-gated; non-destructive) */}
+      <VoiceMicButton />
         </ScrollView>
       </SafeAreaView>
     </GradientBackground>
