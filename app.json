@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F3F6FF"
+      "backgroundColor": "#7C3AED"
     },
     "ios": {
       "supportsTablet": true,
@@ -27,10 +27,13 @@
         "NSSpeechRecognitionUsageDescription": "FocusFlow uses voice commands to help you start focus sessions hands-free.",
         "NSMicrophoneUsageDescription": "FocusFlow needs microphone access to recognize your voice commands."
       },
+      "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true
+      },
       "splash": {
         "image": "./assets/splash-icon.png",
         "resizeMode": "contain",
-        "backgroundColor": "#F3F6FF"
+        "backgroundColor": "#7C3AED"
       }
     },
     "android": {
@@ -45,7 +48,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#8B5CF6",
+          "sounds": []
+        }
+      ],
       "@react-native-voice/voice",
       [
         "./plugins/app-blocker-plugin",

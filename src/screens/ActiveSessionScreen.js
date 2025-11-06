@@ -90,14 +90,27 @@ export default function ActiveSessionScreen({ navigation, route }) {
   useEffect(() => {
     const subRecv = Notifications.addNotificationReceivedListener((n) => {
       try {
-        console.log('[Notifications] received:', n?.request?.identifier, n?.request?.content?.title, n?.request?.content?.data);
+        const when = new Date().toLocaleTimeString();
+        const data = n?.request?.content?.data || {};
+        const intendedAt = typeof data?.intendedAt === 'number' ? data.intendedAt : null;
+        const now = Date.now();
+        // Ignore early foreground receive events (Expo fires the listener even if not presented)
+        // This happens when scheduling with absolute dates - iOS calls the listener immediately
+        // even though the notification won't actually show until the trigger time.
+        // We check if current time is more than 5 seconds before the intended time.
+        if (data?.type === 'focus-end' && intendedAt && now < (intendedAt - 5000)) {
+          console.log('[Notifications] EARLY foreground receive (ignored) at', when, 'id:', n?.request?.identifier, 'intended:', new Date(intendedAt).toLocaleTimeString());
+          return;
+        }
+        console.log('[Notifications] DELIVERED at', when, ':', n?.request?.identifier, n?.request?.content?.title, data);
       } catch (e) {
         console.log('[Notifications] received (log error):', e);
       }
     });
     const subResp = Notifications.addNotificationResponseReceivedListener((r) => {
       try {
-        console.log('[Notifications] response:', r?.notification?.request?.identifier, r?.notification?.request?.content?.data);
+        const when = new Date().toLocaleTimeString();
+        console.log('[Notifications] USER TAPPED at', when, ':', r?.notification?.request?.identifier, r?.notification?.request?.content?.data);
       } catch (e) {
         console.log('[Notifications] response (log error):', e);
       }
@@ -132,6 +145,9 @@ export default function ActiveSessionScreen({ navigation, route }) {
   // Helper: schedule end notification after clearing stale ones tagged as 'focus-end'
   const scheduleEndNotification = async (seconds, meta = {}) => {
     try {
+      const currentAppState = AppState.currentState;
+      console.log('[ActiveSession] Scheduling notification, app state:', currentAppState);
+      
       const pending = await Notifications.getAllScheduledNotificationsAsync();
       for (const n of pending || []) {
         try {
@@ -144,22 +160,35 @@ export default function ActiveSessionScreen({ navigation, route }) {
         }
       }
 
-      // Calculate the actual intended end time (not the notification fire date)
-      const now = meta.startAt || Date.now();
-      const intendedEndTime = now + (seconds * 1000);
+      // Calculate the actual intended end time
+      // CRITICAL: Use Date.now() at schedule time, not a stale 'startAt' from meta
+      const scheduleNow = Date.now();
+      const intendedEndTime = scheduleNow + (seconds * 1000);
+      const scheduleTime = new Date(intendedEndTime).toLocaleTimeString();
       
-      // Use an absolute date trigger instead of a time-interval to avoid an iOS dev quirk
-      // where interval triggers can occasionally fire immediately in debug sessions.
-      const fireDate = new Date(intendedEndTime);
+      console.log('[ActiveSession] Scheduling now:', new Date(scheduleNow).toLocaleTimeString(), 'to fire in', seconds, 'seconds at', scheduleTime);
+      
+      // Prefer absolute date trigger on iOS for reliable delivery in background
+      // On Android or other platforms, keep time-interval trigger
+      const trigger = Platform.OS === 'ios'
+        ? { date: new Date(intendedEndTime) }
+        : { seconds: Math.max(1, Math.floor(seconds)), repeats: false };
+
+      const fireAtStr = new Date(intendedEndTime).toLocaleTimeString();
       const id = await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'Focus Session Complete! 🎯',
+          title: `Focus Session Complete! 🎯${__DEV__ ? ` · ${fireAtStr}` : ''}`,
           body: `Your ${Math.max(1, Math.round(seconds / 60))} minute focus session is finished. Great work!`,
           data: { type: 'focus-end', intendedAt: intendedEndTime, ...meta },
+          sound: true, // System will handle sound delivery
+          badge: 0,
+          // iOS 15+: Break through Focus modes (requires Time Sensitive capability)
+          interruptionLevel: 'timeSensitive',
         },
-        trigger: { date: fireDate },
+        trigger,
       });
-      console.log('[ActiveSession] Scheduled focus-end notification id:', id, 'in', seconds, 'seconds');
+      const scheduleConfirmTime = new Date().toLocaleTimeString();
+      console.log('[ActiveSession] ✓ Scheduled notification id:', id, 'at', scheduleConfirmTime, '- will fire at', fireAtStr, '(in', seconds, 'seconds)');
       endNotifIdRef.current = id;
       return id;
     } catch (e) {
@@ -176,11 +205,32 @@ export default function ActiveSessionScreen({ navigation, route }) {
   
   // Check if DeviceActivity library is available
   const blockingAvailable = DeviceActivity !== null;
+  const scheduledOnceRef = useRef(false);
 
-  // Handle app state changes to check session completion
+  // Handle app state changes to check session completion and manage notifications
   useEffect(() => {
     const handleAppStateChange = async (nextAppState) => {
-      if (nextAppState === 'active') {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        // When going to background, ensure notification is scheduled
+        console.log('[ActiveSession] App going to background/inactive, ensuring notification is scheduled...');
+        try {
+          const currentSession = await getSession();
+          if (currentSession?.active && currentSession?.endAt && !scheduledOnceRef.current) {
+            const now = Date.now();
+            const remainingSeconds = Math.max(1, Math.floor((currentSession.endAt - now) / 1000));
+            if (remainingSeconds > 0) {
+              const id = await scheduleEndNotification(remainingSeconds, { startAt: now });
+              if (id) {
+                endOsNotifIdRef.current = id;
+                scheduledOnceRef.current = true;
+                console.log('[ActiveSession] Scheduled notification on background transition, id:', id);
+              }
+            }
+          }
+        } catch (e) {
+          console.log('[ActiveSession] Error scheduling notification on background:', e);
+        }
+      } else if (nextAppState === 'active') {
         console.log('[ActiveSession] App became active, checking session status...');
         try {
           const currentSession = await getSession();
@@ -191,6 +241,35 @@ export default function ActiveSessionScreen({ navigation, route }) {
               // Complete the session
               await setSession({ active: false, endAt: null, totalSeconds: null });
               
+              // Cancel any pending or presented end notifications to avoid stale delivery
+              try {
+                if (endOsNotifIdRef.current) {
+                  await Notifications.cancelScheduledNotificationAsync(endOsNotifIdRef.current);
+                  console.log('[ActiveSession] Canceled scheduled end notification by id:', endOsNotifIdRef.current);
+                  endOsNotifIdRef.current = null;
+                }
+                const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+                for (const n of scheduled || []) {
+                  if (n?.content?.data?.type === 'focus-end') {
+                    try {
+                      await Notifications.cancelScheduledNotificationAsync(n.identifier);
+                      console.log('[ActiveSession] Canceled stray scheduled focus-end notification:', n.identifier);
+                    } catch {}
+                  }
+                }
+                const presented = await (Notifications.getPresentedNotificationsAsync?.() || Promise.resolve([]));
+                for (const n of presented || []) {
+                  try {
+                    if (n?.request?.content?.data?.type === 'focus-end') {
+                      await Notifications.dismissNotificationAsync(n.request.identifier);
+                      console.log('[ActiveSession] Dismissed presented focus-end notification on resume:', n.request.identifier);
+                    }
+                  } catch {}
+                }
+                // Allow new sessions to schedule again
+                scheduledOnceRef.current = false;
+              } catch {}
+
               // Unblock apps (robust)
               await safelyUnblockAll();
               
@@ -227,6 +306,30 @@ export default function ActiveSessionScreen({ navigation, route }) {
     setSessionEndAt(endAt);
     (async () => {
       try {
+        // DON'T schedule notification immediately in foreground - it causes iOS to fire the
+        // notification listener immediately. Instead, we schedule when going to background.
+        // The AppState listener above handles this.
+
+        // CRITICAL: Check if session is already active to prevent re-initialization on remount
+        const existingSession = await getSession();
+        if (existingSession?.active) {
+          console.log('[ActiveSession] Session already active, preventing re-initialization. Existing endAt:', existingSession.endAt);
+          // Restore the existing session state
+          setStartAt(existingSession.startAt || now);
+          setSessionEndAt(existingSession.endAt || endAt);
+          
+          // Restore apps from existing selection
+          const map = await getSelectedApps();
+          if (map?.familyActivitySelectionId) {
+            setApps([map.familyActivitySelectionId]);
+            try {
+              const meta = DeviceActivity?.activitySelectionMetadata({ familyActivitySelectionId: map.familyActivitySelectionId });
+              if (meta) setSelectionCounts(meta);
+            } catch {}
+          }
+          return; // Don't re-initialize
+        }
+        
         // Don't schedule notification here to avoid immediate firing
         const map = await getSelectedApps();
         let appIds = [];
@@ -506,10 +609,8 @@ export default function ActiveSessionScreen({ navigation, route }) {
                 console.log('[ActiveSession] startMonitoring failed even with long window:', e?.message || e);
               }
 
-              // End notification strategy: Use ONLY OS absolute-date notification (like reminders do).
-              // This ensures reliable background delivery without JS timer conflicts.
-              const osId = await scheduleEndNotification(duration, { startAt: now, selectionId: selectionIdToUse });
-              endOsNotifIdRef.current = osId;
+              // End notification: Will be scheduled automatically when app goes to background
+              // via the AppState listener. This avoids iOS quirks with immediate foreground delivery.
 
               // JS safety net: unblock at the exact requested duration
               if (selectionIdToUse) {
@@ -628,8 +729,40 @@ export default function ActiveSessionScreen({ navigation, route }) {
             clearTimeout(unblockTimeoutRef.current);
             unblockTimeoutRef.current = null;
           }
-          // Cancel notifications and timers
-          try { if (endOsNotifIdRef.current) { await Notifications.cancelScheduledNotificationAsync(endOsNotifIdRef.current); endOsNotifIdRef.current = null; } } catch {}
+          // Cancel pending/presented notifications ONLY if we're in foreground.
+          // If the app is backgrounded, let the OS banner fire at the scheduled time.
+          try {
+            const stateNow = AppState.currentState;
+            if (stateNow === 'active') {
+              if (endOsNotifIdRef.current) {
+                await Notifications.cancelScheduledNotificationAsync(endOsNotifIdRef.current);
+                console.log('[ActiveSession] Canceled scheduled end notification by id (timer path, foreground):', endOsNotifIdRef.current);
+                endOsNotifIdRef.current = null;
+              }
+              const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+              for (const n of scheduled || []) {
+                if (n?.content?.data?.type === 'focus-end') {
+                  try {
+                    await Notifications.cancelScheduledNotificationAsync(n.identifier);
+                    console.log('[ActiveSession] Canceled stray scheduled focus-end notification (timer path, foreground):', n.identifier);
+                  } catch {}
+                }
+              }
+              const presented = await (Notifications.getPresentedNotificationsAsync?.() || Promise.resolve([]));
+              for (const n of presented || []) {
+                try {
+                  if (n?.request?.content?.data?.type === 'focus-end') {
+                    await Notifications.dismissNotificationAsync(n.request.identifier);
+                    console.log('[ActiveSession] Dismissed presented focus-end notification (timer path, foreground):', n.request.identifier);
+                  }
+                } catch {}
+              }
+              // Allow new sessions to schedule again
+              scheduledOnceRef.current = false;
+            } else {
+              console.log('[ActiveSession] In background at timer end; deferring cancellation so the OS banner can present');
+            }
+          } catch {}
         } catch (e) {
           console.log('[ActiveSession] Error during session completion:', e);
         }

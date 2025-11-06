@@ -76,7 +76,7 @@ export default function PermissionExplainerModal({
                 {/* Buttons */}
                 <View style={styles.buttons}>
                   <UIButton
-                    label={config.grantButtonLabel}
+                    title={config.grantButtonLabel}
                     onPress={onGrant}
                     variant="primary"
                     style={styles.grantButton}
@@ -90,6 +90,10 @@ export default function PermissionExplainerModal({
                 </View>
               </ScrollView>
             </GlassCard>
+            {/* Close button */}
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityLabel="Close">
+              <Ionicons name="close" size={20} color={colors.mutedForeground} />
+            </TouchableOpacity>
           </View>
         </View>
       </GradientBackground>
@@ -162,6 +166,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 480,
     maxHeight: '85%',
+    position: 'relative',
   },
   scrollContent: {
     padding: spacing.xl,
@@ -256,5 +261,13 @@ const styles = StyleSheet.create({
     fontSize: typography.base,
     fontWeight: typography.semibold,
     color: colors.mutedForeground,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: spacing.lg,
+    right: spacing.lg,
+    padding: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(255,255,255,0.06)'
   },
 });

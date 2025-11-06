@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift
+index 655ce1b..0595a74 100644
+--- a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift
++++ b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift
+@@ -209,7 +209,7 @@ class NativeEventObserver {
+           _: CFDictionary?
+         ) in
+         if let observer = observer, let name = name {
+-          let mySelf = Unmanaged<BaseModule>.fromOpaque(observer).takeUnretainedValue()
++          let mySelf = Unmanaged<BaseModule>.fromOpaque(observer).takeRetainedValue()
+ 
+           mySelf.sendEvent(
+             "onDeviceActivityMonitorEvent" as String,
