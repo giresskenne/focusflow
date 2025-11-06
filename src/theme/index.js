@@ -52,6 +52,39 @@ export const colors = {
   activeGreenBg: 'rgba(16, 185, 129, 0.1)',
 };
 
+// Reusable effect and gradient tokens for glassy controls
+export const effects = {
+  // Primary brand gradient (purple → blue)
+  brandGradient: ['#8900f5', '#0072ff'],
+  // Idle control background transparency
+  controlBgOpacity: 0.7,
+  // Strong outer glow colors
+  glowPurple: 'rgba(137, 0, 245, 0.9)',
+  glowBlue: 'rgba(0, 114, 255, 0.7)',
+  // Subtle outer glow for idle
+  softGlowPurple: 'rgba(137, 0, 245, 0.4)',
+  softGlowBlue: 'rgba(0, 114, 255, 0.3)',
+  // Ring borders
+  ringBlue: 'rgba(0, 114, 255, 0.35)',
+  ringPurple: 'rgba(137, 0, 245, 0.22)',
+  ringFaint: 'rgba(255, 255, 255, 0.08)',
+};
+
+// Canonical control sizes to keep visuals consistent across the app
+export const controlSizes = {
+  play: {
+    outer: 120, // outer orbit/ring container
+    ring1: 96,
+    ring2: 112,
+    inner: 80,
+    icon: 20,
+  },
+  mic: {
+    size: 56, // main circular button
+    pulseMaxScale: 3.0, // how far rings expand
+  },
+};
+
 export const spacing = {
   xs: 4,
   sm: 8,

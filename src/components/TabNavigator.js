@@ -9,6 +9,7 @@ import RemindersScreen from '../screens/RemindersScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import { useTheme } from '@react-navigation/native';
 import GradientBackground from './GradientBackground';
+import VoiceMicButton from '../components/ai/VoiceMicButton';
 
 const Tab = createBottomTabNavigator();
 
@@ -44,6 +45,7 @@ export default function TabNavigator() {
 
   return (
     <GradientBackground>
+    <View style={{ flex: 1 }}>
     <Tab.Navigator
       sceneContainerStyle={{ backgroundColor: 'transparent' }}
       screenOptions={({ route }) => ({
@@ -151,6 +153,9 @@ export default function TabNavigator() {
         }}
       />
     </Tab.Navigator>
+    {/* Centered floating mic across all tabs */}
+    <VoiceMicButton />
+    </View>
     </GradientBackground>
   );
 }

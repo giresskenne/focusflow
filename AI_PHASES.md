@@ -326,16 +326,153 @@
 
 ---
 
-## Phase 9: UI Polish & Onboarding 📋 TODO
-**Goal**: Smooth first-time experience
+## Phase 9: UI Polish & Onboarding ✅ COMPLETE
+**Goal**: Smooth first-time experience with voice features
 
-### Deliverables
-- [ ] Voice tutorial/tips modal
-- [ ] AliasChips in preset screens
-- [ ] Non-blocking undo snackbar
-- [ ] Voice hints ("Try: Block social for 30 minutes")
-- [ ] Permission request flow with explanations
-- [ ] Settings toggle for TTS, wake word, etc.
+### Phase 9.1: Voice Tutorial Modal ✅ COMPLETE
+**Deliverables:**
+- [x] 5-step onboarding modal explaining voice features
+- [x] Visual examples for each command type
+- [x] "Try it now" CTA button
+- [x] Storage flag to show only once
+- [x] Accessible from Settings for re-watching
+
+**Files:**
+- `src/components/ai/VoiceTutorialModal.js`
+- `src/storage/index.js` (tutorial shown flag)
+
+### Phase 9.2: Permission UX Improvements ✅ COMPLETE
+**Deliverables:**
+- [x] PermissionExplainerModal with visual icons
+- [x] Step-by-step permission request flow
+- [x] Deep-link to Settings for manual permission grant
+- [x] Permission status indicators in Settings
+- [x] Graceful degradation when permissions denied
+
+**Files:**
+- `src/components/ai/PermissionExplainerModal.js`
+- `src/utils/permission-helper.js`
+
+### Phase 9.3: Voice Settings Toggles ✅ COMPLETE
+**Deliverables:**
+- [x] VoiceSettings storage with AsyncStorage
+- [x] Settings screen UI for voice toggles
+- [x] Voice enabled/disabled toggle
+- [x] TTS enabled/disabled toggle
+- [x] Integration with VoiceMicButton (conditional rendering)
+- [x] Integration with TTS service (respect settings)
+
+**Files:**
+- `src/storage/index.js` (voice settings CRUD)
+- `src/screens/SettingsScreen.js` (UI toggles)
+- `src/components/ai/VoiceMicButton.js` (conditional rendering)
+- `src/modules/ai/voice/tts-service.js` (respect settings)
+
+### Phase 9.4: Voice Hints ✅ COMPLETE
+**Deliverables:**
+- [x] VoiceHint component with contextual examples
+- [x] Rotating hints with auto-refresh (10s intervals)
+- [x] Screen-specific examples (Home vs Reminders)
+- [x] Subtle glass card design
+- [x] Integration in HomeScreen and RemindersScreen
+
+**Files:**
+- `src/components/ai/VoiceHint.js`
+- `src/screens/HomeScreen.js`
+- `src/screens/RemindersScreen.js`
+
+### Phase 9.5: Non-Blocking Toast Notifications ✅ COMPLETE
+**Goal**: Replace blocking Alert dialogs with modern toast notifications and undo functionality
+
+**Deliverables:**
+- [x] Toast component with slide-in/out animations
+- [x] ToastContext for global state management
+- [x] App-wide integration with ToastProvider
+- [x] Converted 8 blocking Alerts to Toast in VoiceMicButton
+- [x] Undo system for reminders (cancel notification + storage)
+- [x] Grace period undo for blocking sessions (4s window)
+- [x] Action buttons on toasts for undo/dismiss
+
+**Implementation Details:**
+
+**Toast Component** (`src/components/Toast.js`):
+- Smooth animations (slide from bottom, translateY)
+- Three variants: success ✓, error ✗, info ℹ️
+- Auto-dismiss after 4s (configurable)
+- Optional action button with callback
+- GlassCard design matching app theme
+
+**Toast Context** (`src/contexts/ToastContext.js`):
+- Global toast state management
+- `showToast(message, options)` API
+- `useToast()` hook for components
+- Single active toast (new replaces old)
+
+**Undo Logic** (`src/components/ai/VoiceMicButton.js`):
+
+*Reminder Undo:*
+- Stores `{ type: 'reminder', data: { result } }` after success
+- On undo: Cancel scheduled notification(s) via `Notifications.cancelScheduledNotificationAsync()`
+- Delete reminder from storage via `deleteReminder(reminderId)`
+- Show confirmation toast: "Reminder cancelled"
+
+*Session Undo (Grace Period):*
+- Stores `{ type: 'session', data: { target, duration } }` after confirmation
+- 4-second grace period where user can tap "Undo"
+- On undo within grace period:
+  - Stop DeviceActivity monitoring: `DeviceActivity.stopMonitoring(['focusSession'])`
+  - Unblock selection: `DeviceActivity.unblockSelection()`
+  - Remove shield: `ManagedSettingsModule.removeShield()`
+  - Clear session storage: `setSession({ active: false })`
+  - Navigate back to Home
+  - Show confirmation: "Session cancelled"
+- After grace period: Toast disappears, session is committed, must use manual "End Session" (with sarcastic message)
+
+**UX Flow:**
+```
+Before Phase 9.5:
+User: "Block Instagram for 30 minutes"
+→ Alert blocks screen: "Confirm?"
+→ User taps OK
+→ Alert blocks screen: "Instagram blocked!"
+→ User taps OK
+→ Finally done
+
+After Phase 9.5:
+User: "Block Instagram for 30 minutes"
+→ Alert: "Confirm?" [Cancel] [OK]
+→ User taps OK
+→ Toast slides in: "✓ Instagram blocked for 30 minutes" [Undo]
+→ Auto-dismisses after 4s
+→ User can tap Undo within grace period
+→ Done! Non-blocking, responsive
+```
+
+**Design Decisions:**
+- Keep Alert dialogs for:
+  - Clarification questions (multiple choice buttons)
+  - Pre-action confirmations (requires user choice)
+  - Navigation prompts (teaching aliases)
+- Use Toast for:
+  - Success messages after actions
+  - Error messages and info
+  - Quick dismissible notifications
+- Undo only makes sense for:
+  - ✅ Reminders (easily reversible)
+  - ✅ Sessions within grace period (4s window before commitment)
+  - ❌ Not for active sessions (defeats unbreakable focus model)
+
+**Files Modified:**
+- `src/components/Toast.js` (NEW)
+- `src/contexts/ToastContext.js` (NEW)
+- `App.js` (wrapped with ToastProvider)
+- `src/components/ai/VoiceMicButton.js` (8 Alerts → Toast, undo logic)
+
+**Dependencies Added:**
+- `expo-notifications` (already existed for reminders)
+- `react-native-device-activity` (already existed for blocking)
+- `deleteReminder` from `reminder-store.js`
+- `setSession` from `storage/index.js`
 
 ---
 

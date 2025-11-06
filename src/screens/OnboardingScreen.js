@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Platform, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import UIButton from '../components/Ui/Button';
 import GradientBackground from '../components/GradientBackground';
@@ -20,6 +20,7 @@ if (Platform.OS === 'ios') {
 }
 
 export default function OnboardingScreen({ navigation, onComplete }) {
+  const insets = useSafeAreaInsets();
   const [notificationStatus, setNotificationStatus] = useState(null); // null, 'granted', 'denied'
   const [screenTimeStatus, setScreenTimeStatus] = useState(null); // null, 'approved', 'denied'
   const [isLoading, setIsLoading] = useState(false);
@@ -121,6 +122,11 @@ export default function OnboardingScreen({ navigation, onComplete }) {
     <GradientBackground>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.content}>
+          {/* Top row: Progress indicators (left) + Skip (right) */}
+          <View style={styles.topRow}>
+            <View style={styles.progressPlaceholder} />
+            <Text onPress={handleContinue} style={styles.skipText} accessibilityRole="button">Skip</Text>
+          </View>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>
@@ -173,7 +179,7 @@ export default function OnboardingScreen({ navigation, onComplete }) {
           </View>
 
           {/* Action Buttons */}
-          <View style={styles.actions}>
+          <View style={[styles.actions, { paddingBottom: insets.bottom + spacing['2xl'] }]}>
             {!bothGranted ? (
               <>
                 <UIButton
@@ -182,16 +188,10 @@ export default function OnboardingScreen({ navigation, onComplete }) {
                   disabled={isLoading}
                   style={styles.primaryButton}
                 />
-                <UIButton
-                  title="Skip for Now"
-                  variant="outline"
-                  onPress={handleContinue}
-                  style={styles.secondaryButton}
-                />
               </>
             ) : (
               <UIButton
-                title="Get Started"
+                title="Continue"
                 onPress={handleContinue}
                 style={styles.primaryButton}
               />
@@ -219,6 +219,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing['3xl'],
     justifyContent: 'space-between',
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  progressPlaceholder: {
+    height: 20,
+    minWidth: 60,
+  },
+  skipText: {
+    fontSize: typography.base,
+    color: colors.mutedForeground,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   header: {
     marginBottom: spacing['2xl'],
@@ -281,7 +296,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   actions: {
-    marginBottom: spacing.xl,
+    // Dynamic bottom padding applied inline using safe area inset
   },
   primaryButton: {
     height: 56,

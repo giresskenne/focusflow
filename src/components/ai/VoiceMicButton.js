@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, TouchableOpacity, Modal, TextInput, Text, StyleSheet, Alert, Animated } from 'react-native';
+import { View, TouchableOpacity, Modal, TextInput, Text, StyleSheet, Alert, Animated, Platform, NativeModules } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors, radius, spacing, typography } from '../../theme';
+import * as Notifications from 'expo-notifications';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, radius, spacing, typography, controlSizes, effects } from '../../theme';
 import { FLAGS, STTService, handleUtterance } from '../../modules/ai';
 import { speak as ttsSpeak, stop as ttsStop, isAvailable as ttsAvailable } from '../../modules/ai/voice/tts-service';
 import { isFamilyPickerAvailable } from '../../modules/ai/aliases/alias-native';
@@ -10,22 +13,201 @@ import { parseIntent } from '../../modules/ai/nlu/intent-parser';
 import { updateContext, needsClarification } from '../../modules/ai/conversation-context';
 import { getGuidancePrompt, isConfirmation } from '../../modules/ai/nlu/intent-classifier';
 import { executeReminder } from '../../modules/ai/executor/reminder-executor';
+import { deleteReminder } from '../../modules/reminders/reminder-store';
+import { setSession, getReminders as getLegacyReminders, setReminders as setLegacyReminders } from '../../storage';
+import PermissionExplainerModal from './PermissionExplainerModal';
+import { checkMicrophonePermission, requestPermissionWithFlow } from '../../utils/permission-helper';
+import { getVoiceSettings } from '../../storage';
+import { useToast } from '../../contexts/ToastContext';
+
+// Import DeviceActivity for iOS blocking
+let DeviceActivity = null;
+if (Platform.OS === 'ios') {
+  try {
+    DeviceActivity = require('react-native-device-activity');
+  } catch (error) {
+    console.log('[VoiceMicButton] react-native-device-activity not available');
+  }
+}
 
 export default function VoiceMicButton({ style }) {
   const navigation = useNavigation();
+  const { showToast } = useToast();
+  const insets = useSafeAreaInsets();
   const enabled = FLAGS.AI_VOICE_ENABLED;
   const [manualOpen, setManualOpen] = useState(false);
   const [text, setText] = useState('');
   const [listening, setListening] = useState(false);
+  const [showPermissionExplainer, setShowPermissionExplainer] = useState(false);
+  const [permissionGrantCallback, setPermissionGrantCallback] = useState(null);
+  const [voiceSettingsEnabled, setVoiceSettingsEnabled] = useState(true);
   const pulse = useRef(new Animated.Value(1)).current;
   const busyRef = useRef(false);
   const lastUtteranceRef = useRef('');
   const pendingIntentRef = useRef(null); // For storing unclear-action intents
+  
+  // Undo state - store last action for undo capability
+  const lastActionRef = useRef(null); // { type: 'reminder'|'session', data: {...} }
 
   const sttAvailable = useMemo(() => STTService.isAvailable?.() || false, []);
   const ttsEnabled = FLAGS.AI_TTS_ENABLED;
+  // Guard to suppress TTS when a confirmation was cancelled
+  const reminderConfirmTokenRef = useRef(null); // { id, cancelled }
 
-  if (!enabled) return null;
+  // Visual-only animations for listening state
+  const ring1 = useRef(new Animated.Value(0)).current;
+  const ring2 = useRef(new Animated.Value(0)).current;
+  const ring3 = useRef(new Animated.Value(0)).current;
+  const bar1 = useRef(new Animated.Value(8)).current;
+  const bar2 = useRef(new Animated.Value(18)).current;
+  const bar3 = useRef(new Animated.Value(10)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current; // gradient overlay fade for listening state
+
+  // Load voice settings on mount
+  useEffect(() => {
+    getVoiceSettings().then((settings) => {
+      setVoiceSettingsEnabled(settings.voiceEnabled);
+    }).catch(() => {
+      setVoiceSettingsEnabled(true); // Default to enabled if load fails
+    });
+  }, []);
+
+  if (!enabled || !voiceSettingsEnabled) return null;
+
+  // Undo helpers
+  const storeLastAction = (type, data) => {
+    lastActionRef.current = { type, data, timestamp: Date.now() };
+  };
+
+  const undoReminder = async () => {
+    const lastAction = lastActionRef.current;
+    if (!lastAction || lastAction.type !== 'reminder') {
+      console.warn('[VoiceMicButton] No reminder to undo');
+      return;
+    }
+    
+    try {
+      const reminderData = lastAction.data.result;
+      const intent = lastAction.data.intent;
+      
+      // 1. Cancel the scheduled notification(s)
+      if (reminderData.notificationIds) {
+        const ids = Array.isArray(reminderData.notificationIds) 
+          ? reminderData.notificationIds 
+          : [reminderData.notificationIds];
+        
+        for (const id of ids) {
+          try {
+            await Notifications.cancelScheduledNotificationAsync(id);
+            console.log('[VoiceMicButton] Cancelled notification:', id);
+          } catch (e) {
+            console.warn('[VoiceMicButton] Failed to cancel notification:', id, e?.message);
+          }
+        }
+
+        // 1b. Remove mirrored legacy reminders used by Home/Reminders UI
+        try {
+          const legacy = await getLegacyReminders();
+          const idSet = new Set(ids);
+          const next = (legacy || []).filter((r) => {
+            const byNotif = r?.notificationId && idSet.has(r.notificationId);
+            const byText = intent?.message && (String(r?.text || '').toLowerCase() === String(intent.message).toLowerCase());
+            return !(byNotif || byText);
+          });
+          await setLegacyReminders(next);
+        } catch (e) {
+          console.warn('[VoiceMicButton] Failed to update legacy reminders on undo:', e?.message);
+        }
+      }
+      
+      // 2. Remove reminder from storage
+      if (reminderData.reminderId) {
+        await deleteReminder(reminderData.reminderId);
+        console.log('[VoiceMicButton] Deleted reminder:', reminderData.reminderId);
+      }
+      
+      // 3. Show confirmation
+      showToast('Reminder cancelled', { type: 'info' });
+      lastActionRef.current = null;
+      
+    } catch (error) {
+      console.error('[VoiceMicButton] Failed to undo reminder:', error);
+      showToast('Failed to cancel reminder', { type: 'error' });
+    }
+  };
+
+  const undoBlockingSession = async () => {
+    const lastAction = lastActionRef.current;
+    if (!lastAction || lastAction.type !== 'session') {
+      console.warn('[VoiceMicButton] No session to undo');
+      return;
+    }
+    
+    try {
+      console.log('[VoiceMicButton] Undoing session - grace period cancellation');
+      // If we're still in the grace period (navigation hasn't happened), just cancel the timer
+      if (lastAction.data?.graceTimeoutId && !lastAction.data?.hasStarted) {
+        try { clearTimeout(lastAction.data.graceTimeoutId); } catch {}
+        showToast('Session cancelled', { type: 'info' });
+        lastActionRef.current = null;
+        return;
+      }
+      
+      // 1. Stop monitoring (if DeviceActivity is available)
+      if (DeviceActivity) {
+        try {
+          DeviceActivity.stopMonitoring(['focusSession']);
+          console.log('[VoiceMicButton] Stopped monitoring');
+        } catch (e) {
+          console.warn('[VoiceMicButton] Failed to stop monitoring:', e?.message);
+        }
+        
+        // 2. Try to unblock selection (if we have selection data)
+        try {
+          // Attempt multiple unblock strategies for safety
+          if (lastAction.data.familyActivitySelection) {
+            DeviceActivity.unblockSelection({ 
+              familyActivitySelection: lastAction.data.familyActivitySelection 
+            });
+          }
+          DeviceActivity.unblockSelection({ 
+            familyActivitySelectionId: 'focusflow_selection' 
+          });
+          console.log('[VoiceMicButton] Unblocked selection');
+        } catch (e) {
+          console.warn('[VoiceMicButton] Failed to unblock selection:', e?.message);
+        }
+      }
+      
+      // 3. Remove shield (if ManagedSettings is available)
+      try {
+        await NativeModules?.ManagedSettingsModule?.removeShield?.();
+        console.log('[VoiceMicButton] Removed shield');
+      } catch (e) {
+        console.warn('[VoiceMicButton] Failed to remove shield:', e?.message);
+      }
+      
+      // 4. Clear session storage
+      await setSession({ active: false, endAt: null, totalSeconds: null });
+      console.log('[VoiceMicButton] Cleared session storage');
+      
+      // 5. Navigate back to home
+      if (navigation) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        });
+      }
+      
+      // 6. Show confirmation
+      showToast('Session cancelled', { type: 'info' });
+      lastActionRef.current = null;
+      
+    } catch (error) {
+      console.error('[VoiceMicButton] Failed to undo session:', error);
+      showToast('Could not cancel session', { type: 'error' });
+    }
+  };
 
   const runText = async (utterance) => {
     if (!utterance?.trim()) return;
@@ -88,6 +270,7 @@ export default function VoiceMicButton({ style }) {
               }
             })),
             { text: 'Type instead', onPress: () => setManualOpen(true) },
+            { text: 'Close', style: 'cancel', onPress: () => { pendingIntentRef.current = null; } },
           ]
         );
         return;
@@ -119,7 +302,7 @@ export default function VoiceMicButton({ style }) {
             }
           })),
           { text: 'Type', onPress: () => setManualOpen(true) },
-          { text: 'Cancel', style: 'cancel' },
+          { text: 'Close', style: 'cancel' },
         ]);
         return;
       }
@@ -133,7 +316,7 @@ export default function VoiceMicButton({ style }) {
             onPress: () => runText(`Block ${sugg}`)
           })),
           { text: 'Type', onPress: () => setManualOpen(true) },
-          { text: 'Cancel', style: 'cancel' },
+          { text: 'Close', style: 'cancel' },
         ]);
         return;
       }
@@ -147,7 +330,7 @@ export default function VoiceMicButton({ style }) {
             onPress: () => runText(`Remind me to ${sugg}`)
           })),
           { text: 'Type', onPress: () => setManualOpen(true) },
-          { text: 'Cancel', style: 'cancel' },
+          { text: 'Close', style: 'cancel' },
         ]);
         return;
       }
@@ -164,15 +347,14 @@ export default function VoiceMicButton({ style }) {
         if (reminderResult.needsPermission) {
           // Permission denied
           if (ttsEnabled) ttsSpeak('I need notification permissions to set reminders. Please enable them in Settings.');
-          Alert.alert(
-            'Permission Required',
+          showToast(
             'Notification permissions are needed to set reminders. Please enable them in Settings.',
-            [{ text: 'OK' }]
+            { type: 'error', duration: 6000 }
           );
         } else {
           // Other error
           if (ttsEnabled) ttsSpeak('Sorry, I couldn\'t set that reminder. Please try again.');
-          Alert.alert('Error', reminderResult.error || 'Failed to set reminder');
+          showToast(reminderResult.error || 'Failed to set reminder', { type: 'error' });
         }
         return;
       }
@@ -180,23 +362,55 @@ export default function VoiceMicButton({ style }) {
       if (reminderResult.pendingConfirmation && reminderResult.plan) {
         // Confirm reminder before applying
         const confirmMsg = reminderResult.plan.confirmMessage || 'Set this reminder?';
+        // Create a confirmation token to guard against late acks
+        const token = { id: Date.now(), cancelled: false };
+        reminderConfirmTokenRef.current = token;
         if (ttsEnabled) ttsSpeak(confirmMsg);
         
         Alert.alert('Confirm Reminder', confirmMsg, [
-          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Cancel', 
+            style: 'cancel',
+            onPress: () => {
+              // Mark cancelled and stop any speaking immediately
+              if (reminderConfirmTokenRef.current?.id === token.id) {
+                reminderConfirmTokenRef.current.cancelled = true;
+              }
+              try { if (ttsEnabled && ttsAvailable()) ttsStop(); } catch {}
+            }
+          },
           { 
             text: 'Set Reminder', 
             onPress: async () => {
+              // If user cancelled while alert was open, do nothing
+              if (reminderConfirmTokenRef.current?.cancelled) return;
               const applyResult = await executeReminder(intent, { confirm: false });
               
-              if (applyResult.ok && applyResult.confirmation) {
-                // Success - speak confirmation
+              if (!reminderConfirmTokenRef.current?.cancelled && applyResult.ok && applyResult.confirmation) {
+                // Success - speak confirmation and show toast with undo
                 if (ttsEnabled) ttsSpeak(applyResult.confirmation);
-                Alert.alert('Reminder Set', applyResult.confirmation);
+                
+                // Store action for undo
+                storeLastAction('reminder', {
+                  intent,
+                  result: applyResult
+                });
+                
+                showToast(applyResult.confirmation, {
+                  type: 'success',
+                  action: {
+                    label: 'Undo',
+                    onPress: undoReminder
+                  }
+                });
               } else {
                 // Error applying
-                if (ttsEnabled) ttsSpeak('Sorry, I couldn\'t set that reminder.');
-                Alert.alert('Error', applyResult.error || 'Failed to set reminder');
+                if (!reminderConfirmTokenRef.current?.cancelled && ttsEnabled) ttsSpeak('Sorry, I couldn\'t set that reminder.');
+                showToast(applyResult.error || 'Failed to set reminder', { type: 'error' });
+              }
+              // Clear token after handling
+              if (reminderConfirmTokenRef.current?.id === token.id) {
+                reminderConfirmTokenRef.current = null;
               }
             }
           },
@@ -210,7 +424,7 @@ export default function VoiceMicButton({ style }) {
     console.log('[VoiceMicButton] handleUtterance result:', res);
     
     if (!res.ok) {
-      Alert.alert('Try again', "I didn't catch that. Try: Block Social for 30 minutes");
+      showToast("I didn't catch that. Try: Block Social for 30 minutes", { type: 'info', duration: 5000 });
       return;
     }
     
@@ -269,8 +483,37 @@ export default function VoiceMicButton({ style }) {
           
           // Check if we need to navigate to ActiveSession
           if (applyRes.needsNavigation && applyRes.durationSeconds) {
-            console.log('[VoiceMicButton] Navigating to ActiveSession');
-            navigation.navigate('ActiveSession', { durationSeconds: applyRes.durationSeconds });
+            console.log('[VoiceMicButton] Scheduling navigation after grace period');
+
+            // Store action for undo with grace period handling
+            const actionData = {
+              target: res.intent.target,
+              durationMinutes: res.plan.durationMinutes,
+              durationSeconds: applyRes.durationSeconds,
+              graceTimeoutId: null,
+              hasStarted: false,
+            };
+            storeLastAction('session', actionData);
+
+            // Show toast immediately with Undo
+            showToast(`Starting focus for ${res.plan.durationMinutes} minutes`, {
+              type: 'success',
+              action: {
+                label: 'Undo',
+                onPress: undoBlockingSession
+              },
+              duration: 5000,
+            });
+
+            // Delay navigation to allow an Undo grace window
+            const timeoutId = setTimeout(() => {
+              // If cancelled, lastActionRef will be null
+              if (!lastActionRef.current || lastActionRef.current.type !== 'session') return;
+              // Mark as started and navigate
+              lastActionRef.current.data.hasStarted = true;
+              navigation.navigate('ActiveSession', { durationSeconds: applyRes.durationSeconds });
+            }, 3500);
+            actionData.graceTimeoutId = timeoutId;
           }
         }}
       ]);
@@ -287,8 +530,46 @@ export default function VoiceMicButton({ style }) {
         ])
       );
       anim.start();
+      // Start ring pulses
+      const makeRing = (v, delay = 0) =>
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(v, { toValue: 1, duration: 2500, delay, useNativeDriver: true }),
+            Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: true }),
+          ])
+        );
+      const r1 = makeRing(ring1, 0);
+      const r2 = makeRing(ring2, 400);
+      const r3 = makeRing(ring3, 800);
+      r1.start();
+      r2.start();
+      r3.start();
+      // Sound bars
+      const barLoop = (v, min, max, d, delay = 0) =>
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(v, { toValue: max, duration: d, delay, useNativeDriver: false }),
+            Animated.timing(v, { toValue: min, duration: d, useNativeDriver: false }),
+          ])
+        );
+      const b1 = barLoop(bar1, 8, 18, 600);
+      const b2 = barLoop(bar2, 10, 22, 700, 150);
+      const b3 = barLoop(bar3, 6, 16, 650, 300);
+      b1.start();
+      b2.start();
+      b3.start();
+      // Overlay gradient fade to simulate color cycling
+      const overlay = Animated.loop(
+        Animated.sequence([
+          Animated.timing(overlayOpacity, { toValue: 1, duration: 2000, useNativeDriver: true }),
+          Animated.timing(overlayOpacity, { toValue: 0, duration: 2000, useNativeDriver: true }),
+        ])
+      );
+      overlay.start();
+      return () => { r1.stop(); r2.stop(); r3.stop(); b1.stop(); b2.stop(); b3.stop(); overlay.stop(); };
     } else {
       pulse.setValue(1);
+      overlayOpacity.setValue(0);
     }
     return () => { anim && anim.stop && anim.stop(); };
   }, [listening, pulse]);
@@ -296,6 +577,24 @@ export default function VoiceMicButton({ style }) {
   const onPress = async () => {
     if (busyRef.current || listening) return; // prevent double starts
     busyRef.current = true;
+    
+    // Check microphone permission first
+    const micStatus = await checkMicrophonePermission();
+    
+    if (micStatus !== 'granted') {
+      // Show permission explainer before requesting
+      const granted = await requestPermissionWithFlow('microphone', (onGrant) => {
+        setPermissionGrantCallback(() => onGrant);
+        setShowPermissionExplainer(true);
+      });
+      
+      busyRef.current = false;
+      
+      if (!granted) {
+        console.log('[VoiceMicButton] Microphone permission not granted');
+        return;
+      }
+    }
     
     // Ensure the module is actually loaded before attempting to start
     const ready = await (STTService.ensureLoaded?.() ?? Promise.resolve(sttAvailable));
@@ -323,11 +622,14 @@ export default function VoiceMicButton({ style }) {
             console.warn('[VoiceMicButton] STT timeout, falling back to manual input');
             // Offer choices per spec rather than immediate fallback
             if (ttsEnabled) ttsSpeak('I did not catch that. Try speaking the full phrase, like: Block test for two minutes.');
-            Alert.alert('Didn\'t catch that', 'Try speaking the full phrase like "Block test for 2 minutes".', [
-              { text: 'Try again', onPress: () => onPress() },
-              { text: 'Type instead', onPress: () => setManualOpen(true) },
-              { text: 'Cancel', style: 'cancel' },
-            ]);
+            showToast('Try speaking the full phrase like "Block test for 2 minutes"', {
+              type: 'info',
+              action: {
+                label: 'Type',
+                onPress: () => setManualOpen(true)
+              },
+              duration: 6000
+            });
           }
         }, 10000); // 10s window to speak a full phrase
 
@@ -369,6 +671,7 @@ export default function VoiceMicButton({ style }) {
                         onPress: () => runText(sugg),
                       })),
                       { text: 'Type instead', onPress: () => setManualOpen(true) },
+                      { text: 'Close', style: 'cancel' },
                     ]
                   );
                 }
@@ -398,7 +701,7 @@ export default function VoiceMicButton({ style }) {
                     }
                   })),
                   { text: 'Type', onPress: () => setManualOpen(true) },
-                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Close', style: 'cancel' },
                 ]);
                 return;
               }
@@ -414,7 +717,7 @@ export default function VoiceMicButton({ style }) {
                     onPress: () => runText(`Block ${sugg}`)
                   })),
                   { text: 'Type', onPress: () => setManualOpen(true) },
-                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Close', style: 'cancel' },
                 ]);
                 return;
               }
@@ -430,7 +733,7 @@ export default function VoiceMicButton({ style }) {
                     onPress: () => runText(`Remind me to ${sugg}`)
                   })),
                   { text: 'Type', onPress: () => setManualOpen(true) },
-                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Close', style: 'cancel' },
                 ]);
                 return;
               }
@@ -467,19 +770,22 @@ export default function VoiceMicButton({ style }) {
           console.warn('[STT] error', e?.message);
           // Known iOS code 1110 = no speech detected; fall back gracefully
           if (String(e?.message || '').includes('No speech detected')) {
-            Alert.alert('Didn\'t catch that', 'Try again or type your command.', [
-              { text: 'Try again', onPress: () => onPress() },
-              { text: 'Type instead', onPress: () => setManualOpen(true) },
-              { text: 'Cancel', style: 'cancel' },
-            ]);
+            showToast('Didn\'t catch that. Try again or type your command.', {
+              type: 'info',
+              action: {
+                label: 'Type',
+                onPress: () => setManualOpen(true)
+              },
+              duration: 5000
+            });
             return;
           }
-          Alert.alert('Voice Error', 'Could not start voice recognition. Using text input instead.');
+          showToast('Could not start voice recognition. Using text input instead.', { type: 'error' });
           setManualOpen(true);
         });
       } catch (err) {
         console.warn('[VoiceMicButton] STT start failed:', err);
-        Alert.alert('Voice Not Available', 'Microphone permission may be required. Using text input instead.');
+        showToast('Microphone permission may be required. Using text input instead.', { type: 'error' });
         setListening(false);
         setManualOpen(true);
         busyRef.current = false;
@@ -491,13 +797,90 @@ export default function VoiceMicButton({ style }) {
     }
   };
 
+  // Position to overlap the tab bar like the reference
+  const TAB_BOTTOM_MARGIN = 16; // from TabNavigator
+  const TAB_HEIGHT = 64;        // from TabNavigator
+  const computedBottom = insets.bottom + TAB_BOTTOM_MARGIN + (TAB_HEIGHT - controlSizes.mic.size) / 2 + 8;
+
   return (
     <>
       <Animated.View style={{ transform: [{ scale: pulse }] }}>
-        <TouchableOpacity style={[styles.fab, listening && styles.fabActive, style]} onPress={onPress} activeOpacity={0.85}>
-          <Ionicons name={listening ? 'mic' : 'mic-outline'} size={22} color="#fff" />
+        <TouchableOpacity
+          style={[
+            styles.fab,
+            { bottom: computedBottom },
+            listening && styles.fabActive,
+            style,
+          ]}
+          onPress={onPress}
+          activeOpacity={0.85}
+        >
+          {/* Pulsing rings when listening */}
+          {listening && (
+            <>
+              <Animated.View
+                style={[
+                  styles.ring,
+                  {
+                    borderColor: 'rgba(137, 0, 245, 0.7)',
+                    transform: [{ scale: ring1.interpolate({ inputRange: [0, 1], outputRange: [1, 2.5] }) }],
+                    opacity: ring1.interpolate({ inputRange: [0, 1], outputRange: [0.8, 0] }),
+                  },
+                ]}
+              />
+              <Animated.View
+                style={[
+                  styles.ring,
+                  {
+                    borderColor: 'rgba(0, 114, 255, 0.7)',
+                    transform: [{ scale: ring2.interpolate({ inputRange: [0, 1], outputRange: [1, 2.8] }) }],
+                    opacity: ring2.interpolate({ inputRange: [0, 1], outputRange: [0.7, 0] }),
+                  },
+                ]}
+              />
+              <Animated.View
+                style={[
+                  styles.ring,
+                  {
+                    borderColor: 'rgba(137, 0, 245, 0.6)',
+                    transform: [{ scale: ring3.interpolate({ inputRange: [0, 1], outputRange: [1, 3.2] }) }],
+                    opacity: ring3.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
+                  },
+                ]}
+              />
+            </>
+          )}
+          <LinearGradient
+            colors={effects.brandGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.fabInner}
+          >
+            <View style={styles.fabHighlight} />
+            <Ionicons name={listening ? 'mic' : 'mic-outline'} size={22} color="#fff" />
+            {listening && (
+              <View style={styles.barsRow}>
+                <Animated.View style={[styles.bar, { height: bar1 }]} />
+                <Animated.View style={[styles.bar, { height: bar2 }]} />
+                <Animated.View style={[styles.bar, { height: bar3 }]} />
+              </View>
+            )}
+          </LinearGradient>
+          {/* Overlay gradient to simulate color shift while listening */}
+          {listening && (
+            <Animated.View style={[styles.overlayGradientWrapper, { opacity: overlayOpacity }] }>
+              <LinearGradient
+                colors={[effects.brandGradient[1], effects.brandGradient[0]]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.fabInner}
+              />
+            </Animated.View>
+          )}
         </TouchableOpacity>
       </Animated.View>
+      
+      {/* Manual Text Input Modal */}
       <Modal visible={manualOpen} transparent animationType="fade" onRequestClose={() => setManualOpen(false)}>
         <View style={styles.overlay}>
           <View style={styles.card}>
@@ -521,6 +904,23 @@ export default function VoiceMicButton({ style }) {
           </View>
         </View>
       </Modal>
+
+      {/* Permission Explainer Modal */}
+      <PermissionExplainerModal
+        visible={showPermissionExplainer}
+        permissionType="microphone"
+        onClose={() => {
+          setShowPermissionExplainer(false);
+          setPermissionGrantCallback(null);
+        }}
+        onGrant={async () => {
+          setShowPermissionExplainer(false);
+          if (permissionGrantCallback) {
+            await permissionGrantCallback();
+            setPermissionGrantCallback(null);
+          }
+        }}
+      />
     </>
   );
 }
@@ -528,21 +928,69 @@ export default function VoiceMicButton({ style }) {
 const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
-    right: spacing.lg,
+    left: '50%',
     bottom: spacing['3xl'],
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
+    width: controlSizes.mic.size,
+    height: controlSizes.mic.size,
+    marginLeft: -controlSizes.mic.size / 2,
+    borderRadius: controlSizes.mic.size / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
   },
-  fabActive: {
-    backgroundColor: colors.secondary,
+  fabInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: controlSizes.mic.size / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    shadowColor: effects.glowPurple,
+    shadowOpacity: 0.9,
+    shadowOffset: { width: 0, height: 14 },
+    shadowRadius: 22,
+    overflow: 'hidden',
+  },
+  fabHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '55%',
+    backgroundColor: 'rgba(255,255,255,0.35)',
+    opacity: 0.3,
+  },
+  fabActive: {},
+  ring: {
+    position: 'absolute',
+    width: controlSizes.mic.size,
+    height: controlSizes.mic.size,
+    borderRadius: controlSizes.mic.size / 2,
+    borderWidth: 2,
+  },
+  ring1: { borderColor: effects.ringPurple, transform: [{ scale: 1.0 }] },
+  ring2: { borderColor: effects.ringBlue, transform: [{ scale: 1.8 }], opacity: 0.6 },
+  ring3: { borderColor: effects.ringPurple, transform: [{ scale: 2.6 }], opacity: 0.4 },
+  barsRow: {
+    position: 'absolute',
+    bottom: 10,
+    flexDirection: 'row',
+    gap: 2,
+  },
+  bar: {
+    width: 2,
+    backgroundColor: '#fff',
+    borderRadius: 1,
+    opacity: 0.9,
+  },
+  overlayGradientWrapper: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: controlSizes.mic.size / 2,
+    overflow: 'hidden',
   },
   overlay: {
     flex: 1, 

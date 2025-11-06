@@ -64,11 +64,11 @@ export async function start(onResult, onError) {
       const text = (e?.value && e.value[0]) || '';
       if (!text) return;
       lastText = text;
-      // Debounce partials: only emit if stable for 600ms
+      // Debounce partials: only emit if stable for 350ms (Siri-like responsiveness)
       if (interimTimer) clearTimeout(interimTimer);
       interimTimer = setTimeout(() => {
         onResult?.(lastText, { final: false });
-      }, 600);
+      }, 350);
     };
     
     RNVoice.onSpeechResults = (e) => {
