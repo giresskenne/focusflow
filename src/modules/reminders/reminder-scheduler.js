@@ -5,14 +5,8 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Note: Notification handler is configured globally in App.js
+// to handle both focus-end and reminder notifications consistently
 
 /**
  * Request notification permissions

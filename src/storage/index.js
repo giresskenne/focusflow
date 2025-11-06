@@ -15,6 +15,8 @@ const KEYS = {
   signInNudgeOptOut: 'ff:signinNudgeOptOut',
   templates: 'ff:templates', // saved template selections
   onboardingCompleted: 'ff:onboardingCompleted', // track if user completed onboarding
+  voiceTutorialCompleted: 'ff:voiceTutorialCompleted', // track if user completed voice tutorial
+  voiceSettings: 'ff:voiceSettings', // AI voice assistant settings
 };
 
 export async function getSelectedApps() {
@@ -235,6 +237,16 @@ export async function setOnboardingCompleted(value) {
   await AsyncStorage.setItem(KEYS.onboardingCompleted, value ? 'true' : 'false');
 }
 
+// ---- Voice Tutorial Completion ----
+export async function getVoiceTutorialCompleted() {
+  const raw = await AsyncStorage.getItem(KEYS.voiceTutorialCompleted);
+  return raw === 'true';
+}
+
+export async function setVoiceTutorialCompleted(value) {
+  await AsyncStorage.setItem(KEYS.voiceTutorialCompleted, value ? 'true' : 'false');
+}
+
 // ---- Template Storage ----
 // Shape: { [templateId]: { selectionToken: string, appCount: number, categoryCount: number, webDomainCount: number, savedAt: number } }
 export async function getTemplates() {
@@ -262,4 +274,38 @@ export async function clearTemplate(templateId) {
   delete templates[templateId];
   await AsyncStorage.setItem(KEYS.templates, JSON.stringify(templates));
   await markDirty();
+}
+
+// ---- Voice Settings ----
+export async function getVoiceSettings() {
+  const raw = await AsyncStorage.getItem(KEYS.voiceSettings);
+  return raw ? JSON.parse(raw) : {
+    voiceEnabled: true,         // Master toggle for voice features
+    ttsEnabled: true,           // Text-to-speech responses
+    ttsProvider: 'ios',         // 'ios' | 'google' (future)
+    ttsVoice: 'default',        // Voice identifier (system default or specific voice)
+    ttsRate: 1.0,               // Speech rate (0.5 - 2.0)
+    ttsPitch: 1.0,              // Speech pitch (0.5 - 2.0)
+    wakeWordEnabled: false,     // Future: wake word detection
+    wakeWord: 'hey mada',       // Future: customizable wake word
+  };
+}
+
+export async function updateVoiceSettings(newSettings) {
+  const current = await getVoiceSettings();
+  const updated = { ...current, ...newSettings };
+  await AsyncStorage.setItem(KEYS.voiceSettings, JSON.stringify(updated));
+  return updated;
+}
+
+export async function getVoiceSetting(key) {
+  const settings = await getVoiceSettings();
+  return settings[key];
+}
+
+export async function setVoiceSetting(key, value) {
+  const settings = await getVoiceSettings();
+  settings[key] = value;
+  await AsyncStorage.setItem(KEYS.voiceSettings, JSON.stringify(settings));
+  return settings;
 }

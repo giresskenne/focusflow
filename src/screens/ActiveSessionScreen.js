@@ -144,14 +144,18 @@ export default function ActiveSessionScreen({ navigation, route }) {
         }
       }
 
+      // Calculate the actual intended end time (not the notification fire date)
+      const now = meta.startAt || Date.now();
+      const intendedEndTime = now + (seconds * 1000);
+      
       // Use an absolute date trigger instead of a time-interval to avoid an iOS dev quirk
       // where interval triggers can occasionally fire immediately in debug sessions.
-      const fireDate = new Date(Date.now() + Math.max(3, Math.floor(seconds)) * 1000);
+      const fireDate = new Date(intendedEndTime);
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Focus Session Complete! 🎯',
           body: `Your ${Math.max(1, Math.round(seconds / 60))} minute focus session is finished. Great work!`,
-          data: { type: 'focus-end', intendedAt: fireDate.getTime(), ...meta },
+          data: { type: 'focus-end', intendedAt: intendedEndTime, ...meta },
         },
         trigger: { date: fireDate },
       });
@@ -163,51 +167,8 @@ export default function ActiveSessionScreen({ navigation, route }) {
     }
   };
 
-  // Helper: when app is foreground, prefer a JS timer that fires the end notification exactly at end
-  const scheduleEndNotificationAtExactEnd = (seconds, meta = {}) => {
-    try {
-      if (notifyTimeoutRef.current) clearTimeout(notifyTimeoutRef.current);
-      const delay = Math.max(1000, Math.floor(seconds) * 1000);
-      notifyTimeoutRef.current = setTimeout(async () => {
-        try {
-          // Before firing, cancel the OS-scheduled fallback to avoid duplicate
-          try {
-            if (endOsNotifIdRef.current) {
-              await Notifications.cancelScheduledNotificationAsync(endOsNotifIdRef.current);
-              console.log('[ActiveSession] Cancelled OS fallback notification before JS-triggered end');
-              endOsNotifIdRef.current = null;
-            }
-          } catch {}
-          
-          // Fire now (immediate trigger) with intendedAt = now
-          const nowTs = Date.now();
-          // Dismiss any stray banners first
-          try {
-            const presented = await (Notifications.getPresentedNotificationsAsync?.() || Promise.resolve([]));
-            for (const n of presented || []) {
-              try { if (n?.request?.content?.data?.type === 'focus-end') await Notifications.dismissNotificationAsync(n.request.identifier); } catch {}
-            }
-          } catch {}
-
-          const id = await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Focus Session Complete! 🎯',
-              body: `Nice work! Completed ${Math.max(1, Math.round(seconds / 60))} minutes.`,
-              data: { type: 'focus-end', intendedAt: nowTs, ...meta },
-            },
-            trigger: null, // fire immediately at exact end while app is foreground
-          });
-          endNotifIdRef.current = id;
-          console.log('[ActiveSession] Fired end notification via JS timer at exact end');
-        } catch (e) {
-          console.log('[ActiveSession] Failed to fire end notification at exact end:', e?.message || e);
-        }
-      }, delay);
-      console.log('[ActiveSession] JS end-notification timer set for', seconds, 'seconds');
-    } catch (e) {
-      console.log('[ActiveSession] Failed to set JS end-notification timer:', e?.message || e);
-    }
-  };
+  // Note: We rely solely on the OS absolute-date notification (like reminders do) for reliable background delivery.
+  // No JS timer that could cancel the OS notification—let iOS handle delivery in all states.
 
   // Get contextual quote based on session duration
   const sessionMinutes = Math.ceil(duration / 60);
@@ -545,12 +506,8 @@ export default function ActiveSessionScreen({ navigation, route }) {
                 console.log('[ActiveSession] startMonitoring failed even with long window:', e?.message || e);
               }
 
-              // End notification strategy:
-              // - Foreground: use JS timer to fire at exact end (no early delivery quirk)
-              // - Background/Killed: also schedule an OS absolute-date notification as fallback
-              scheduleEndNotificationAtExactEnd(duration, { startAt: now, selectionId: selectionIdToUse });
-              
-              // Also schedule OS fallback notification for background/killed scenarios
+              // End notification strategy: Use ONLY OS absolute-date notification (like reminders do).
+              // This ensures reliable background delivery without JS timer conflicts.
               const osId = await scheduleEndNotification(duration, { startAt: now, selectionId: selectionIdToUse });
               endOsNotifIdRef.current = osId;
 
@@ -673,7 +630,6 @@ export default function ActiveSessionScreen({ navigation, route }) {
           }
           // Cancel notifications and timers
           try { if (endOsNotifIdRef.current) { await Notifications.cancelScheduledNotificationAsync(endOsNotifIdRef.current); endOsNotifIdRef.current = null; } } catch {}
-          try { if (notifyTimeoutRef.current) { clearTimeout(notifyTimeoutRef.current); notifyTimeoutRef.current = null; } } catch {}
         } catch (e) {
           console.log('[ActiveSession] Error during session completion:', e);
         }

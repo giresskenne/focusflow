@@ -29,6 +29,7 @@ import { setPremiumStatus } from './src/storage';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { setupGlobalErrorHandling } from './src/utils/errorHandling';
 import PolicyScreen from './src/screens/PolicyScreen';
+import { ToastProvider } from './src/contexts/ToastContext';
 
 const Stack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -86,7 +87,7 @@ export default function App() {
           shouldShowAlert: allow,
           shouldPlaySound: false,
           shouldSetBadge: false,
-          // iOS 17+ granular controls (Expo SDK new behavior)
+          // iOS 15+ granular controls (Expo SDK new behavior)
           shouldShowBanner: allow,
           shouldShowList: allow,
         };
@@ -310,13 +311,14 @@ export default function App() {
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <NavigationContainer theme={theme} ref={navigationRef}
-          onReady={async () => {
-            // On app start, restore any active session only once
-            try {
-              const s = await getSession();
-              if (s?.active && s?.endAt && s.endAt > Date.now()) {
-                const remaining = Math.max(1, Math.floor((s.endAt - Date.now()) / 1000));
+        <ToastProvider>
+          <NavigationContainer theme={theme} ref={navigationRef}
+            onReady={async () => {
+              // On app start, restore any active session only once
+              try {
+                const s = await getSession();
+                if (s?.active && s?.endAt && s.endAt > Date.now()) {
+                  const remaining = Math.max(1, Math.floor((s.endAt - Date.now()) / 1000));
                 // Small delay to ensure navigation is ready
                 setTimeout(() => {
                   if (navigationRef.isReady()) {
@@ -427,6 +429,7 @@ export default function App() {
           />
         )}
         </NavigationContainer>
+        </ToastProvider>
       </SafeAreaProvider>
     </ErrorBoundary>
   );

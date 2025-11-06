@@ -14,6 +14,9 @@ import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
 import PremiumModal from '../components/PremiumModal';
 import { performUpgrade } from '../lib/premiumUpgrade';
+import PermissionExplainerModal from '../components/ai/PermissionExplainerModal';
+import { requestPermissionWithFlow } from '../utils/permission-helper';
+import VoiceHint from '../components/ai/VoiceHint';
 
 export default function RemindersScreen({ navigation }) {
   const tabBarHeight = useBottomTabBarHeight();
@@ -30,6 +33,9 @@ export default function RemindersScreen({ navigation }) {
   const [isPremium, setIsPremium] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
+  const [showPermissionExplainer, setShowPermissionExplainer] = useState(false);
+  const [permissionGrantCallback, setPermissionGrantCallback] = useState(null);
+  const [showVoiceHint, setShowVoiceHint] = useState(true);
 
   // Hide tab bar when modal is open; otherwise ensure full style is restored
   useLayoutEffect(() => {
@@ -94,22 +100,12 @@ export default function RemindersScreen({ navigation }) {
   };
 
   const requestPermission = async () => {
-    // Always try to request first; iOS won't reprompt after hard denial but will
-    // return the current status. We'll deep-link to Settings in that case.
-    let current = await Notifications.getPermissionsAsync();
-    if (current.status !== 'granted') {
-      const res = await Notifications.requestPermissionsAsync();
-      current = res;
-    }
-    if (current.status !== 'granted') {
-      Alert.alert(
-        'Notifications Disabled',
-        'Please enable notifications in iOS Settings to use reminders.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Linking.openSettings?.() },
-        ],
-      );
+    const granted = await requestPermissionWithFlow('notifications', (onGrant) => {
+      setPermissionGrantCallback(() => onGrant);
+      setShowPermissionExplainer(true);
+    });
+    
+    if (!granted) {
       throw new Error('permission-denied');
     }
     return true;
@@ -588,6 +584,16 @@ export default function RemindersScreen({ navigation }) {
         </View>
       </View>
 
+      {/* Voice Hint - Show contextual voice command examples for reminders */}
+      {showVoiceHint && (
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          <VoiceHint 
+            context="reminders" 
+            onDismiss={() => setShowVoiceHint(false)}
+          />
+        </View>
+      )}
+
       {/* Reminders List */}
       <View style={styles.scrollContent}>
             {items.length === 0 ? (
@@ -635,6 +641,23 @@ export default function RemindersScreen({ navigation }) {
           if (ok) {
             setIsPremium(true);
             setShowPremium(false);
+          }
+        }}
+      />
+
+      {/* Permission Explainer Modal */}
+      <PermissionExplainerModal
+        visible={showPermissionExplainer}
+        permissionType="notifications"
+        onClose={() => {
+          setShowPermissionExplainer(false);
+          setPermissionGrantCallback(null);
+        }}
+        onGrant={async () => {
+          setShowPermissionExplainer(false);
+          if (permissionGrantCallback) {
+            await permissionGrantCallback();
+            setPermissionGrantCallback(null);
           }
         }}
       />

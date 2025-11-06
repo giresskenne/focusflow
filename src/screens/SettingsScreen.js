@@ -4,7 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getPremiumStatus, setPremiumStatus, getSettings, updateSettings, getAuthUser, clearAuthUser, hasLocalData, getMigrationFlag, setMigrationFlag, exportUserData, clearUserData } from '../storage';
+import { getPremiumStatus, setPremiumStatus, getSettings, updateSettings, getAuthUser, clearAuthUser, hasLocalData, getMigrationFlag, setMigrationFlag, exportUserData, clearUserData, setVoiceTutorialCompleted, getVoiceSettings, updateVoiceSettings } from '../storage';
 import MigrationPrompt from '../components/MigrationPrompt';
 import DataSyncPrompt from '../components/DataSyncPrompt';
 import { performMigrationUpload, pullCloudToLocal, hasCloudData } from '../lib/sync';
@@ -29,6 +29,10 @@ import AppBlocker from '../components/AppBlocker';
 import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
 import { seedDevAliases, clearDevAliases } from '../utils/devAliasSeeder';
+import VoiceTutorialModal from '../components/ai/VoiceTutorialModal';
+import PermissionExplainerModal from '../components/ai/PermissionExplainerModal';
+import { checkMicrophonePermission, requestPermissionWithFlow, getPermissionStatusInfo } from '../utils/permission-helper';
+import { FLAGS } from '../modules/ai';
 
 export default function SettingsScreen({ navigation }) {
   const [isPremium, setIsPremium] = useState(false);
@@ -41,13 +45,23 @@ export default function SettingsScreen({ navigation }) {
   const [hasCheckedMigration, setHasCheckedMigration] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
   const [showSyncPrompt, setShowSyncPrompt] = useState(false);
+  const [showVoiceTutorial, setShowVoiceTutorial] = useState(false);
   const [notifPerm, setNotifPerm] = useState({ status: 'unknown', canAskAgain: true });
   const [screenTimePerm, setScreenTimePerm] = useState('unknown'); // 'approved' | 'denied' | 'unknown' | 'not-available'
+  const [micPerm, setMicPerm] = useState('undetermined'); // 'granted' | 'denied' | 'undetermined'
+  const [showPermissionExplainer, setShowPermissionExplainer] = useState(false);
+  const [permissionExplainerType, setPermissionExplainerType] = useState('microphone');
+  const [permissionGrantCallback, setPermissionGrantCallback] = useState(null);
+  const [showPremium, setShowPremium] = useState(false);
+  
+  // Voice settings
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [ttsEnabled, setTtsEnabled] = useState(true);
 
   // Feature flag: enable actual cloud upload when explicitly turned on
   const ENABLE_MIGRATION_UPLOAD = process.env.EXPO_PUBLIC_ENABLE_MIGRATION_UPLOAD === 'true';
   const ENABLE_IOS_BLOCKING_DEV = process.env.EXPO_PUBLIC_ENABLE_IOS_BLOCKING_DEV === 'true';
-  const AI_VOICE_ENABLED = process.env.EXPO_PUBLIC_AI_VOICE_ENABLED === 'true';
+  const AI_VOICE_ENABLED = FLAGS.AI_VOICE_ENABLED;
   const IS_DEV = process.env.EXPO_PUBLIC_ENV === 'development';
 
   useEffect(() => {
@@ -70,12 +84,22 @@ export default function SettingsScreen({ navigation }) {
       setMotivationMsgs(settings.motivationMessages);
       setAnalytics(settings.analytics);
 
+      // Load voice settings
+      const voiceSettings = await getVoiceSettings();
+      setVoiceEnabled(voiceSettings.voiceEnabled);
+      setTtsEnabled(voiceSettings.ttsEnabled);
+
       setAuthUserState(storedUser);
 
       // Load permissions
       try {
         const np = await Notifications.getPermissionsAsync();
         setNotifPerm({ status: np.status, canAskAgain: np.canAskAgain ?? true });
+      } catch {}
+
+      try {
+        const micStatus = await checkMicrophonePermission();
+        setMicPerm(micStatus);
       } catch {}
 
       try {
@@ -144,12 +168,14 @@ export default function SettingsScreen({ navigation }) {
     await updateSettings({ [key]: value });
   };
 
+  const updateVoiceSetting = async (key, value) => {
+    await updateVoiceSettings({ [key]: value });
+  };
+
   const handlePremiumPress = () => {
     console.log('[Settings] Upgrade pressed. IAP ready?', IAP.isReady());
     setShowPremium(true);
   };
-
-  const [showPremium, setShowPremium] = useState(false);
 
   const handleRateApp = () => {
     Alert.alert('Rate FocusFlow', 'Rate us on the App Store!');
@@ -219,6 +245,27 @@ export default function SettingsScreen({ navigation }) {
       const np = await Notifications.getPermissionsAsync();
       setNotifPerm({ status: np.status, canAskAgain: np.canAskAgain ?? true });
     } catch {}
+  };
+
+  const refreshMicPerm = async () => {
+    try {
+      const status = await checkMicrophonePermission();
+      setMicPerm(status);
+    } catch (error) {
+      console.error('[SettingsScreen] Error checking mic permission:', error);
+    }
+  };
+
+  const requestMicrophone = async () => {
+    const granted = await requestPermissionWithFlow('microphone', (onGrant) => {
+      setPermissionGrantCallback(() => onGrant);
+      setPermissionExplainerType('microphone');
+      setShowPermissionExplainer(true);
+    });
+    
+    if (granted) {
+      await refreshMicPerm();
+    }
   };
 
   const requestNotifications = async () => {
@@ -381,6 +428,36 @@ export default function SettingsScreen({ navigation }) {
               )}
             </View>
 
+            {/* Microphone Permission - only show if AI voice is enabled */}
+            {AI_VOICE_ENABLED && (
+              <>
+                <View style={styles.divider} />
+                
+                <View style={styles.settingsItem}>
+                  <View style={styles.settingsItemContent}>
+                    <View style={[styles.iconCircle, { backgroundColor: 'rgba(99, 102, 241, 0.2)' }]}>
+                      <InfoIcon color={colors.primary} size={20} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.settingsItemTitle}>Microphone</Text>
+                      <Text style={styles.settingsItemSubtitle}>
+                        {getPermissionStatusInfo(micPerm).label}
+                      </Text>
+                    </View>
+                  </View>
+                  {micPerm === 'granted' ? (
+                    <Text style={styles.settingsItemSubtitle}>On</Text>
+                  ) : (
+                    <TouchableOpacity onPress={micPerm === 'denied' ? () => Linking.openSettings?.() : requestMicrophone}>
+                      <Text style={[styles.upgradeButtonText, { color: colors.primary }]}>
+                        {micPerm === 'denied' ? 'Open Settings' : 'Allow'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </>
+            )}
+
             <View style={styles.divider} />
 
             {/* Screen Time (iOS) */}
@@ -410,6 +487,88 @@ export default function SettingsScreen({ navigation }) {
             )}
           </GlassCard>
         </View>
+
+        {/* Voice Assistant Section - only show if AI voice is enabled */}
+        {AI_VOICE_ENABLED && (
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>VOICE ASSISTANT</Text>
+
+            <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: 0 }} style={styles.groupCardOuter}>
+              {/* Master Voice Toggle */}
+              <View style={styles.settingsItem}>
+                <View style={styles.settingsItemContent}>
+                  <View style={[styles.iconCircle, { backgroundColor: 'rgba(99, 102, 241, 0.2)' }]}>
+                    <InfoIcon color={colors.primary} size={20} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingsItemTitle}>Enable Voice Commands</Text>
+                    <Text style={styles.settingsItemSubtitle}>Use voice to control Mada</Text>
+                  </View>
+                </View>
+                <Switch 
+                  value={voiceEnabled} 
+                  onValueChange={(value) => {
+                    setVoiceEnabled(value);
+                    updateVoiceSetting('voiceEnabled', value);
+                  }} 
+                />
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* TTS Toggle */}
+              <View style={styles.settingsItem}>
+                <View style={styles.settingsItemContent}>
+                  <View style={[styles.iconCircle, { backgroundColor: 'rgba(99, 102, 241, 0.2)' }]}>
+                    <InfoIcon color={colors.primary} size={20} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingsItemTitle}>Voice Responses</Text>
+                    <Text style={styles.settingsItemSubtitle}>Mada speaks confirmations</Text>
+                  </View>
+                </View>
+                <Switch 
+                  value={ttsEnabled} 
+                  onValueChange={(value) => {
+                    setTtsEnabled(value);
+                    updateVoiceSetting('ttsEnabled', value);
+                  }} 
+                  disabled={!voiceEnabled}
+                />
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* TTS Provider (future: could add Google TTS) */}
+              <TouchableOpacity 
+                style={[styles.settingsItem, !voiceEnabled && styles.disabledItem]}
+                onPress={() => {
+                  if (!voiceEnabled) return;
+                  Alert.alert(
+                    'Voice Provider',
+                    'Currently using iOS system voice. More voice options coming soon!',
+                    [{ text: 'OK' }]
+                  );
+                }}
+              >
+                <View style={styles.settingsItemContent}>
+                  <View style={[styles.iconCircle, { backgroundColor: 'rgba(99, 102, 241, 0.2)' }]}>
+                    <InfoIcon color={colors.primary} size={20} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.settingsItemTitle, !voiceEnabled && styles.disabledText]}>
+                      Voice Provider
+                    </Text>
+                    <Text style={[styles.settingsItemSubtitle, !voiceEnabled && styles.disabledText]}>
+                      iOS System Voice
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRightIcon color={voiceEnabled ? colors.mutedForeground : colors.border} size={20} />
+              </TouchableOpacity>
+            </GlassCard>
+          </View>
+        )}
 
         {/* Preferences Section */}
         <View style={styles.section}>
@@ -595,6 +754,27 @@ export default function SettingsScreen({ navigation }) {
               </View>
               <Text style={styles.settingsItemSubtitle}>1.0.0</Text>
             </View>
+
+            {/* Voice Assistant Tutorial - show if AI voice is enabled */}
+            {AI_VOICE_ENABLED && (
+              <>
+                <View style={styles.divider} />
+                
+                <TouchableOpacity 
+                  style={styles.settingsItem} 
+                  onPress={() => setShowVoiceTutorial(true)}
+                >
+                  <View style={styles.settingsItemContent}>
+                    <HelpCircleIcon color={colors.primary} size={20} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.settingsItemTitle}>Voice Assistant Tutorial</Text>
+                      <Text style={styles.settingsItemSubtitle}>Learn how to use Mada</Text>
+                    </View>
+                  </View>
+                  <ChevronRightIcon color={colors.mutedForeground} size={20} />
+                </TouchableOpacity>
+              </>
+            )}
 
             <View style={styles.divider} />
 
@@ -877,6 +1057,33 @@ export default function SettingsScreen({ navigation }) {
         onLater={() => setShowSyncPrompt(false)}
         onClose={() => setShowSyncPrompt(false)}
       />
+
+      {/* Voice Tutorial Modal */}
+      <VoiceTutorialModal
+        visible={showVoiceTutorial}
+        onClose={() => setShowVoiceTutorial(false)}
+        onComplete={async () => {
+          await setVoiceTutorialCompleted(true);
+          setShowVoiceTutorial(false);
+        }}
+      />
+
+      {/* Permission Explainer Modal */}
+      <PermissionExplainerModal
+        visible={showPermissionExplainer}
+        permissionType={permissionExplainerType}
+        onClose={() => {
+          setShowPermissionExplainer(false);
+          setPermissionGrantCallback(null);
+        }}
+        onGrant={async () => {
+          setShowPermissionExplainer(false);
+          if (permissionGrantCallback) {
+            await permissionGrantCallback();
+            setPermissionGrantCallback(null);
+          }
+        }}
+      />
       </SafeAreaView>
     </GradientBackground>
   );
@@ -1069,6 +1276,9 @@ const styles = StyleSheet.create({
   },
   disabledItem: {
     opacity: 0.5,
+  },
+  disabledText: {
+    opacity: 0.6,
   },
   settingsItemContent: {
     flex: 1,

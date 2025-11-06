@@ -1,7 +1,8 @@
 // OpenAI TTS provider using expo-av for playback and expo-file-system for temp storage
 // Requires:
 // - EXPO_PUBLIC_OPENAI_API_KEY set in env (do NOT hardcode secrets)
-// - EXPO_PUBLIC_AI_TTS_VOICE optional (defaults to 'alloy'). Valid examples: 'alloy', 'aria', 'verse', 'sol', 'luna'
+// - EXPO_PUBLIC_AI_TTS_VOICE optional (defaults to 'alloy'). Valid examples (as of 2025-11):
+//   'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer', 'coral', 'verse', 'ballad', 'ash', 'sage', 'marin', 'cedar'
 // - expo-av and expo-file-system deps
 
 // Use legacy API for writeAsStringAsync/deleteAsync on Expo SDK 54+
@@ -11,6 +12,12 @@ let Audio; // lazy import expo-av to avoid issues in web builds
 let currentSound = null;
 
 const OPENAI_TTS_MODEL = 'gpt-4o-mini-tts';
+
+// Keep an allowlist in code so we can validate and avoid 400s that force a fallback
+const SUPPORTED_VOICES = new Set([
+  'alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer',
+  'coral', 'verse', 'ballad', 'ash', 'sage', 'marin', 'cedar',
+]);
 
 function getEnv(name, fallback = undefined) {
   try {
@@ -123,7 +130,13 @@ export async function speak(text, opts = {}) {
       return;
     }
 
-    const voice = (opts?.voice || getEnv('EXPO_PUBLIC_AI_TTS_VOICE', 'alloy')).trim();
+    let voice = (opts?.voice || getEnv('EXPO_PUBLIC_AI_TTS_VOICE', 'alloy') || 'alloy').trim().toLowerCase();
+    if (!SUPPORTED_VOICES.has(voice)) {
+      console.warn(
+        `[OpenAI TTS] voice "${voice}" not supported. Falling back to 'alloy'.`
+      );
+      voice = 'alloy';
+    }
     const format = 'mp3';
 
     // Stop any existing sound
@@ -133,7 +146,7 @@ export async function speak(text, opts = {}) {
     } catch (e) {}
 
     // Call OpenAI TTS API
-    const res = await fetch('https://api.openai.com/v1/audio/speech', {
+    let resp = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${key}`,
@@ -147,14 +160,42 @@ export async function speak(text, opts = {}) {
       }),
     });
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      console.warn('[OpenAI TTS] request failed', res.status, errText?.slice(0, 200));
-      return;
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '');
+      console.warn('[OpenAI TTS] request failed', resp.status, errText?.slice(0, 200));
+      // If the error is due to voice param, try one more time with 'alloy' before falling back
+      if (!SUPPORTED_VOICES.has(voice)) {
+        voice = 'alloy';
+      }
+      if (!errText || /Invalid value: '.*'/.test(errText)) {
+        try {
+          const retry = await fetch('https://api.openai.com/v1/audio/speech', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${key}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ model: OPENAI_TTS_MODEL, voice, input: String(text), format }),
+          });
+          if (!retry.ok) {
+            // Fallback to device speech
+            await fallbackSpeakWithSpeech(text, opts);
+            return;
+          }
+          resp = retry;
+        } catch {
+          await fallbackSpeakWithSpeech(text, opts);
+          return;
+        }
+      } else {
+        // Fallback to device speech if OpenAI returns an error
+        await fallbackSpeakWithSpeech(text, opts);
+        return;
+      }
     }
 
     // React Native fetch doesn't support res.blob reliably; use base64 path
-    const base64 = await res.arrayBuffer().then((buf) => toBase64(new Uint8Array(buf)));
+  const base64 = await resp.arrayBuffer().then((buf) => toBase64(new Uint8Array(buf)));
 
     // Write temp file
     const fileUri = FileSystem.cacheDirectory + `openai-tts-${Date.now()}.mp3`;
