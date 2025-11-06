@@ -12,7 +12,8 @@
     "ios": "expo run:ios",
     "build:ios:dev": "eas build -p ios --profile development",
     "build:ios:prod": "eas build -p ios --profile production",
-    "submit:ios": "eas submit -p ios --latest"
+    "submit:ios": "eas submit -p ios --latest",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -54,7 +55,9 @@
   "devDependencies": {
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^13.3.3",
-    "jest-expo": "^54.0.13"
+    "jest-expo": "^54.0.13",
+    "patch-package": "^8.0.1",
+    "postinstall-postinstall": "^2.1.0"
   },
   "jest": {
     "preset": "jest-expo"

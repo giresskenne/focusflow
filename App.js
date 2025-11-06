@@ -14,8 +14,7 @@ import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';
-import BrandedSplash from './src/components/BrandedSplash';
-import AnimatedSplashParticles from './src/components/AnimatedSplashParticles';
+// Static splash is configured in app.json; no animated overlay
 import { AppState } from 'react-native';
 import theme from './src/theme';
 import { initializeAuth, setupAuthListener } from './src/lib/auth';
@@ -40,16 +39,11 @@ export default function App() {
   const [showMigration, setShowMigration] = useState(false);
   const [showSyncPrompt, setShowSyncPrompt] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
-  const [showBrandSplash, setShowBrandSplash] = useState(true);
+  // Animated splash removed; rely on Expo static splash
   const [onboardingCompleted, setOnboardingCompletedState] = useState(false);
   const [isOnboardingLoading, setIsOnboardingLoading] = useState(true);
 
-  // Auto-hide splash overlay after the animation completes as a fallback
-  useEffect(() => {
-    if (!showBrandSplash) return;
-    const t = setTimeout(() => setShowBrandSplash(false), 1400);
-    return () => clearTimeout(t);
-  }, [showBrandSplash]);
+  // No animated splash overlay
 
   // Load onboarding completion status
   useEffect(() => {
@@ -71,25 +65,47 @@ export default function App() {
     // Initialize global error handling
     setupGlobalErrorHandling();
 
-    // Global notifications behavior: prevent premature foreground alerts for
-    // our "focus-end" notifications by checking an intended fire timestamp.
+    // Request notification permissions early (required for iOS background notifications)
+    (async () => {
+      try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        
+        if (finalStatus !== 'granted') {
+          console.warn('[App] Notification permissions not granted');
+        } else {
+          console.log('[App] Notification permissions granted');
+        }
+      } catch (error) {
+        console.error('[App] Error requesting notification permissions:', error);
+      }
+    })();
+
+    // Global notifications behavior: Handle foreground presentation
+    // For background, iOS system handles delivery automatically
     Notifications.setNotificationHandler({
       handleNotification: async (notification) => {
         const data = notification?.request?.content?.data || {};
         const intendedAt = typeof data?.intendedAt === 'number' ? data.intendedAt : null;
         const now = Date.now();
         const isFocusEnd = data?.type === 'focus-end';
-        // Allow if: not focus-end, no intendedAt, or within 5 seconds of intended time (tolerance for scheduling precision)
-        const premature = isFocusEnd && intendedAt && now < (intendedAt - 5000);
-        const allow = !premature;
+        
+        // Check if notification is premature (tighter 2-second tolerance)
+        const premature = isFocusEnd && intendedAt && now < (intendedAt - 2000);
+        
+        // Foreground presentation: suppress early, allow near/on-time
         return {
-          // Android
-          shouldShowAlert: allow,
-          shouldPlaySound: false,
+          shouldShowAlert: !premature,
+          shouldShowBanner: !premature,
+          shouldShowList: !premature,
+          // Avoid double sound in foreground; system will play in background
+          shouldPlaySound: !premature,
           shouldSetBadge: false,
-          // iOS 15+ granular controls (Expo SDK new behavior)
-          shouldShowBanner: allow,
-          shouldShowList: allow,
         };
       },
     });
@@ -180,15 +196,7 @@ export default function App() {
     return unsubscribe;
   }, []);
 
-  // Hide branded overlay after initial work and a short brand moment
-  useEffect(() => {
-    if (!isAuthLoading) {
-      const t = setTimeout(async () => {
-        setShowBrandSplash(false);
-      }, 1200);
-      return () => clearTimeout(t);
-    }
-  }, [isAuthLoading]);
+  // No overlay timing needed
 
   // Listen for entitlement changes (e.g., refunds, renewals) and mirror to premium flag
   useEffect(() => {
@@ -417,17 +425,7 @@ export default function App() {
           onClose={() => setShowSyncPrompt(false)}
         />
 
-        {showBrandSplash && (
-          <AnimatedSplashParticles 
-            variant="bubbles"
-            count={18}
-            total={1100}
-            primary="#8900f5"
-            accent="#0072ff"
-            showLogo
-            onDone={() => setShowBrandSplash(false)}
-          />
-        )}
+        {/* Animated splash removed */}
         </NavigationContainer>
         </ToastProvider>
       </SafeAreaProvider>

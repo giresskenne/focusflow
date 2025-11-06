@@ -513,81 +513,16 @@ export default function HomeScreen({ navigation }) {
           <TouchableOpacity 
             style={[styles.playButtonWrapper, compact && { marginVertical: spacing.xs }]}
             onPress={() => navigation.navigate('FocusSession')}
-            onPressIn={() => Animated.timing(bounceAnim, { toValue: 0.9, duration: 120, useNativeDriver: true }).start()}
-            onPressOut={() => Animated.timing(bounceAnim, { toValue: 1, duration: 120, useNativeDriver: true }).start()}
+            onPressIn={() => Animated.timing(bounceAnim, { toValue: 0.95, duration: 100, useNativeDriver: true }).start()}
+            onPressOut={() => Animated.timing(bounceAnim, { toValue: 1, duration: 100, useNativeDriver: true }).start()}
             accessibilityLabel="Start Focus Session"
             accessibilityRole="button"
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
-            <Animated.View
-              style={[styles.playSystem, { transform: [{ scale: bounceAnim }] }]}
-            >
-              {/* soft outer halo */}
-              <View style={styles.playHalo} />
-              <View style={styles.playHaloBlue} />
-              {/* orbit rings (outer blue, inner purple) */}
-              <View style={styles.playRingBlue} />
-              <View style={styles.playRingPurple} />
-              {/* faint extra rings handled by animated orbits below */}
-              {/* inner gradient button */}
-              <LinearGradient
-                colors={[colors.secondary, colors.secondary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.playInner}
-              >
-                {/* subtle top highlight + inner dark disc to match reference */}
-                <View style={styles.playHighlight} />
-                <View style={styles.playTriangle} />
-              </LinearGradient>
-              {/* rotating corona */}
-              <Animated.View
-                style={[
-                  styles.playCorona,
-                  {
-                    transform: [{
-                      rotate: coronaAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] })
-                    }]
-                  }
-                ]}
-              />
-
-              {/* Animated orbits with planets */}
-              {(() => {
-                const base = controlSizes.play.outer; // 120 default
-                const defs = [
-                  { key: 'mercury', mul: 0.95, dur: 4000, dot: 6, colors: ['#d1d5db', '#9ca3af'] },
-                  { key: 'venus',   mul: 1.17, dur: 6000, dot: 7, colors: ['#fef3c7', '#fcd34d'] },
-                  { key: 'earth',   mul: 1.42, dur: 8000, dot: 8, colors: ['#60a5fa', '#34d399'] },
-                  { key: 'mars',    mul: 1.75, dur: 10000, dot: 7, colors: ['#f87171', '#dc2626'] },
-                ];
-                const vals = [orbit1, orbit2, orbit3, orbit4];
-                return defs.map((o, idx) => {
-                  const size = Math.round(base * o.mul);
-                  const rotate = vals[idx].interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-                  return (
-                    <Animated.View 
-                      key={o.key} 
-                      style={[
-                        styles.orbit, 
-                        { 
-                          width: size, 
-                          height: size, 
-                          transform: [{ rotate }],
-                          borderColor: `rgba(255,255,255, ${0.12 - idx * 0.02})`
-                        }
-                      ]}
-                    >
-                      <LinearGradient colors={o.colors} start={{x:0,y:0}} end={{x:1,y:1}} style={{ width: o.dot, height: o.dot, borderRadius: o.dot/2, transform: [{ translateX: size/2 }], shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 6 }} />
-                    </Animated.View>
-                  );
-                });
-              })()}
-
-              {/* Stars */}
-              <Animated.View style={[styles.star, { left: '25%', top: '25%', transform: [{ scale: star1.interpolate({ inputRange: [0,1], outputRange: [1, 2] }) }], opacity: star1.interpolate({ inputRange: [0,1], outputRange: [1, 0] }) }]} />
-              <Animated.View style={[styles.star, { left: '33%', bottom: '22%', transform: [{ scale: star2.interpolate({ inputRange: [0,1], outputRange: [1, 2] }) }], opacity: star2.interpolate({ inputRange: [0,1], outputRange: [1, 0] }) }]} />
-              <Animated.View style={[styles.star, { right: '25%', top: '33%', transform: [{ scale: star3.interpolate({ inputRange: [0,1], outputRange: [1, 2] }) }], opacity: star3.interpolate({ inputRange: [0,1], outputRange: [1, 0] }) }]} />
+            <Animated.View style={[styles.playButtonOuter, { transform: [{ scale: bounceAnim }] }]}> 
+              <View style={styles.playButton}>
+                <View style={styles.playIcon} />
+              </View>
             </Animated.View>
           </TouchableOpacity>
         </View>
@@ -692,7 +627,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     justifyContent: 'center',
     alignItems: 'center', 
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     position: 'relative',
   },
   title: { 
@@ -737,7 +672,7 @@ const styles = StyleSheet.create({
   heroCard: {
     width: '100%',
     marginBottom: spacing.xl,
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.lg,
     alignItems: 'center',
   },
   heroTextSection: {
@@ -755,6 +690,40 @@ const styles = StyleSheet.create({
     fontSize: typography.sm,
     color: colors.mutedForeground,
     textAlign: 'center',
+  },
+  // Reverted simple play button visuals
+  playButtonWrapper: {
+    marginVertical: spacing.lg,
+  },
+  playButtonOuter: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    borderColor: '#0072ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0, 114, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playIcon: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 20,
+    borderRightWidth: 0,
+    borderTopWidth: 12,
+    borderBottomWidth: 12,
+    borderLeftColor: '#0072ff',
+    borderRightColor: 'transparent',
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    marginLeft: 4,
   },
   playButtonWrapper: {
     marginVertical: spacing.lg,

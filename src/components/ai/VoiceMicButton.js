@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, TouchableOpacity, Modal, TextInput, Text, StyleSheet, Alert, Animated, Platform, NativeModules } from 'react-native';
+import { View, TouchableOpacity, Modal, TextInput, Text, StyleSheet, Alert, Animated, Platform, NativeModules, KeyboardAvoidingView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -800,7 +800,8 @@ export default function VoiceMicButton({ style }) {
   // Position to overlap the tab bar like the reference
   const TAB_BOTTOM_MARGIN = 16; // from TabNavigator
   const TAB_HEIGHT = 64;        // from TabNavigator
-  const computedBottom = insets.bottom + TAB_BOTTOM_MARGIN + (TAB_HEIGHT - controlSizes.mic.size) / 2 + 8;
+  // Lower the mic slightly so it sits deeper into the tab bar
+  const computedBottom = insets.bottom + TAB_BOTTOM_MARGIN + (TAB_HEIGHT - controlSizes.mic.size) / 2 - 6;
 
   return (
     <>
@@ -882,8 +883,20 @@ export default function VoiceMicButton({ style }) {
       
       {/* Manual Text Input Modal */}
       <Modal visible={manualOpen} transparent animationType="fade" onRequestClose={() => setManualOpen(false)}>
-        <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={insets.bottom + 24}
+        >
           <View style={styles.card}>
+            <TouchableOpacity
+              onPress={() => setManualOpen(false)}
+              style={styles.modalClose}
+              accessibilityLabel="Close"
+              hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+            >
+              <Ionicons name="close" size={20} color={colors.mutedForeground} />
+            </TouchableOpacity>
             <Text style={styles.title}>Type a command</Text>
             <TextInput
               value={text}
@@ -902,7 +915,7 @@ export default function VoiceMicButton({ style }) {
               <Text style={styles.cancel}>Cancel</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Permission Explainer Modal */}
@@ -1002,8 +1015,11 @@ const styles = StyleSheet.create({
     width: '86%', 
     maxWidth: 420, 
     borderRadius: radius['2xl'],
-    backgroundColor: '#11151a', 
-    padding: spacing['2xl'], 
+    // Use a more opaque dark surface so content is readable over background
+    backgroundColor: '#0c1117', 
+    padding: spacing['2xl'],
+    // Add extra bottom padding so Cancel isn’t cramped near keyboard
+    paddingBottom: spacing['3xl'], 
     borderWidth: 1, 
     borderColor: 'rgba(255,255,255,0.08)'
   },
@@ -1036,6 +1052,17 @@ const styles = StyleSheet.create({
   cancel: { 
     color: colors.mutedForeground, 
     textAlign: 'center', 
-    marginTop: spacing.sm 
+    // More space between Run and Cancel
+    marginTop: spacing.lg 
+  },
+  modalClose: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    padding: spacing.sm,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    // Ensure the close button sits above other content for reliable taps
+    zIndex: 2
   },
 });

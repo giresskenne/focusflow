@@ -118,6 +118,7 @@ export async function scheduleOneTime(reminder) {
         body: `Time to ${message}`,
         data: { type: 'one-time', message },
         sound: true,
+        interruptionLevel: 'timeSensitive', // Break through Focus modes
       },
       trigger: {
         seconds,
@@ -164,6 +165,7 @@ export async function scheduleDaily(reminder) {
         body: `Time to ${message}`,
         data: { type: 'daily', message },
         sound: true,
+        interruptionLevel: 'timeSensitive',
       },
       trigger: {
         hour: parsedTime.hour,
@@ -217,6 +219,7 @@ export async function scheduleWeekly(reminder) {
           body: `Time to ${message}`,
           data: { type: 'weekly', message, day },
           sound: true,
+          interruptionLevel: 'timeSensitive',
         },
         trigger: {
           weekday: dayNum,
