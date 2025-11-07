@@ -2,6 +2,8 @@
 // If the native module isn't available (Expo Go, missing build, etc.),
 // we expose isAvailable=false and fall back to typed input in the UI.
 
+import { Platform } from 'react-native';
+
 let RNVoice = null;
 let interimTimer = null;
 let lastText = '';
@@ -44,6 +46,9 @@ export async function start(onResult, onError) {
   try {
     // CRITICAL: Always destroy previous session completely before starting new one
     await stop();
+    
+    // Add delay to ensure audio session is fully released
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     // Clear any existing listeners
     if (RNVoice.removeAllListeners) {
@@ -92,19 +97,33 @@ export async function start(onResult, onError) {
         try { clearTimeout(interimTimer); } catch {} 
         interimTimer = null; 
       }
-      onError?.(new Error(e?.error?.message || 'stt-error'));
+      const errorMsg = e?.error?.message || e?.error || 'stt-error';
+      console.warn('[STT] error', errorMsg);
+      onError?.(new Error(errorMsg));
     };
 
     // iOS will prompt for mic/speech permissions the first time start() is invoked
-    await RNVoice.start?.('en-US');
-    // Watchdog: if engine doesn't report start within 1200ms, treat as failure
+    // Use iOS-specific options to fix audio format issues
+    const options = {
+      locale: 'en-US',
+      // iOS-specific: prevent audio session conflicts
+      ...(Platform.OS === 'ios' ? {
+        interimResults: true,
+        maxResults: 5,
+      } : {}),
+    };
+    
+    await RNVoice.start?.(options.locale, options);
+    
+    // Watchdog: if engine doesn't report start within 1500ms, treat as failure
     startWatchdog = setTimeout(async () => {
       if (!didStart) {
+        console.warn('[STT] Start timeout - engine did not report ready');
         try { await RNVoice.cancel?.(); } catch {}
         try { await RNVoice.destroy?.(); } catch {}
         onError?.(new Error('stt-not-started'));
       }
-    }, 1200);
+    }, 1500);
   } catch (e) {
     onError?.(e);
   }

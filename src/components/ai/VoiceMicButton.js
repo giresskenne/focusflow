@@ -9,7 +9,7 @@ import { colors, radius, spacing, typography, controlSizes, effects } from '../.
 import { FLAGS, STTService, handleUtterance } from '../../modules/ai';
 import { speak as ttsSpeak, stop as ttsStop, isAvailable as ttsAvailable } from '../../modules/ai/voice/tts-service';
 import { isFamilyPickerAvailable } from '../../modules/ai/aliases/alias-native';
-import { parseIntent } from '../../modules/ai/nlu/intent-parser';
+import { parseIntentHybrid, trackResponseTime } from '../../modules/ai/nlu/hybrid-intent-service';
 import { updateContext, needsClarification } from '../../modules/ai/conversation-context';
 import { getGuidancePrompt, isConfirmation } from '../../modules/ai/nlu/intent-classifier';
 import { executeReminder } from '../../modules/ai/executor/reminder-executor';
@@ -45,6 +45,7 @@ export default function VoiceMicButton({ style }) {
   const busyRef = useRef(false);
   const lastUtteranceRef = useRef('');
   const pendingIntentRef = useRef(null); // For storing unclear-action intents
+  const responseStartTimeRef = useRef(null); // Track when user stopped speaking for response time measurement
   
   // Undo state - store last action for undo capability
   const lastActionRef = useRef(null); // { type: 'reminder'|'session', data: {...} }
@@ -205,11 +206,22 @@ export default function VoiceMicButton({ style }) {
       
     } catch (error) {
       console.error('[VoiceMicButton] Failed to undo session:', error);
-      showToast('Could not cancel session', { type: 'error' });
+            showToast('Could not cancel session', { type: 'error' });
     }
   };
 
-  const runText = async (utterance) => {
+  // Helper to track response time when TTS speaks
+  const speakAndTrack = (text, opts) => {
+    if (responseStartTimeRef.current) {
+      const responseTime = Date.now() - responseStartTimeRef.current;
+      trackResponseTime(responseTime);
+      console.log(`[VoiceMicButton] Response time: ${responseTime}ms`);
+      responseStartTimeRef.current = null; // Reset after tracking
+    }
+    return ttsSpeak(text, opts);
+  };
+
+  const runText = async (utterance, preParsedIntent = null) => {
     if (!utterance?.trim()) return;
     lastUtteranceRef.current = utterance;
     console.log('[VoiceMicButton] Running utterance:', utterance);
@@ -229,15 +241,20 @@ export default function VoiceMicButton({ style }) {
       } else if (confirmation === false) {
         // User cancelled
         pendingIntentRef.current = null;
-        if (ttsEnabled) ttsSpeak('Okay, cancelled.');
+        if (ttsEnabled) speakAndTrack('Okay, cancelled.');
         return;
       }
       // If unclear, continue processing as new command
       pendingIntentRef.current = null;
     }
     
-    // Parse intent first (includes classification)
-    const intent = await parseIntent(utterance, { allowDefaultDuration: false });
+    // Use pre-parsed intent if provided (from STT), otherwise parse now
+    const intent = preParsedIntent || await parseIntentHybrid(utterance, { allowDefaultDuration: false });
+    
+    // Log telemetry metadata if present (only if we just parsed)
+    if (!preParsedIntent && intent?.metadata) {
+      console.log(`[VoiceMicButton] Parse: ${intent.metadata.source} (confidence: ${intent.metadata.confidence}, ${intent.metadata.parseTime}ms)`);
+    }
     
     // Handle classification-based guidance
     if (intent?.needsGuidance && intent.classification) {
@@ -246,7 +263,7 @@ export default function VoiceMicButton({ style }) {
       const guidance = getGuidancePrompt(intent.classification, intent);
       if (guidance) {
         if (guidance.shouldSpeak && ttsEnabled) {
-          ttsSpeak(guidance.message);
+          speakAndTrack(guidance.message);
         }
         
         // For unclear-action, store intent and wait for confirmation
@@ -284,7 +301,7 @@ export default function VoiceMicButton({ style }) {
       
       if (clarification.missing === 'duration') {
         // Missing duration - prompt with suggestions
-        if (ttsEnabled) ttsSpeak(clarification.question);
+        if (ttsEnabled) speakAndTrack(clarification.question);
         Alert.alert(clarification.question, 'Choose a duration:', [
           ...clarification.suggestions.map((sugg, idx) => ({
             text: sugg,
@@ -309,7 +326,7 @@ export default function VoiceMicButton({ style }) {
       
       if (clarification.missing === 'target') {
         // Missing target - prompt with suggestions
-        if (ttsEnabled) ttsSpeak(clarification.question);
+        if (ttsEnabled) speakAndTrack(clarification.question);
         Alert.alert(clarification.question, 'Choose apps to block:', [
           ...clarification.suggestions.map((sugg) => ({
             text: sugg,
@@ -323,7 +340,7 @@ export default function VoiceMicButton({ style }) {
       
       if (clarification.missing === 'message' || clarification.missing === 'time') {
         // Missing reminder details - prompt with suggestions
-        if (ttsEnabled) ttsSpeak(clarification.question);
+        if (ttsEnabled) speakAndTrack(clarification.question);
         Alert.alert(clarification.question, 'Choose or say:', [
           ...clarification.suggestions.map((sugg) => ({
             text: sugg,
@@ -346,14 +363,14 @@ export default function VoiceMicButton({ style }) {
       if (!reminderResult.ok) {
         if (reminderResult.needsPermission) {
           // Permission denied
-          if (ttsEnabled) ttsSpeak('I need notification permissions to set reminders. Please enable them in Settings.');
+          if (ttsEnabled) speakAndTrack('I need notification permissions to set reminders. Please enable them in Settings.');
           showToast(
             'Notification permissions are needed to set reminders. Please enable them in Settings.',
             { type: 'error', duration: 6000 }
           );
         } else {
           // Other error
-          if (ttsEnabled) ttsSpeak('Sorry, I couldn\'t set that reminder. Please try again.');
+          if (ttsEnabled) speakAndTrack('Sorry, I couldn\'t set that reminder. Please try again.');
           showToast(reminderResult.error || 'Failed to set reminder', { type: 'error' });
         }
         return;
@@ -365,7 +382,7 @@ export default function VoiceMicButton({ style }) {
         // Create a confirmation token to guard against late acks
         const token = { id: Date.now(), cancelled: false };
         reminderConfirmTokenRef.current = token;
-        if (ttsEnabled) ttsSpeak(confirmMsg);
+        if (ttsEnabled) speakAndTrack(confirmMsg);
         
         Alert.alert('Confirm Reminder', confirmMsg, [
           { 
@@ -388,7 +405,7 @@ export default function VoiceMicButton({ style }) {
               
               if (!reminderConfirmTokenRef.current?.cancelled && applyResult.ok && applyResult.confirmation) {
                 // Success - speak confirmation and show toast with undo
-                if (ttsEnabled) ttsSpeak(applyResult.confirmation);
+                if (ttsEnabled) speakAndTrack(applyResult.confirmation);
                 
                 // Store action for undo
                 storeLastAction('reminder', {
@@ -405,7 +422,7 @@ export default function VoiceMicButton({ style }) {
                 });
               } else {
                 // Error applying
-                if (!reminderConfirmTokenRef.current?.cancelled && ttsEnabled) ttsSpeak('Sorry, I couldn\'t set that reminder.');
+                if (!reminderConfirmTokenRef.current?.cancelled && ttsEnabled) speakAndTrack('Sorry, I couldn\'t set that reminder.');
                 showToast(applyResult.error || 'Failed to set reminder', { type: 'error' });
               }
               // Clear token after handling
@@ -445,7 +462,7 @@ export default function VoiceMicButton({ style }) {
       
       if (isFamilyPickerAvailable()) {
         // Native picker available - navigate to FocusSessionScreen
-        if (ttsEnabled) ttsSpeak(`I couldn't find a nickname for ${target}. Pick the apps once, and I'll remember it.`);
+        if (ttsEnabled) speakAndTrack(`I couldn't find a nickname for ${target}. Pick the apps once, and I'll remember it.`);
         Alert.alert(
           'Teach Mada a name',
           `Pick the apps/categories for "${target}" once. Mada will remember this name.`,
@@ -464,7 +481,7 @@ export default function VoiceMicButton({ style }) {
         );
       } else {
         // Native picker not available - inform user (dev environment)
-        if (ttsEnabled) ttsSpeak(`I couldn't find a nickname for ${target}. Native app picker is not available in this build.`);
+        if (ttsEnabled) speakAndTrack(`I couldn't find a nickname for ${target}. Native app picker is not available in this build.`);
         Alert.alert(
           'Native Picker Required',
           `The FamilyActivityPicker is not available. This feature requires:\n\n• Physical iOS device (not simulator)\n• react-native-device-activity installed\n• Custom dev client rebuild`,
@@ -603,6 +620,10 @@ export default function VoiceMicButton({ style }) {
   console.log('[VoiceMicButton] Starting STT...');
   // Make sure TTS is not speaking to avoid echo into STT
   try { if (ttsEnabled && ttsAvailable()) ttsStop(); } catch {}
+  
+  // Wait for audio session to be fully released (critical for iOS)
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
         setListening(true);
         let accepted = false;
         let sessionActive = true;
@@ -621,7 +642,7 @@ export default function VoiceMicButton({ style }) {
             await cleanup();
             console.warn('[VoiceMicButton] STT timeout, falling back to manual input');
             // Offer choices per spec rather than immediate fallback
-            if (ttsEnabled) ttsSpeak('I did not catch that. Try speaking the full phrase, like: Block test for two minutes.');
+            if (ttsEnabled) speakAndTrack('I did not catch that. Try speaking the full phrase, like: Block test for two minutes.');
             showToast('Try speaking the full phrase like "Block test for 2 minutes"', {
               type: 'info',
               action: {
@@ -635,6 +656,7 @@ export default function VoiceMicButton({ style }) {
 
         let lastUtterance = '';
         let finalResultTimer = null;
+        let processedUtterance = null; // Track what we've already processed
         
         await STTService.start(async (utter, meta) => {
           if (!sessionActive) return;
@@ -652,8 +674,45 @@ export default function VoiceMicButton({ style }) {
             finalResultTimer = setTimeout(async () => {
               if (!sessionActive) return;
               
+              // Skip if we already processed this exact utterance
+              if (processedUtterance === lastUtterance) {
+                console.log('[VoiceMicButton] Skipping duplicate utterance:', lastUtterance);
+                return;
+              }
+              
+              // Skip if utterance is too short (likely incomplete)
+              const wordCount = lastUtterance.split(/\s+/).length;
+              
+              // For reminders, need complete message (at least 4 words - more flexible)
+              if (/\b(remind|reminder)\b/i.test(lastUtterance) && wordCount < 4) {
+                console.log('[VoiceMicButton] Reminder incomplete, waiting for more:', lastUtterance);
+                return;
+              }
+              
+              // For block commands ending with "for", wait for duration
+              if (/\bfor\s*$/i.test(lastUtterance)) {
+                console.log('[VoiceMicButton] Incomplete duration, waiting:', lastUtterance);
+                return;
+              }
+              
+              // For any command, need at least 2 words (more permissive)
+              if (wordCount < 2) {
+                console.log('[VoiceMicButton] Utterance too short, waiting for more:', lastUtterance);
+                return;
+              }
+              
+              processedUtterance = lastUtterance;
+              
+              // Mark response start time for telemetry (AFTER debounce, before processing)
+              responseStartTimeRef.current = Date.now();
+              
               // Parse the last captured utterance
-              const intent = await parseIntent(lastUtterance, { allowDefaultDuration: false });
+              const intent = await parseIntentHybrid(lastUtterance, { allowDefaultDuration: false });
+              
+              // Log telemetry metadata if present
+              if (intent?.metadata) {
+                console.log(`[VoiceMicButton] STT Parse: ${intent.metadata.source} (confidence: ${intent.metadata.confidence}, ${intent.metadata.parseTime}ms)`);
+              }
               
               // If the utterance is off-topic or unclear, guide immediately instead of timing out
               if (intent?.needsGuidance && intent.classification) {
@@ -661,7 +720,7 @@ export default function VoiceMicButton({ style }) {
                 await cleanup();
                 const guidance = getGuidancePrompt(intent.classification, intent);
                 if (guidance) {
-                  if (guidance.shouldSpeak && ttsEnabled) ttsSpeak(guidance.message);
+                  if (guidance.shouldSpeak && ttsEnabled) speakAndTrack(guidance.message);
                   Alert.alert(
                     intent.classification.type === 'off-topic' ? 'How I can help' : 'Did I understand correctly?',
                     guidance.message,
@@ -684,7 +743,7 @@ export default function VoiceMicButton({ style }) {
                 // Has intent but no duration - prompt with smart suggestions
                 accepted = true;
                 await cleanup();
-                if (ttsEnabled) ttsSpeak(clarification.question);
+                if (ttsEnabled) speakAndTrack(clarification.question);
                 Alert.alert(clarification.question, 'Choose a duration:', [
                   ...clarification.suggestions.map((sugg) => ({
                     text: sugg,
@@ -710,7 +769,7 @@ export default function VoiceMicButton({ style }) {
                 // Has action but no target - prompt
                 accepted = true;
                 await cleanup();
-                if (ttsEnabled) ttsSpeak(clarification.question);
+                if (ttsEnabled) speakAndTrack(clarification.question);
                 Alert.alert(clarification.question, 'Choose apps to block:', [
                   ...clarification.suggestions.map((sugg) => ({
                     text: sugg,
@@ -726,7 +785,7 @@ export default function VoiceMicButton({ style }) {
                 // Missing reminder details - prompt with suggestions
                 accepted = true;
                 await cleanup();
-                if (ttsEnabled) ttsSpeak(clarification.question);
+                if (ttsEnabled) speakAndTrack(clarification.question);
                 Alert.alert(clarification.question, 'Choose or say:', [
                   ...clarification.suggestions.map((sugg) => ({
                     text: sugg,
@@ -756,13 +815,13 @@ export default function VoiceMicButton({ style }) {
               console.log('[VoiceMicButton][STT] readyToApply:', readyToApply, 'remindReady:', remindReady);
 
               if (readyToApply || (intent && intent.action === 'remind')) {
-                // Valid complete command - execute it
+                // Valid complete command - execute it with pre-parsed intent to avoid double parse
                 accepted = true;
                 await cleanup();
-                runText(lastUtterance);
+                runText(lastUtterance, intent); // Pass intent to avoid re-parsing
               }
               // Otherwise keep listening (timeout will handle if nothing comes)
-            }, 800); // 800ms after last final result before acting
+            }, 900); // 900ms after last final result before acting (optimized for UX speed)
           }
         }, async (e) => {
           if (!sessionActive) return;

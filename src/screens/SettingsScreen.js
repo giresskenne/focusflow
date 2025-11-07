@@ -13,6 +13,7 @@ import PremiumModal from '../components/PremiumModal';
 import IAP from '../lib/iap';
 import StoreKitTest from '../lib/storekeittest';
 import { performUpgrade } from '../lib/premiumUpgrade';
+import { getTelemetry, resetTelemetry } from '../modules/ai/nlu/hybrid-intent-service';
 import {
   CrownIcon,
   BellIcon,
@@ -845,6 +846,47 @@ export default function SettingsScreen({ navigation }) {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.settingsItemTitle}>Clear AI Test Aliases</Text>
                       <Text style={styles.settingsItemSubtitle}>Remove sample aliases</Text>
+                    </View>
+                  </View>
+                  <ChevronRightIcon color={colors.mutedForeground} size={20} />
+                </TouchableOpacity>
+
+                <View style={styles.divider} />
+
+                <TouchableOpacity style={styles.settingsItem} onPress={() => {
+                  const telemetry = getTelemetry();
+                  const msg = `Total parses: ${telemetry.totalParses}
+Local success: ${telemetry.localSuccess} (${telemetry.rates.local})
+Cloud fallback: ${telemetry.cloudFallback} (${telemetry.rates.fallback})
+Cloud success: ${telemetry.cloudSuccess} (${telemetry.rates.cloud})
+
+Avg local: ${telemetry.avgLocalTime.toFixed(1)}ms
+Avg cloud: ${telemetry.avgCloudTime.toFixed(1)}ms
+Avg response: ${telemetry.avgResponseTime.toFixed(1)}ms
+
+Confidence:
+  High (≥0.8): ${telemetry.confidenceDistribution.high}
+  Medium (0.5-0.8): ${telemetry.confidenceDistribution.medium}
+  Low (<0.5): ${telemetry.confidenceDistribution.low}
+
+Config:
+  Hybrid mode: ${telemetry.config.hybridMode}
+  Threshold: ${telemetry.config.threshold}
+  Cloud enabled: ${telemetry.config.cloudEnabled}`;
+                  
+                  Alert.alert('AI Telemetry', msg, [
+                    { text: 'Reset', style: 'destructive', onPress: () => {
+                      resetTelemetry();
+                      Alert.alert('Reset', 'Telemetry data cleared');
+                    }},
+                    { text: 'Close' }
+                  ]);
+                }}>
+                  <View style={styles.settingsItemContent}>
+                    <InfoIcon color="#00d4ff" size={20} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.settingsItemTitle}>View AI Telemetry</Text>
+                      <Text style={styles.settingsItemSubtitle}>Hybrid parsing stats (local vs cloud)</Text>
                     </View>
                   </View>
                   <ChevronRightIcon color={colors.mutedForeground} size={20} />

@@ -150,53 +150,64 @@ function parseReminderIntent(text, cmd) {
   let time = null;
   let durationMinutes = null;
   let days = [];
+  let confidence = 0.4; // Base confidence for reminder detection
 
   // Daily reminder: "every day", "daily", "each day"
   if (/\b(every day|daily|each day|everyday)\b/i.test(lowerText)) {
     reminderType = 'daily';
+    confidence += 0.2; // Boost for clear pattern
     // Extract time: "at 9 AM", "at 9:00"
     const timeMatch = lowerText.match(/at\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i);
     if (timeMatch) {
       time = timeMatch[1].trim();
+      confidence += 0.15; // Boost for having time
     }
   }
   // Weekly reminder: "every week", "weekly", "every monday"
   else if (/\b(every week|weekly|every (monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b/i.test(lowerText)) {
     reminderType = 'weekly';
+    confidence += 0.2; // Boost for clear pattern
     // Extract day
     const dayMatch = lowerText.match(/every (monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
     if (dayMatch) {
       days = [dayMatch[1].toLowerCase()];
+      confidence += 0.1; // Boost for having day
     }
     // Extract time
     const timeMatch = lowerText.match(/at\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i);
     if (timeMatch) {
       time = timeMatch[1].trim();
+      confidence += 0.15; // Boost for having time
     }
   }
   // Custom reminder: "on mondays and wednesdays", "mondays, tuesdays"
   else if (/\b(on|every)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i.test(lowerText)) {
     reminderType = 'custom';
+    confidence += 0.15; // Boost for custom pattern
     // Extract all days
     const dayMatches = lowerText.match(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi);
     if (dayMatches) {
       days = dayMatches.map(d => d.toLowerCase());
+      confidence += 0.1; // Boost for having days
     }
     // Extract time
     const timeMatch = lowerText.match(/at\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i);
     if (timeMatch) {
       time = timeMatch[1].trim();
+      confidence += 0.15; // Boost for having time
     }
   }
   // One-time: "in X minutes/hours", supporting digits and number words
   else if (/\bin\s+/i.test(lowerText)) {
     reminderType = 'one-time';
+    confidence += 0.15; // Boost for "in" pattern
     // First try digits
     let dm = lowerText.match(/in\s+(\d+)\s*(minute|minutes|min|mins|hour|hours|hr|hrs)/i);
     if (dm) {
       const num = parseInt(dm[1], 10);
       const unit = dm[2].toLowerCase();
       durationMinutes = unit.startsWith('h') ? num * 60 : num;
+      confidence += 0.2; // Strong boost for complete duration
     } else {
       // Try number words (e.g., "five", "twenty five", "a", "an")
       const wm = lowerText.match(/in\s+([a-z\-\s]+?)\s*(minute|minutes|min|mins|hour|hours|hr|hrs)\b/i);
@@ -207,17 +218,28 @@ function parseReminderIntent(text, cmd) {
         // Special phrases
         if (/half\s+(an\s+)?hour/.test(lowerText)) {
           durationMinutes = 30;
+          confidence += 0.2;
         } else if (/(quarter\s+of\s+an\s+hour|quarter\s+hour)/.test(lowerText)) {
           durationMinutes = 15;
+          confidence += 0.2;
         } else {
           const num = wordsToNumber(quantity);
           if (Number.isFinite(num) && num > 0) {
             durationMinutes = unit.startsWith('h') ? num * 60 : num;
+            confidence += 0.15; // Moderate boost for word numbers
           }
         }
       }
     }
   }
+  
+  // Bonus if has meaningful message (more than 3 chars)
+  if (message && message.length > 3) {
+    confidence += 0.1;
+  }
+  
+  // Cap confidence at 1.0
+  confidence = Math.min(1.0, confidence);
 
   return {
     action: 'remind',
@@ -226,6 +248,7 @@ function parseReminderIntent(text, cmd) {
     time,
     durationMinutes,
     days: days.length > 0 ? days : null,
+    confidence, // Add confidence to result
   };
 }
 
