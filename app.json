@@ -9,9 +9,9 @@
     "scheme": "com.giress.focusflow-app",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash-icon-small.png",
       "resizeMode": "contain",
-      "backgroundColor": "#7C3AED"
+      "backgroundColor": "#8900f5"
     },
     "ios": {
       "supportsTablet": true,
@@ -31,9 +31,9 @@
         "com.apple.developer.usernotifications.time-sensitive": true
       },
       "splash": {
-        "image": "./assets/splash-icon.png",
+        "image": "./assets/splash-icon-small.png",
         "resizeMode": "contain",
-        "backgroundColor": "#7C3AED"
+        "backgroundColor": "#8900f5"
       }
     },
     "android": {
