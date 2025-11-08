@@ -111,25 +111,31 @@ export async function scheduleOneTime(reminder) {
     }
     
     const seconds = durationMinutes * 60;
-    
+    // Use absolute date trigger on iOS to avoid premature foreground delivery quirks in dev builds
+    const now = Date.now();
+    const intendedAt = now + seconds * 1000;
+    const triggerTime = new Date(intendedAt);
+    const trigger = Platform.OS === 'ios'
+      ? { date: triggerTime }
+      : { seconds, repeats: false };
+
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Reminder',
         body: `Time to ${message}`,
-        data: { type: 'one-time', message },
+        data: { type: 'one-time', message, intendedAt },
         sound: true,
         interruptionLevel: 'timeSensitive', // Break through Focus modes
       },
-      trigger: {
-        seconds,
-      },
+      trigger,
     });
-    
-    const triggerTime = new Date(Date.now() + seconds * 1000);
+
     console.log('[ReminderScheduler] One-time reminder scheduled:', {
       id: notificationId,
       message,
       triggerTime: triggerTime.toLocaleTimeString(),
+      seconds,
+      platformTrigger: trigger,
     });
     
     return notificationId;

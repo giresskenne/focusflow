@@ -215,6 +215,27 @@
 ---
 
 ## Phase 8.5: AI Voice Reminders Execution ✅ COMPLETE
+## Phase 8.6: Focus Session End Notifications & Auto‑Unblock ✅ COMPLETE
+**Goal**: Reliable end-of-session notifications in all app states and automatic unblocking at session end.
+
+### What we shipped
+- Interval-based primary notification (avoids foreground early-callback bug)
+- Date-based backup notification when app backgrounds (`{ type: 'date', date }`)
+- Foreground fallbacks at end + 5s verification fallback
+- Stale banner cleanup (only dismiss if >15s past intended time)
+- Safe DeviceActivity monitoring refinement to end at the intended time when ≥5m remain
+- Guarded refine (single attempt) and restore long window on failure
+
+### Why
+- Foreground absolute-date triggers fired receive-callback immediately at schedule time → no banner later
+- Background delivery needed redundancy during suspension (date backup mirrors reminder behavior)
+- Auto-unblock without foreground should work for longer sessions; short sessions (<5m) are constrained by iOS
+
+### Notes
+- For short sessions, we keep the ≥30m monitoring window; unblocking still occurs via completion flow.
+- The new backup trigger uses the non-deprecated shape `{ type: 'date', date }`.
+- Global notification handler suppresses early banners except explicit fallbacks.
+
 **Goal**: Execute parsed reminder intents with notifications
 
 ### Deliverables

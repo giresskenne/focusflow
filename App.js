@@ -92,18 +92,20 @@ export default function App() {
       handleNotification: async (notification) => {
         const data = notification?.request?.content?.data || {};
         const intendedAt = typeof data?.intendedAt === 'number' ? data.intendedAt : null;
+        const isFallback = data?.isFallback === true;
         const now = Date.now();
-        const isFocusEnd = data?.type === 'focus-end';
-        
-        // Check if notification is premature (tighter 2-second tolerance)
-        const premature = isFocusEnd && intendedAt && now < (intendedAt - 2000);
-        
-        // Foreground presentation: suppress early, allow near/on-time
+        const type = data?.type;
+
+        const isFocusEnd = type === 'focus-end';
+        const isOneTime = type === 'one-time';
+        // Suppress early foreground banners for both focus-end and one-time, unless it's an explicit fallback
+        const shouldCheckPremature = (isFocusEnd || isOneTime) && intendedAt && !isFallback;
+        const premature = shouldCheckPremature && now < (intendedAt - 2500);
+
         return {
-          shouldShowAlert: !premature,
+          // Prefer explicit banner/list flags; omit deprecated shouldShowAlert to avoid warnings
           shouldShowBanner: !premature,
           shouldShowList: !premature,
-          // Avoid double sound in foreground; system will play in background
           shouldPlaySound: !premature,
           shouldSetBadge: false,
         };

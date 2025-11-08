@@ -101,6 +101,16 @@ Stop blocking
 - **Solution for device**: Build with native modules: `npx expo prebuild --clean && npx expo run:ios --device`
 - The dev stub simulates blocking without actual Screen Time integration
 
+### End notification doesn’t show in background
+- Ensure you backgrounded the app at least once during the session so the date‑backup is scheduled (mirrors reminders)
+- Check global handler logic in `App.js` isn’t suppressing a banner unless it’s >2s early and not a fallback
+- For ultra‑short sessions, wait for the fallback/verification path (banner will appear at end or within +5s)
+
+### Apps remain blocked until opening the app
+- On short sessions (<5 minutes) iOS may reject refining the monitoring window; we keep a long (≥30m) window for reliability
+- Unblocking is guaranteed when the app resumes (JS completion flow)
+- For sessions ≥5 minutes, auto‑unblock should occur at the intended end time even if you stay suspended
+
 ### No Mic Button
 - Check `EXPO_PUBLIC_AI_VOICE_ENABLED=true` in .env
 - Restart Metro bundler after changing .env
