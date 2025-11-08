@@ -19,6 +19,10 @@ import PermissionExplainerModal from './PermissionExplainerModal';
 import { checkMicrophonePermission, requestPermissionWithFlow } from '../../utils/permission-helper';
 import { getVoiceSettings } from '../../storage';
 import { useToast } from '../../contexts/ToastContext';
+import { getRemainingCloudCalls, incrementCloudUsage } from '../../modules/ai/usage-tracker';
+import { canUseVoiceReminders, getTTSVoiceType } from '../../lib/permissions/premium-gates';
+import PremiumModal from '../PremiumModal';
+import { performUpgrade } from '../../lib/premiumUpgrade';
 
 // Import DeviceActivity for iOS blocking
 let DeviceActivity = null;
@@ -41,6 +45,8 @@ export default function VoiceMicButton({ style }) {
   const [showPermissionExplainer, setShowPermissionExplainer] = useState(false);
   const [permissionGrantCallback, setPermissionGrantCallback] = useState(null);
   const [voiceSettingsEnabled, setVoiceSettingsEnabled] = useState(true);
+  const [aiUsage, setAiUsage] = useState({ remaining: 5, used: 0, canUse: true }); // AI usage tracking
+  const [showPremium, setShowPremium] = useState(false); // Premium modal state
   const pulse = useRef(new Animated.Value(1)).current;
   const busyRef = useRef(false);
   const lastUtteranceRef = useRef('');
@@ -64,14 +70,33 @@ export default function VoiceMicButton({ style }) {
   const bar3 = useRef(new Animated.Value(10)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current; // gradient overlay fade for listening state
 
-  // Load voice settings on mount
+  // Load voice settings and usage on mount
   useEffect(() => {
     getVoiceSettings().then((settings) => {
       setVoiceSettingsEnabled(settings.voiceEnabled);
     }).catch(() => {
       setVoiceSettingsEnabled(true); // Default to enabled if load fails
     });
+    
+    // Load AI usage stats
+    getRemainingCloudCalls().then((usage) => {
+      setAiUsage(usage);
+    }).catch((err) => {
+      console.error('[VoiceMicButton] Failed to load AI usage:', err);
+    });
   }, []);
+  
+  // Helper to refresh usage counter
+  const refreshUsage = async () => {
+    try {
+      const usage = await getRemainingCloudCalls();
+      setAiUsage(usage);
+      return usage;
+    } catch (err) {
+      console.error('[VoiceMicButton] Failed to refresh usage:', err);
+      return aiUsage; // Return current state on error
+    }
+  };
 
   if (!enabled || !voiceSettingsEnabled) return null;
 
@@ -251,9 +276,44 @@ export default function VoiceMicButton({ style }) {
     // Use pre-parsed intent if provided (from STT), otherwise parse now
     const intent = preParsedIntent || await parseIntentHybrid(utterance, { allowDefaultDuration: false });
     
+    // Refresh usage counter after parsing (cloud may have been used)
+    await refreshUsage();
+    
     // Log telemetry metadata if present (only if we just parsed)
     if (!preParsedIntent && intent?.metadata) {
       console.log(`[VoiceMicButton] Parse: ${intent.metadata.source} (confidence: ${intent.metadata.confidence}, ${intent.metadata.parseTime}ms)`);
+      
+      // Show limit warning if getting close
+      if (intent.metadata.source === 'cloud') {
+        if (aiUsage.remaining <= 1 && aiUsage.limit !== Infinity) {
+          showToast(
+            `Last AI command for today! Upgrade to Premium for unlimited.`,
+            { type: 'warning', duration: 4000 }
+          );
+        }
+      }
+    }
+    
+    // Check if intent indicates limit reached
+    if (intent?.error && intent.metadata?.note?.includes('limit-reached')) {
+      if (ttsEnabled) speakAndTrack(intent.error);
+      Alert.alert(
+        'Daily Limit Reached',
+        intent.error,
+        [
+          { text: 'Not Now', style: 'cancel' },
+          {
+            text: 'Upgrade to Premium',
+            onPress: () => setShowPremium(true)
+          }
+        ]
+      );
+      
+      if (__DEV__) {
+        console.log('[Telemetry] Free user hit AI limit');
+      }
+      
+      return;
     }
     
     // Handle classification-based guidance
@@ -357,6 +417,30 @@ export default function VoiceMicButton({ style }) {
     if (intent?.action === 'remind') {
       console.log('[VoiceMicButton] Reminder intent:', intent);
       
+      // Check if user can use voice reminders
+      const reminderGate = await canUseVoiceReminders();
+      if (!reminderGate.allowed) {
+        // Show upgrade prompt
+        if (ttsEnabled) speakAndTrack('Voice reminders are a premium feature.');
+        Alert.alert(
+          'Premium Feature',
+          reminderGate.reason,
+          [
+            { text: 'Not Now', style: 'cancel' },
+            {
+              text: 'Upgrade to Premium',
+              onPress: () => setShowPremium(true)
+            }
+          ]
+        );
+        
+        if (__DEV__) {
+          console.log('[Telemetry] Voice reminder gate shown');
+        }
+        
+        return;
+      }
+      
       const reminderResult = await executeReminder(intent, { confirm: true });
       console.log('[VoiceMicButton] executeReminder result:', reminderResult);
       
@@ -435,6 +519,38 @@ export default function VoiceMicButton({ style }) {
       }
       
       return;
+    }
+    
+    // Check if this is a block action - if so, verify usage limit BEFORE processing
+    // (Only check if intent was NOT pre-parsed - STT path already checked)
+    if (intent?.action === 'block' && !intent?.metadata) {
+      // Check AI usage limit for block commands
+      const usage = await getRemainingCloudCalls();
+      if (!usage.canUse) {
+        // Out of free AI calls - show upgrade prompt
+        if (ttsEnabled) speakAndTrack('You\'ve used all your free AI commands today. Upgrade to Premium for unlimited access.');
+        Alert.alert(
+          'Daily Limit Reached',
+          `You've used all ${usage.limit} free AI commands today. Upgrade to Premium for unlimited AI voice commands, presets, and more.`,
+          [
+            { text: 'Not Now', style: 'cancel' },
+            {
+              text: 'Upgrade to Premium',
+              onPress: () => setShowPremium(true)
+            }
+          ]
+        );
+        
+        if (__DEV__) {
+          console.log('[Telemetry] AI usage gate shown for block command (manual path):', usage);
+        }
+        
+        return;
+      }
+      
+      // Usage OK - increment counter before processing
+      await incrementCloudUsage();
+      await refreshUsage();
     }
     
     const res = await handleUtterance(utterance, { confirm: true });
@@ -815,6 +931,38 @@ export default function VoiceMicButton({ style }) {
               console.log('[VoiceMicButton][STT] readyToApply:', readyToApply, 'remindReady:', remindReady);
 
               if (readyToApply || (intent && intent.action === 'remind')) {
+                // Check if this is a block action - verify usage limit BEFORE processing
+                if (intent && intent.action === 'block') {
+                  const usage = await getRemainingCloudCalls();
+                  if (!usage.canUse) {
+                    // Out of free AI calls - show upgrade prompt
+                    accepted = true;
+                    await cleanup();
+                    if (ttsEnabled) speakAndTrack('You\'ve used all your free AI commands today. Upgrade to Premium for unlimited access.');
+                    Alert.alert(
+                      'Daily Limit Reached',
+                      `You've used all ${usage.limit} free AI commands today. Upgrade to Premium for unlimited AI voice commands, presets, and more.`,
+                      [
+                        { text: 'Not Now', style: 'cancel' },
+                        {
+                          text: 'Upgrade to Premium',
+                          onPress: () => setShowPremium(true)
+                        }
+                      ]
+                    );
+                    
+                    if (__DEV__) {
+                      console.log('[Telemetry] AI usage gate shown for block command (STT path):', usage);
+                    }
+                    
+                    return;
+                  }
+                  
+                  // Usage OK - increment counter before processing
+                  await incrementCloudUsage();
+                  await refreshUsage();
+                }
+                
                 // Valid complete command - execute it with pre-parsed intent to avoid double parse
                 accepted = true;
                 await cleanup();
@@ -926,6 +1074,12 @@ export default function VoiceMicButton({ style }) {
               </View>
             )}
           </LinearGradient>
+          {/* Usage counter badge (free tier only) */}
+          {!listening && aiUsage.limit !== Infinity && aiUsage.remaining <= 5 && (
+            <View style={styles.usageBadge}>
+              <Text style={styles.usageBadgeText}>{aiUsage.remaining}/{aiUsage.limit}</Text>
+            </View>
+          )}
           {/* Overlay gradient to simulate color shift while listening */}
           {listening && (
             <Animated.View style={[styles.overlayGradientWrapper, { opacity: overlayOpacity }] }>
@@ -990,6 +1144,20 @@ export default function VoiceMicButton({ style }) {
           if (permissionGrantCallback) {
             await permissionGrantCallback();
             setPermissionGrantCallback(null);
+          }
+        }}
+      />
+      
+      {/* Premium Modal */}
+      <PremiumModal
+        visible={showPremium}
+        onClose={() => setShowPremium(false)}
+        onUpgrade={async (plan) => {
+          const ok = await performUpgrade(plan);
+          if (ok) {
+            setShowPremium(false);
+            // Refresh usage after upgrade
+            await refreshUsage();
           }
         }}
       />
@@ -1063,6 +1231,22 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: controlSizes.mic.size / 2,
     overflow: 'hidden',
+  },
+  usageBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: colors.secondary,
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  usageBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#000',
   },
   overlay: {
     flex: 1, 
