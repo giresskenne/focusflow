@@ -135,11 +135,17 @@ To go production per spec architecture, implement these native modules:
 
 ## 🎯 Current Phase: **Phase 3** (Act with guardrails)
 
-Per spec §8, we're in Phase 3:
+Per spec §8, we're in Phase 3 (core), with production-ready improvements to notification delivery and Screen Time integration documented under Phase 8.6 in `AI_PHASES.md`:
 - ✅ Phase 1: Listen only → Done (STT works)
 - ✅ Phase 2: Parse, don't act → Done (NLU returns structured JSON)
 - ✅ **Phase 3: Act with guardrails** → Current (confirmation ON, undo available)
 - [ ] Phase 4: Siri & quality → Pending (needs native bridges)
+
+### Recent reliability improvements (Phase 8.6)
+- Primary interval notifications plus date backup on background for session end
+- Foreground fallback at end with 5s verification
+- Early suppression in App.js except for explicit `isFallback`
+- Safe DeviceActivity monitoring refinement (≥5m remaining, single attempt, restore long window on failure)
 
 ---
 

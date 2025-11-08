@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, AppState, Image, NativeModules } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, AppState, Image, NativeModules, Alert } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
@@ -52,8 +52,15 @@ export default function ActiveSessionScreen({ navigation, route }) {
   const safeProgress = typeof progress === 'number' && !isNaN(progress) ? progress : 100;
   const unblockTimeoutRef = useRef(null);
   const notifyTimeoutRef = useRef(null); // JS timer that fires the end notification exactly at end while foreground
+  const fallbackVerifyRef = useRef(null); // Secondary post-end verification timer
+  const dateBackupIdRef = useRef(null);   // Backup absolute-date notification id (for background reliability)
+  const intendedAtRef = useRef(null);     // Track intended fire time for scheduling backups
   const endNotifIdRef = useRef(null);
   const endOsNotifIdRef = useRef(null); // OS-scheduled end notification id for background/killed fallback
+  const completingRef = useRef(false); // guard to prevent double completion/navigation
+  const selectionIdRef = useRef(null); // track selection id used for blocking to adjust monitoring windows
+  const monitorRefinedRef = useRef(false); // ensure we don't spam refine attempts per session
+  const MIN_REFINEMENT_SECONDS = 300; // Avoid refining monitoring if less than 5 minutes remain
   // Guard useTheme for test environments that don't mount NavigationContainer
   let navColors = {};
   try { navColors = useTheme()?.colors || {}; } catch (_) { navColors = {}; }
@@ -94,15 +101,17 @@ export default function ActiveSessionScreen({ navigation, route }) {
         const data = n?.request?.content?.data || {};
         const intendedAt = typeof data?.intendedAt === 'number' ? data.intendedAt : null;
         const now = Date.now();
-        // Ignore early foreground receive events (Expo fires the listener even if not presented)
-        // This happens when scheduling with absolute dates - iOS calls the listener immediately
-        // even though the notification won't actually show until the trigger time.
-        // We check if current time is more than 5 seconds before the intended time.
-        if (data?.type === 'focus-end' && intendedAt && now < (intendedAt - 5000)) {
-          console.log('[Notifications] EARLY foreground receive (ignored) at', when, 'id:', n?.request?.identifier, 'intended:', new Date(intendedAt).toLocaleTimeString());
-          return;
-        }
-        console.log('[Notifications] DELIVERED at', when, ':', n?.request?.identifier, n?.request?.content?.title, data);
+        
+        // Log ALL notification receive events (including early scheduling callbacks)
+        console.log('[Notifications] Received at', when, ':', n?.request?.identifier, n?.request?.content?.title, {
+          type: data?.type,
+          intendedAt: intendedAt ? new Date(intendedAt).toLocaleTimeString() : 'none',
+          nowVsIntended: intendedAt ? `${Math.round((now - intendedAt) / 1000)}s` : 'n/a',
+        });
+        
+        // Note: expo-notifications fires this listener immediately upon scheduling with date triggers
+        // The actual notification presentation is controlled by the global handler in App.js
+        // which checks timing and decides whether to show the banner
       } catch (e) {
         console.log('[Notifications] received (log error):', e);
       }
@@ -121,78 +130,298 @@ export default function ActiveSessionScreen({ navigation, route }) {
     };
   }, []);
 
-  // Proactively dismiss any stray "focus-end" banners that may have been presented by a previous debug session
+  // Scan presented notifications; ONLY dismiss truly stale focus-end (older than 15s past intendedAt)
   useEffect(() => {
     (async () => {
       try {
         const presented = await (Notifications.getPresentedNotificationsAsync?.() || Promise.resolve([]));
+        const now = Date.now();
         for (const n of presented || []) {
           try {
             const id = n?.request?.identifier;
             const data = n?.request?.content?.data;
+            const intendedAt = typeof data?.intendedAt === 'number' ? data.intendedAt : null;
             if (data?.type === 'focus-end' && id) {
-              await Notifications.dismissNotificationAsync(id);
-              console.log('[ActiveSession] Dismissed stray presented focus-end notification:', id);
+              const isStale = intendedAt && now > (intendedAt + 15000); // 15s after intended fire
+              if (isStale) {
+                await Notifications.dismissNotificationAsync(id);
+                console.log('[ActiveSession] Dismissed STALE focus-end notification:', id);
+              } else {
+                console.log('[ActiveSession] Keeping presented focus-end notification (not stale):', id);
+              }
             }
           } catch {}
         }
       } catch (e) {
-        console.log('[ActiveSession] get/dismiss presented notifications failed (non-fatal):', e?.message || e);
+        console.log('[ActiveSession] presented scan failed (non-fatal):', e?.message || e);
       }
     })();
   }, []);
 
   // Helper: schedule end notification after clearing stale ones tagged as 'focus-end'
-  const scheduleEndNotification = async (seconds, meta = {}) => {
+  // Uses absolute date trigger (like reminders) for reliable background delivery
+  const scheduleEndNotification = async (sessionStartTime, durationSeconds) => {
     try {
-      const currentAppState = AppState.currentState;
-      console.log('[ActiveSession] Scheduling notification, app state:', currentAppState);
+      console.log('[ActiveSession] scheduleEndNotification called:', {
+        sessionStartTime,
+        durationSeconds,
+        startTimeReadable: new Date(sessionStartTime).toLocaleTimeString(),
+      });
       
+      // Clear any existing focus-end notifications
       const pending = await Notifications.getAllScheduledNotificationsAsync();
       for (const n of pending || []) {
         try {
           if (n?.content?.data?.type === 'focus-end') {
             await Notifications.cancelScheduledNotificationAsync(n.identifier);
-            console.log('[ActiveSession] Cancelled pending focus-end notification:', n.identifier);
+            console.log('[ActiveSession] Cancelled stale focus-end notification:', n.identifier);
           }
         } catch (e) {
           console.log('[ActiveSession] Failed cancelling pending notif:', e?.message || e);
         }
       }
 
-      // Calculate the actual intended end time
-      // CRITICAL: Use Date.now() at schedule time, not a stale 'startAt' from meta
-      const scheduleNow = Date.now();
-      const intendedEndTime = scheduleNow + (seconds * 1000);
-      const scheduleTime = new Date(intendedEndTime).toLocaleTimeString();
+  // Calculate notification time EXACTLY like reminders:
+      // sessionStartTime + sessionDuration (no extra buffer)
+      const notificationTime = sessionStartTime + (durationSeconds * 1000);
+  intendedAtRef.current = notificationTime;
+      const fireAtStr = new Date(notificationTime).toLocaleTimeString();
+      const now = Date.now();
+      const secondsUntilFire = Math.max(1, Math.floor((notificationTime - now) / 1000));
       
-      console.log('[ActiveSession] Scheduling now:', new Date(scheduleNow).toLocaleTimeString(), 'to fire in', seconds, 'seconds at', scheduleTime);
+      console.log('[ActiveSession] Will fire at:', fireAtStr, '(in', secondsUntilFire, 'seconds)');
       
-      // Prefer absolute date trigger on iOS for reliable delivery in background
-      // On Android or other platforms, keep time-interval trigger
-      const trigger = Platform.OS === 'ios'
-        ? { date: new Date(intendedEndTime) }
-        : { seconds: Math.max(1, Math.floor(seconds)), repeats: false };
+      // Primary: Use time interval trigger for foreground reliability
+      const intervalTrigger = { seconds: secondsUntilFire, repeats: false };
 
-      const fireAtStr = new Date(intendedEndTime).toLocaleTimeString();
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: `Focus Session Complete! 🎯${__DEV__ ? ` · ${fireAtStr}` : ''}`,
-          body: `Your ${Math.max(1, Math.round(seconds / 60))} minute focus session is finished. Great work!`,
-          data: { type: 'focus-end', intendedAt: intendedEndTime, ...meta },
-          sound: true, // System will handle sound delivery
+          body: `Your ${Math.max(1, Math.round(durationSeconds / 60))} minute focus session is finished. Great work!`,
+          data: { 
+            type: 'focus-end', 
+            intendedAt: notificationTime,
+            sessionStartTime,
+            durationSeconds,
+            primary: true,
+            mechanism: 'interval',
+          },
+          sound: true,
           badge: 0,
-          // iOS 15+: Break through Focus modes (requires Time Sensitive capability)
           interruptionLevel: 'timeSensitive',
         },
-        trigger,
+        trigger: intervalTrigger,
       });
-      const scheduleConfirmTime = new Date().toLocaleTimeString();
-      console.log('[ActiveSession] ✓ Scheduled notification id:', id, 'at', scheduleConfirmTime, '- will fire at', fireAtStr, '(in', seconds, 'seconds)');
+      
+      console.log('[ActiveSession] ✓ Scheduled end notification:', {
+        id,
+        scheduledAt: new Date().toLocaleTimeString(),
+        willFireAt: fireAtStr,
+        secondsUntilFire,
+      });
+      
       endNotifIdRef.current = id;
+
+      // Immediate post-schedule presented scan for debug visibility
+      try {
+        const presented = await Notifications.getPresentedNotificationsAsync();
+        const hasFocusBanner = (presented || []).some(p => p?.request?.content?.data?.type === 'focus-end');
+        console.log('[ActiveSession] Post-schedule presented scan:', { hasFocusBanner, presentedCount: presented?.length || 0 });
+      } catch (scanErr) {
+        console.log('[ActiveSession] Post-schedule presented scan failed:', scanErr?.message || scanErr);
+      }
+
+      // Foreground fallback (only if app stays foreground). Fires at intended end if banner not presented.
+      try {
+        if (notifyTimeoutRef.current) clearTimeout(notifyTimeoutRef.current);
+        notifyTimeoutRef.current = setTimeout(async () => {
+          try {
+            const state = AppState.currentState;
+            const now = Date.now();
+            const drift = now - notificationTime;
+            if (state !== 'active') {
+              console.log('[ActiveSession][Fallback] App not active at end; relying on OS delivery.');
+              return;
+            }
+            if (drift > 8000) {
+              console.log('[ActiveSession][Fallback] Drift too large (', drift, 'ms ); skipping foreground fallback');
+              return;
+            }
+            const presented = await Notifications.getPresentedNotificationsAsync();
+            const alreadyPresented = (presented || []).some(p => p?.request?.content?.data?.type === 'focus-end');
+            if (alreadyPresented) {
+              console.log('[ActiveSession][Fallback] Banner already presented, no fallback needed');
+              return;
+            }
+            console.log('[ActiveSession][Fallback] Scheduling immediate fallback notification');
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: 'Focus Session Complete! 🎯',
+                body: `You finished your ${Math.max(1, Math.round(durationSeconds / 60))} minute focus session. Great work!`,
+                data: {
+                  type: 'focus-end',
+                  intendedAt: notificationTime,
+                  sessionStartTime,
+                  durationSeconds,
+                  isFallback: true,
+                },
+                sound: true,
+                badge: 0,
+                interruptionLevel: 'timeSensitive',
+              },
+              trigger: null,
+            });
+          } catch (fallbackErr) {
+            console.log('[ActiveSession][Fallback] Error scheduling foreground fallback:', fallbackErr?.message || fallbackErr);
+          }
+        }, secondsUntilFire * 1000);
+        console.log('[ActiveSession] Foreground fallback timer set for', secondsUntilFire, 'seconds');
+      } catch (fallbackTimerErr) {
+        console.log('[ActiveSession] Failed to set foreground fallback timer:', fallbackTimerErr?.message || fallbackTimerErr);
+      }
+
       return id;
     } catch (e) {
       console.log('[ActiveSession] Error scheduling focus-end notification:', e?.message || e);
+    }
+  };
+
+  // Schedule an absolute-date backup notification (reminder-style) for background reliability
+  const scheduleDateBackupNotification = async () => {
+    try {
+      const notificationTime = intendedAtRef.current || sessionEndAt;
+      if (!notificationTime) return;
+      const fireAtStr = new Date(notificationTime).toLocaleTimeString();
+      // Avoid double-scheduling
+      if (dateBackupIdRef.current) {
+        console.log('[ActiveSession] Date backup already scheduled:', dateBackupIdRef.current);
+        return;
+      }
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Focus Session Complete! 🎯${__DEV__ ? ` · ${fireAtStr}` : ''}`,
+          body: `Your focus session is finished. Great work!`,
+          data: {
+            type: 'focus-end',
+            intendedAt: notificationTime,
+            mechanism: 'date',
+            backup: 'date',
+          },
+          sound: true,
+          badge: 0,
+          interruptionLevel: 'timeSensitive',
+        },
+        // Reminder-style absolute date trigger (new API shape)
+        trigger: { type: 'date', date: notificationTime },
+      });
+      dateBackupIdRef.current = id;
+      console.log('[ActiveSession] ✓ Scheduled date-backup focus-end notification:', { id, fireAt: fireAtStr });
+    } catch (e) {
+      console.log('[ActiveSession] Error scheduling date-backup notification:', e?.message || e);
+    }
+  };
+
+  // Adjust DeviceActivity monitoring window to end exactly at intended session end, so iOS unblocks even if app stays suspended
+  const updateMonitoringForSessionEnd = async () => {
+    if (!DeviceActivity) return;
+    try {
+      const selectionId = selectionIdRef.current;
+      const endAt = intendedAtRef.current || sessionEndAt;
+      if (!endAt) return;
+      const nowDate = new Date();
+      const remainingMs = endAt - nowDate.getTime();
+      const remainingSeconds = Math.floor(remainingMs / 1000);
+      if (remainingSeconds <= 0) return;
+      if (remainingSeconds < MIN_REFINEMENT_SECONDS) {
+        console.log('[ActiveSession] Skipping monitoring refine (remaining <', MIN_REFINEMENT_SECONDS, 's). Keeping long window for reliability.');
+        return;
+      }
+      if (monitorRefinedRef.current) {
+        // Already refined successfully once; no need to repeat
+        return;
+      }
+      const startDate = new Date(nowDate.getTime() + 2000); // small delay to satisfy scheduling API
+      const endDate = new Date(Math.max(endAt, nowDate.getTime() + 5000)); // ensure end > start
+
+      const schedule = {
+        intervalStart: {
+          year: startDate.getFullYear(),
+          month: startDate.getMonth() + 1,
+          day: startDate.getDate(),
+          hour: startDate.getHours(),
+          minute: startDate.getMinutes(),
+          second: startDate.getSeconds(),
+        },
+        intervalEnd: {
+          year: endDate.getFullYear(),
+          month: endDate.getMonth() + 1,
+          day: endDate.getDate(),
+          hour: endDate.getHours(),
+          minute: endDate.getMinutes(),
+          second: endDate.getSeconds(),
+        },
+        repeats: false,
+      };
+
+      console.log('[ActiveSession] Updating monitoring window to session end:', {
+        start: schedule.intervalStart,
+        end: schedule.intervalEnd,
+      });
+      // Try to start refined schedule without stopping first; if API requires stop, we'll retry after stopping
+      try {
+        await DeviceActivity.startMonitoring('focusSession', schedule, []);
+        monitorRefinedRef.current = true;
+        console.log('[ActiveSession] Monitoring updated to end at intended time');
+        return;
+      } catch (startErr) {
+        console.log('[ActiveSession] startMonitoring refine attempt failed (will try stop+start):', startErr?.message || startErr);
+      }
+
+      // Retry with stop+start, but if it fails, restore a safe long window to keep blocking
+      try {
+        DeviceActivity.stopMonitoring(['focusSession']);
+      } catch {}
+      try {
+        await DeviceActivity.startMonitoring('focusSession', schedule, []);
+        monitorRefinedRef.current = true;
+        console.log('[ActiveSession] Monitoring updated to end at intended time (after stop)');
+        return;
+      } catch (stopStartErr) {
+        console.log('[ActiveSession] Refine after stop failed:', stopStartErr?.message || stopStartErr);
+        // Restore a reliable long window so blocking continues
+        try {
+          const fallbackStart = new Date(Date.now() + 5000);
+          const totalMinutes = Math.ceil(duration / 60);
+          const minMonitorMinutes = Math.max(30, totalMinutes);
+          const fallbackEnd = new Date(fallbackStart.getTime() + minMonitorMinutes * 60 * 1000);
+          const fallbackSchedule = {
+            intervalStart: {
+              year: fallbackStart.getFullYear(),
+              month: fallbackStart.getMonth() + 1,
+              day: fallbackStart.getDate(),
+              hour: fallbackStart.getHours(),
+              minute: fallbackStart.getMinutes(),
+              second: fallbackStart.getSeconds(),
+            },
+            intervalEnd: {
+              year: fallbackEnd.getFullYear(),
+              month: fallbackEnd.getMonth() + 1,
+              day: fallbackEnd.getDate(),
+              hour: fallbackEnd.getHours(),
+              minute: fallbackEnd.getMinutes(),
+              second: fallbackEnd.getSeconds(),
+            },
+            repeats: false,
+          };
+          console.log('[ActiveSession] Restoring long monitoring window after refine failure');
+          await DeviceActivity.startMonitoring('focusSession', fallbackSchedule, []);
+          console.log('[ActiveSession] Long monitoring restored');
+        } catch (restoreErr) {
+          console.log('[ActiveSession] Failed to restore long monitoring window:', restoreErr?.message || restoreErr);
+        }
+      }
+    } catch (e) {
+      console.log('[ActiveSession] Failed to update monitoring window (will rely on fallback):', e?.message || e);
     }
   };
 
@@ -207,29 +436,21 @@ export default function ActiveSessionScreen({ navigation, route }) {
   const blockingAvailable = DeviceActivity !== null;
   const scheduledOnceRef = useRef(false);
 
-  // Handle app state changes to check session completion and manage notifications
+  // Handle app state changes to check session completion
   useEffect(() => {
     const handleAppStateChange = async (nextAppState) => {
       if (nextAppState === 'background' || nextAppState === 'inactive') {
-        // When going to background, ensure notification is scheduled
-        console.log('[ActiveSession] App going to background/inactive, ensuring notification is scheduled...');
-        try {
-          const currentSession = await getSession();
-          if (currentSession?.active && currentSession?.endAt && !scheduledOnceRef.current) {
-            const now = Date.now();
-            const remainingSeconds = Math.max(1, Math.floor((currentSession.endAt - now) / 1000));
-            if (remainingSeconds > 0) {
-              const id = await scheduleEndNotification(remainingSeconds, { startAt: now });
-              if (id) {
-                endOsNotifIdRef.current = id;
-                scheduledOnceRef.current = true;
-                console.log('[ActiveSession] Scheduled notification on background transition, id:', id);
-              }
-            }
-          }
-        } catch (e) {
-          console.log('[ActiveSession] Error scheduling notification on background:', e);
+        console.log('[ActiveSession] App going to background, scheduling date backup');
+        // Cancel foreground fallback timer to avoid duplicate
+        if (notifyTimeoutRef.current) {
+          clearTimeout(notifyTimeoutRef.current);
+          notifyTimeoutRef.current = null;
+          console.log('[ActiveSession] Cleared foreground fallback timer (background)');
         }
+        // Schedule absolute-date backup (reminder style)
+        await scheduleDateBackupNotification();
+        // Try to align native monitoring end with the session end so iOS unblocks automatically
+        await updateMonitoringForSessionEnd();
       } else if (nextAppState === 'active') {
         console.log('[ActiveSession] App became active, checking session status...');
         try {
@@ -237,38 +458,17 @@ export default function ActiveSessionScreen({ navigation, route }) {
           if (currentSession?.active && currentSession?.endAt) {
             const now = Date.now();
             if (now >= currentSession.endAt) {
+              if (completingRef.current) {
+                return;
+              }
+              completingRef.current = true;
               console.log('[ActiveSession] Session should have ended, completing now...');
               // Complete the session
               await setSession({ active: false, endAt: null, totalSeconds: null });
               
-              // Cancel any pending or presented end notifications to avoid stale delivery
-              try {
-                if (endOsNotifIdRef.current) {
-                  await Notifications.cancelScheduledNotificationAsync(endOsNotifIdRef.current);
-                  console.log('[ActiveSession] Canceled scheduled end notification by id:', endOsNotifIdRef.current);
-                  endOsNotifIdRef.current = null;
-                }
-                const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-                for (const n of scheduled || []) {
-                  if (n?.content?.data?.type === 'focus-end') {
-                    try {
-                      await Notifications.cancelScheduledNotificationAsync(n.identifier);
-                      console.log('[ActiveSession] Canceled stray scheduled focus-end notification:', n.identifier);
-                    } catch {}
-                  }
-                }
-                const presented = await (Notifications.getPresentedNotificationsAsync?.() || Promise.resolve([]));
-                for (const n of presented || []) {
-                  try {
-                    if (n?.request?.content?.data?.type === 'focus-end') {
-                      await Notifications.dismissNotificationAsync(n.request.identifier);
-                      console.log('[ActiveSession] Dismissed presented focus-end notification on resume:', n.request.identifier);
-                    }
-                  } catch {}
-                }
-                // Allow new sessions to schedule again
-                scheduledOnceRef.current = false;
-              } catch {}
+              // Do not cancel the scheduled end notification here; allow iOS to present it.
+              // We will rely on lazy cleanup later. Allow new sessions to schedule again.
+              scheduledOnceRef.current = false;
 
               // Unblock apps (robust)
               await safelyUnblockAll();
@@ -300,25 +500,33 @@ export default function ActiveSessionScreen({ navigation, route }) {
   }, []);
 
   useEffect(() => {
+    // Obtain existing session BEFORE setting new endAt to avoid overwriting an in-progress or stale session.
     const now = Date.now();
-    setStartAt(now);
-    let endAt = now + duration * 1000;
-    setSessionEndAt(endAt);
+    (async () => {
+      let existingSession = null;
+      try { existingSession = await getSession(); } catch {}
+      if (existingSession?.active && existingSession?.endAt && now < existingSession.endAt) {
+        // Continue active session
+        console.log('[ActiveSession] Continuing existing active session until', existingSession.endAt);
+        setStartAt(existingSession.startAt || now);
+        setSessionEndAt(existingSession.endAt);
+      } else {
+        // Start fresh session; clean stale if needed
+        if (existingSession?.active && existingSession?.endAt && now >= existingSession.endAt) {
+          console.log('[ActiveSession] Cleaning stale active session (past endAt) before starting new');
+          try { await setSession({ active: false, endAt: null, totalSeconds: null }); } catch {}
+        }
+        setStartAt(now);
+        const endAtCalc = now + duration * 1000;
+        setSessionEndAt(endAtCalc);
+      }
+    })();
     (async () => {
       try {
-        // DON'T schedule notification immediately in foreground - it causes iOS to fire the
-        // notification listener immediately. Instead, we schedule when going to background.
-        // The AppState listener above handles this.
-
         // CRITICAL: Check if session is already active to prevent re-initialization on remount
         const existingSession = await getSession();
-        if (existingSession?.active) {
-          console.log('[ActiveSession] Session already active, preventing re-initialization. Existing endAt:', existingSession.endAt);
-          // Restore the existing session state
-          setStartAt(existingSession.startAt || now);
-          setSessionEndAt(existingSession.endAt || endAt);
-          
-          // Restore apps from existing selection
+        if (existingSession?.active && now < existingSession.endAt) {
+          // Already handled earlier, just restore apps metadata
           const map = await getSelectedApps();
           if (map?.familyActivitySelectionId) {
             setApps([map.familyActivitySelectionId]);
@@ -327,10 +535,31 @@ export default function ActiveSessionScreen({ navigation, route }) {
               if (meta) setSelectionCounts(meta);
             } catch {}
           }
-          return; // Don't re-initialize
+          return;
         }
         
-        // Don't schedule notification here to avoid immediate firing
+        // Determine session start time: use existing if resuming, else now
+        const sessionStart = existingSession?.startAt || now;
+        
+        // Store session state FIRST (so notification scheduling can reference it if needed)
+        const effectiveEndAt = sessionEndAt || (now + duration * 1000);
+        await setSession({ active: true, endAt: effectiveEndAt, totalSeconds: duration, startAt: sessionStart });
+        console.log('[ActiveSession] Session state persisted:', {
+          startAt: new Date(sessionStart).toLocaleTimeString(),
+          endAt: new Date(effectiveEndAt).toLocaleTimeString(),
+        });
+        
+        // ✅ Schedule end notification using stored session start time
+        // Use reminder-style absolute date scheduling for reliable background delivery
+        if (duration > 0) {
+          const notifId = await scheduleEndNotification(sessionStart, duration);
+          if (notifId) {
+            endOsNotifIdRef.current = notifId;
+            scheduledOnceRef.current = true;
+            console.log('[ActiveSession] ✓ Scheduled reminder-style end notification, id:', notifId);
+          }
+        }
+        
         const map = await getSelectedApps();
         let appIds = [];
         let selectionId = null;
@@ -457,6 +686,7 @@ export default function ActiveSessionScreen({ navigation, route }) {
               if (selectionIdToUse) {
                 try {
                   console.log('[ActiveSession] Using selectionId:', selectionIdToUse);
+                  selectionIdRef.current = selectionIdToUse;
                   try {
                     const metaDebug = DeviceActivity?.activitySelectionMetadata({ familyActivitySelectionId: selectionIdToUse });
                     console.log('[ActiveSession] Selection metadata:', metaDebug);
@@ -605,6 +835,12 @@ export default function ActiveSessionScreen({ navigation, route }) {
                 console.log('[ActiveSession] Attempting to start monitoring...');
                 await DeviceActivity.startMonitoring('focusSession', schedule, []);
                 console.log('[ActiveSession] Monitoring started (window minutes):', minMonitorMinutes);
+                // Immediately refine monitoring window to the exact session end so auto-unblock can occur without app foreground
+                try {
+                  await updateMonitoringForSessionEnd();
+                } catch (refineErr) {
+                  console.log('[ActiveSession] refine monitoring window failed (non-fatal):', refineErr?.message || refineErr);
+                }
               } catch (e) {
                 console.log('[ActiveSession] startMonitoring failed even with long window:', e?.message || e);
               }
@@ -612,8 +848,8 @@ export default function ActiveSessionScreen({ navigation, route }) {
               // End notification: Will be scheduled automatically when app goes to background
               // via the AppState listener. This avoids iOS quirks with immediate foreground delivery.
 
-              // JS safety net: unblock at the exact requested duration
-              if (selectionIdToUse) {
+              // JS safety net: unblock at the exact requested duration (Android only; iOS suspends timers and we already schedule OS notif)
+              if (selectionIdToUse && Platform.OS !== 'ios') {
                 try {
                   if (unblockTimeoutRef.current) clearTimeout(unblockTimeoutRef.current);
                   unblockTimeoutRef.current = setTimeout(async () => {
@@ -664,9 +900,7 @@ export default function ActiveSessionScreen({ navigation, route }) {
           }
         }
         
-        console.log('[ActiveSession] About to set session state...');
-        await setSession({ active: true, endAt, totalSeconds: duration, startAt: now });
-        console.log('[ActiveSession] Session state set successfully');
+        console.log('[ActiveSession] Initialization complete');
       } catch (error) {
         console.log('[ActiveSession] Setup error:', error);
         Alert.alert('Session Setup Failed', `Unable to start focus session: ${error?.message || error}`);
@@ -674,8 +908,16 @@ export default function ActiveSessionScreen({ navigation, route }) {
       }
     })();
     return () => {
-      // Keep monitoring and JS timer running when leaving the screen;
-      // only stop on explicit end or when the timer fires.
+      // Cleanup timers when component unmounts
+      if (notifyTimeoutRef.current) {
+        clearTimeout(notifyTimeoutRef.current);
+        notifyTimeoutRef.current = null;
+      }
+      if (fallbackVerifyRef.current) {
+        clearTimeout(fallbackVerifyRef.current);
+        fallbackVerifyRef.current = null;
+      }
+      // Note: No need to cancel OS-scheduled backups here; they will be cleaned when a new session starts.
     };
   }, [duration]);
 
@@ -695,10 +937,24 @@ export default function ActiveSessionScreen({ navigation, route }) {
     if ((safeSeconds <= 0 || hasExpired) && mountedRef.current) {
       (async () => {
         try {
+          // Guard against duplicate completion
+          if (completingRef.current) {
+            console.log('[ActiveSession] Already completing, skipping duplicate');
+            return;
+          }
+          completingRef.current = true;
+          
           // Guard against duplicate completion when JS timer already ran
           const current = await getSession();
           if (!current?.active) {
-            console.log('[ActiveSession] Session already inactive, skipping completion');
+            console.log('[ActiveSession] Session already inactive, forcing UI completion/navigation');
+            // Best-effort unblock and navigate away so UI doesn't stick at 00:00
+            try { await safelyUnblockAll(); } catch {}
+            if (mountedRef.current) {
+              try { navigation.navigate('MainTabs', { screen: 'Home' }); } catch (_) {
+                try { navigation.goBack(); } catch {}
+              }
+            }
             return;
           }
           
@@ -721,54 +977,81 @@ export default function ActiveSessionScreen({ navigation, route }) {
           });
           
           console.log('[ActiveSession] Session record saved, cleaning up...');
-          
-          // Rely on scheduled end notification; don't send another here to avoid duplicates
-          
+          console.log('[ActiveSession] End reached; verifying focus-end notification presence');
+          try {
+            const presented = await Notifications.getPresentedNotificationsAsync();
+            const hasBanner = (presented || []).some(p => p?.request?.content?.data?.type === 'focus-end');
+            console.log('[ActiveSession] Immediate end banner presence:', hasBanner);
+            if (!hasBanner) {
+              console.log('[ActiveSession] No banner at end; scheduling immediate fallback notification');
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: 'Focus Session Complete! 🎯',
+                  body: `You completed your ${Math.max(1, Math.round(duration / 60))} minute focus session. Great work!`,
+                  data: {
+                    type: 'focus-end',
+                    intendedAt: Date.now(),
+                    isFallback: true,
+                    immediateEndFallback: true,
+                  },
+                  sound: true,
+                  badge: 0,
+                  interruptionLevel: 'timeSensitive',
+                },
+                trigger: null,
+              });
+            }
+          } catch (endCheckErr) {
+            console.log('[ActiveSession] End banner immediate check error:', endCheckErr?.message || endCheckErr);
+          }
+
           // Clear any pending unblock timer
           if (unblockTimeoutRef.current) {
             clearTimeout(unblockTimeoutRef.current);
             unblockTimeoutRef.current = null;
           }
-          // Cancel pending/presented notifications ONLY if we're in foreground.
-          // If the app is backgrounded, let the OS banner fire at the scheduled time.
-          try {
-            const stateNow = AppState.currentState;
-            if (stateNow === 'active') {
-              if (endOsNotifIdRef.current) {
-                await Notifications.cancelScheduledNotificationAsync(endOsNotifIdRef.current);
-                console.log('[ActiveSession] Canceled scheduled end notification by id (timer path, foreground):', endOsNotifIdRef.current);
-                endOsNotifIdRef.current = null;
-              }
-              const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-              for (const n of scheduled || []) {
-                if (n?.content?.data?.type === 'focus-end') {
-                  try {
-                    await Notifications.cancelScheduledNotificationAsync(n.identifier);
-                    console.log('[ActiveSession] Canceled stray scheduled focus-end notification (timer path, foreground):', n.identifier);
-                  } catch {}
-                }
-              }
-              const presented = await (Notifications.getPresentedNotificationsAsync?.() || Promise.resolve([]));
-              for (const n of presented || []) {
-                try {
-                  if (n?.request?.content?.data?.type === 'focus-end') {
-                    await Notifications.dismissNotificationAsync(n.request.identifier);
-                    console.log('[ActiveSession] Dismissed presented focus-end notification (timer path, foreground):', n.request.identifier);
-                  }
-                } catch {}
-              }
-              // Allow new sessions to schedule again
-              scheduledOnceRef.current = false;
-            } else {
-              console.log('[ActiveSession] In background at timer end; deferring cancellation so the OS banner can present');
-            }
-          } catch {}
         } catch (e) {
           console.log('[ActiveSession] Error during session completion:', e);
         }
         
         if (mountedRef.current) {
           console.log('[ActiveSession] Navigating to Home...');
+          // Post-end verification fallback (5s later) if still missing
+          try {
+            if (fallbackVerifyRef.current) clearTimeout(fallbackVerifyRef.current);
+            fallbackVerifyRef.current = setTimeout(async () => {
+              try {
+                const presented = await Notifications.getPresentedNotificationsAsync();
+                const hasBanner = (presented || []).some(p => p?.request?.content?.data?.type === 'focus-end');
+                if (!hasBanner) {
+                  console.log('[ActiveSession][Verify] Still no banner after 5s; scheduling secondary fallback');
+                  await Notifications.scheduleNotificationAsync({
+                    content: {
+                      title: 'Focus Session Complete! 🎯',
+                      body: 'Staying focused pays off—session finished!',
+                      data: {
+                        type: 'focus-end',
+                        intendedAt: Date.now(),
+                        isFallback: true,
+                        verifyFallback: true,
+                      },
+                      sound: true,
+                      badge: 0,
+                      interruptionLevel: 'timeSensitive',
+                    },
+                    trigger: null,
+                  });
+                } else {
+                  console.log('[ActiveSession][Verify] Banner present after 5s; no secondary fallback needed');
+                }
+              } catch (verifyErr) {
+                console.log('[ActiveSession][Verify] Error during 5s verification:', verifyErr?.message || verifyErr);
+              }
+            }, 5000);
+          } catch (verifySetupErr) {
+            console.log('[ActiveSession][Verify] Failed to set 5s verification timer:', verifySetupErr?.message || verifySetupErr);
+          }
+
           // Navigate to Home tab after session completes
           try {
             navigation.navigate('MainTabs', { screen: 'Home' });

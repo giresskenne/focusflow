@@ -1,8 +1,26 @@
 # AI Voice Assistant Progress Report
 
-**Last Updated**: November 4, 2025  
+**Last Updated**: November 7, 2025  
 **Branch**: `ai-voice-assistant-implementation`  
 **Current Phase**: Phase 8.5 - AI Voice Reminders (COMPLETE)
+
+---
+
+## ✅ Nov 7, 2025 Update
+
+### Focus session end notifications and auto‑unblock reliability ✅
+- Fixed foreground early-callback bug by using interval triggers for primary end notifications.
+- Added date‑based backup notification when the app backgrounds (mirrors reminders) for suspended delivery.
+- Foreground fallbacks layered: immediate fallback at end if banner missing, plus 5s verification.
+- Stale cleanup: only dismiss focus‑end banners if >15s past intended time.
+- Auto‑unblock improvements: refined DeviceActivity monitoring window to end at session end when ≥5m remain; single refine attempt and safe restore of long window if refine fails.
+- For short sessions (<5m), we keep the long (≥30m) monitoring window and rely on completion cleanup; avoids iOS "schedule too short" failures.
+- Result: Background notification shows on time; apps are reliably unblocked at session end — even when suspended (for long sessions) — without requiring foregrounding.
+
+Commits (conceptual):
+- feat(notifs): interval primary + date backup; fallback + verification
+- fix(blocking): safe monitoring refinement (guarded, restore on failure)
+- docs: expand background notification + auto‑unblock guide
 
 ---
 
