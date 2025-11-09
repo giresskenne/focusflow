@@ -13,7 +13,12 @@
     "build:ios:dev": "eas build -p ios --profile development",
     "build:ios:prod": "eas build -p ios --profile production",
     "submit:ios": "eas submit -p ios --latest",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "audit:production": "node scripts/audit-production-readiness.js",
+    "audit:production:json": "node scripts/audit-production-readiness.js --json",
+    "sanitize:dry-run": "node scripts/sanitize-for-production.js --dry-run",
+    "sanitize:production": "node scripts/sanitize-for-production.js",
+    "sanitize:verbose": "node scripts/sanitize-for-production.js --verbose"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
