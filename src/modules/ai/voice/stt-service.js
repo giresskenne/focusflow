@@ -5,6 +5,7 @@
 import { Platform } from 'react-native';
 
 let RNVoice = null;
+let Audio = null;
 let interimTimer = null;
 let lastText = '';
 let startWatchdog = null;
@@ -37,6 +38,34 @@ export async function ensureLoaded() {
   return isAvailable();
 }
 
+async function setupAudioSession() {
+  // Configure audio session for recording (STT)
+  if (Platform.OS !== 'ios') return;
+  
+  if (!Audio) {
+    try {
+      Audio = await import('expo-av');
+    } catch (e) {
+      console.warn('[STT] expo-av not available for audio session setup:', e?.message);
+      return;
+    }
+  }
+  
+  try {
+    await Audio.Audio.setAudioModeAsync({
+      allowsRecordingIOS: true,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      interruptionModeIOS: Audio?.InterruptionModeIOS?.DoNotMix ?? 1,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    });
+    console.log('[STT] Audio session configured for recording');
+  } catch (e) {
+    console.warn('[STT] Failed to configure audio session:', e?.message);
+  }
+}
+
 export async function start(onResult, onError) {
   const loaded = await ensureLoaded();
   if (!loaded) {
@@ -49,6 +78,9 @@ export async function start(onResult, onError) {
     
     // Add delay to ensure audio session is fully released
     await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Configure audio session for recording BEFORE starting STT
+    await setupAudioSession();
     
     // Clear any existing listeners
     if (RNVoice.removeAllListeners) {
@@ -146,4 +178,21 @@ export async function stop() {
 
   // Reset state
   lastText = '';
+  
+  // Restore audio session for playback after STT completes
+  if (Platform.OS === 'ios' && Audio) {
+    try {
+      await Audio.Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        interruptionModeIOS: Audio?.InterruptionModeIOS?.DoNotMix ?? 1,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+      console.log('[STT] Audio session restored for playback');
+    } catch (e) {
+      console.warn('[STT] Failed to restore audio session:', e?.message);
+    }
+  }
 }

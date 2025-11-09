@@ -1074,12 +1074,6 @@ export default function VoiceMicButton({ style }) {
               </View>
             )}
           </LinearGradient>
-          {/* Usage counter badge (free tier only) */}
-          {!listening && aiUsage.limit !== Infinity && aiUsage.remaining <= 5 && (
-            <View style={styles.usageBadge}>
-              <Text style={styles.usageBadgeText}>{aiUsage.remaining}/{aiUsage.limit}</Text>
-            </View>
-          )}
           {/* Overlay gradient to simulate color shift while listening */}
           {listening && (
             <Animated.View style={[styles.overlayGradientWrapper, { opacity: overlayOpacity }] }>

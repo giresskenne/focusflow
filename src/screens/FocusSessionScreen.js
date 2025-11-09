@@ -12,6 +12,9 @@ import GlassCard from '../components/Ui/GlassCard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { upsertAlias } from '../modules/ai/aliases/alias-store';
 import { canSavePreset } from '../lib/permissions/premium-gates';
+import PremiumModal from '../components/PremiumModal';
+import { performUpgrade } from '../lib/premiumUpgrade';
+import IAP from '../lib/iap';
 
 // Import react-native-device-activity for DeviceActivitySelectionView
 let DeviceActivity = null;
@@ -77,6 +80,9 @@ export default function FocusSessionScreen({ navigation, route }) {
   
   // Check if native picker is available
   const nativePickerAvailable = DeviceActivitySelectionView !== null;
+
+  // Premium modal state
+  const [showPremium, setShowPremium] = useState(false);
 
   // State for template metadata (counts and saved status)
   const [templateMetadata, setTemplateMetadata] = useState({
@@ -468,6 +474,9 @@ export default function FocusSessionScreen({ navigation, route }) {
           <View style={styles.subsectionHeaderContainer}>
             <Ionicons name="flash" size={16} color={colors.secondary} style={{ marginRight: spacing.sm, alignSelf: 'center' }} />
             <Text style={styles.subsectionHeader}>Quick Start Templates</Text>
+            <View style={styles.premiumBadge}>
+              <Ionicons name="diamond" size={10} color={colors.secondary} />
+            </View>
           </View>
           <View style={styles.templatesGrid}>
             {QUICK_TEMPLATES.map((template) => {
@@ -482,7 +491,23 @@ export default function FocusSessionScreen({ navigation, route }) {
                     shadows.md,
                     isSelected && styles.templateCardSelected,
                   ]}
-                  onPress={() => handleTemplateSelect(template.id)}
+                  onPress={async () => {
+                    // Hard gate: Check premium status BEFORE opening picker
+                    const isPremium = await IAP.hasPremiumEntitlement();
+                    
+                    if (!isPremium && !hasSavedSelection) {
+                      // Not premium - show modal (HARD GATE, no "try once")
+                      setShowPremium(true);
+                      
+                      if (__DEV__) {
+                        console.log('[Telemetry] Template gate shown (hard gate):', template.id);
+                      }
+                      return;
+                    }
+                    
+                    // Premium user OR already saved - proceed to picker
+                    handleTemplateSelect(template.id);
+                  }}
                   onLongPress={() => {
                     // Long press to edit any saved template
                     if (hasSavedSelection) {
@@ -493,11 +518,6 @@ export default function FocusSessionScreen({ navigation, route }) {
                   <View style={styles.templateCardHeader}>
                     <Ionicons name={template.iconName} size={32} color={template.color} />
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                      {!hasSavedSelection && (
-                        <View style={styles.premiumBadge}>
-                          <Ionicons name="diamond" size={10} color={colors.secondary} />
-                        </View>
-                      )}
                       {hasSavedSelection && (
                         <TouchableOpacity 
                           onPress={(e) => {
@@ -514,9 +534,6 @@ export default function FocusSessionScreen({ navigation, route }) {
                   </View>
                   <Text style={styles.templateName}>{template.name}</Text>
                   <Text style={styles.templateDescription}>{template.description}</Text>
-                  {!hasSavedSelection && (
-                    <Text style={styles.premiumHint}>Premium feature</Text>
-                  )}
                   {hasSavedSelection && (
                     <Text style={styles.templateEditHint}>Long press to edit</Text>
                   )}
@@ -713,67 +730,35 @@ export default function FocusSessionScreen({ navigation, route }) {
                           if (pendingTemplateId) {
                             console.log('[FocusSession] Saving selection to template:', pendingTemplateId);
                             
-                            // Check premium gate for saving templates
-                            const gateResult = await canSavePreset();
-                            if (!gateResult.allowed) {
-                              // Show upgrade prompt
-                              Alert.alert(
-                                'Premium Feature',
-                                gateResult.reason,
-                                [
-                                  {
-                                    text: 'Not Now',
-                                    style: 'cancel',
-                                    onPress: () => {
-                                      // User can still use the selection for this session only
-                                      console.log('[FocusSession] Template not saved - proceeding with one-time selection');
-                                      setPendingTemplateId(null);
-                                    }
-                                  },
-                                  {
-                                    text: 'Upgrade to Premium',
-                                    onPress: () => {
-                                      // Navigate to premium modal or upgrade flow
-                                      if (navigation) {
-                                        navigation.navigate('Settings', { openPremium: true });
-                                      }
-                                    }
-                                  }
-                                ]
-                              );
-                              
-                              // Don't save template, but allow using selection for this session
-                              // Continue to update local state for this session
-                            } else {
-                              // Premium user - save template
-                              await saveTemplate(pendingTemplateId, {
+                            // No gate check needed - user already passed premium gate at template tap
+                            // Save template directly
+                            await saveTemplate(pendingTemplateId, {
+                              selectionToken: familyActivitySelection,
+                              appCount: applicationCount || 0,
+                              categoryCount: categoryCount || 0,
+                              webDomainCount: webDomainCount || 0,
+                            });
+                            
+                            // Update local template metadata
+                            setTemplateMetadata(prev => ({
+                              ...prev,
+                              [pendingTemplateId]: {
                                 selectionToken: familyActivitySelection,
                                 appCount: applicationCount || 0,
                                 categoryCount: categoryCount || 0,
                                 webDomainCount: webDomainCount || 0,
-                              });
-                              
-                              // Update local template metadata
-                              setTemplateMetadata(prev => ({
-                                ...prev,
-                                [pendingTemplateId]: {
-                                  selectionToken: familyActivitySelection,
-                                  appCount: applicationCount || 0,
-                                  categoryCount: categoryCount || 0,
-                                  webDomainCount: webDomainCount || 0,
-                                  savedAt: Date.now(),
-                                },
-                              }));
-                              
-                              // Auto-select this template
-                              setSelectedTemplate(pendingTemplateId);
-                              
-                              // Set blockAllApps flag if this is the "all" template
-                              if (pendingTemplateId === 'all') {
-                                setBlockAllApps(true);
-                              } else {
-                                setBlockAllApps(false);
-                              }
+                                savedAt: Date.now(),
+                              },
+                            }));
+                            
+                            // Auto-select this template
+                            setSelectedTemplate(pendingTemplateId);
+                            
+                            // Set blockAllApps flag if this is the "all" template
+                            if (pendingTemplateId === 'all') {
+                              setBlockAllApps(true);
+                            } else {
+                              setBlockAllApps(false);
                             }
                             
                             // If voice mode, also save to alias store (voice aliases don't require premium)
@@ -898,6 +883,16 @@ export default function FocusSessionScreen({ navigation, route }) {
           </GlassCard>
         </View>
       </Modal>
+
+      {/* Premium Modal */}
+      <PremiumModal
+        visible={showPremium}
+        onClose={() => setShowPremium(false)}
+        onUpgrade={async () => {
+          setShowPremium(false);
+          await performUpgrade();
+        }}
+      />
     </GradientBackground>
   );
 }
