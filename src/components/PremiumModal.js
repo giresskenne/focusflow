@@ -19,10 +19,13 @@ export default function PremiumModal({ visible, onClose, onUpgrade }) {
   const savePercent = 30; // display badge only
 
   const features = [
-    { title: 'Unlimited Focus Sessions', description: 'Block unlimited apps with custom durations' },
-    { title: 'Advanced Reminders', description: 'Location-based, custom intervals, unlimited reminders' },
-    { title: 'Premium Analytics', description: 'Detailed insights and productivity trends' },
-    { title: 'Cloud Sync', description: 'Access your data across all devices' },
+    { title: 'Unlimited AI Voice Commands' },
+    { title: 'Save Custom Presets' },
+    { title: 'Voice Reminders' },
+    { title: 'Premium TTS Voices' },
+    { title: 'Detailed Analytics' },
+    { title: 'Unlimited History' },
+    { title: 'Cloud Sync' },
   ];
 
   return (
@@ -49,25 +52,21 @@ export default function PremiumModal({ visible, onClose, onUpgrade }) {
             >
             {/* Hero Section */}
               <View style={styles.hero}>
-                <GlassCard tint="dark" intensity={60} cornerRadius={40} contentStyle={styles.crownContent} style={styles.crownWrapper}>
-                  <CrownIcon size={28} color="#fff" />
+                <GlassCard tint="dark" intensity={60} cornerRadius={32} contentStyle={styles.crownContent} style={styles.crownWrapper}>
+                  <CrownIcon size={24} color="#fff" />
                 </GlassCard>
                 <Text style={styles.heroTitle}>Unlock Premium</Text>
-                <Text style={styles.heroSubtitle}>Advanced features. Unlimited access.</Text>
               </View>
 
             {/* Features List (green checks) */}
-              <GlassCard tint="dark" intensity={50} cornerRadius={20} style={{ marginBottom: spacing.md }} contentStyle={{ padding: spacing.md }}>
+              <GlassCard tint="dark" intensity={50} cornerRadius={20} style={{ marginBottom: spacing.md }} contentStyle={{ padding: spacing.sm }}>
                 <View style={styles.features}>
                   {features.map((feature, index) => (
                     <View key={index} style={[styles.checkRow, index !== features.length - 1 && styles.checkDivider]}>
                       <View style={styles.checkCircle}>
-                        <CheckIcon size={14} color="#fff" />
+                        <CheckIcon size={12} color="#fff" />
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.featureTitle}>{feature.title}</Text>
-                        <Text style={styles.featureDescription}>{feature.description}</Text>
-                      </View>
+                      <Text style={styles.featureTitle}>{feature.title}</Text>
                     </View>
                   ))}
                 </View>
@@ -156,14 +155,14 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   crownWrapper: {
     width: 60,
     height: 60,
     borderRadius: 30,
     alignSelf: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
   crownContent: {
     alignItems: 'center',
@@ -171,26 +170,18 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   heroTitle: {
-    fontSize: typography.xl,
+    fontSize: 24,
     fontWeight: typography.bold,
     color: colors.foreground,
     textAlign: 'center',
-    marginBottom: spacing.xs,
     letterSpacing: -0.5,
   },
-  heroSubtitle: {
-    fontSize: typography.sm,
-    color: colors.mutedForeground,
-    textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: 260,
-  },
-  features: { gap: spacing.xs },
+  features: { gap: 0 },
   checkRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
   },
   checkDivider: {
@@ -198,9 +189,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   checkCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#10b981',
@@ -225,15 +216,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(137, 0, 245, 0.25)'
   },
   featureTitle: {
-    fontSize: typography.base,
+    fontSize: typography.sm,
     fontWeight: typography.semibold,
     color: colors.foreground,
-    marginBottom: 4,
-  },
-  featureDescription: {
-    fontSize: typography.sm,
-    color: colors.mutedForeground,
-    lineHeight: 20,
   },
   pricing: { marginBottom: spacing.lg },
   pricingHeader: {

@@ -9,6 +9,7 @@ import MigrationPrompt from '../components/MigrationPrompt';
 import DataSyncPrompt from '../components/DataSyncPrompt';
 import { performMigrationUpload, pullCloudToLocal, hasCloudData } from '../lib/sync';
 import { getSupabase } from '../lib/supabase';
+import { getUsageStats } from '../modules/ai/usage-tracker';
 import PremiumModal from '../components/PremiumModal';
 import IAP from '../lib/iap';
 import StoreKitTest from '../lib/storekeittest';
@@ -23,6 +24,7 @@ import {
   InfoIcon,
   LogOutIcon,
   ChevronRightIcon,
+  CheckIcon,
 } from '../components/Icons';
 import Switch from '../components/Ui/Switch';
 import { colors, spacing, radius, typography } from '../theme';
@@ -58,6 +60,9 @@ export default function SettingsScreen({ navigation }) {
   // Voice settings
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [ttsEnabled, setTtsEnabled] = useState(true);
+  
+  // AI usage stats
+  const [aiUsage, setAiUsage] = useState({ used: 0, limit: 5, percentage: 0, isPremium: false });
 
   // Feature flag: enable actual cloud upload when explicitly turned on
   const ENABLE_MIGRATION_UPLOAD = process.env.EXPO_PUBLIC_ENABLE_MIGRATION_UPLOAD === 'true';
@@ -89,6 +94,14 @@ export default function SettingsScreen({ navigation }) {
       const voiceSettings = await getVoiceSettings();
       setVoiceEnabled(voiceSettings.voiceEnabled);
       setTtsEnabled(voiceSettings.ttsEnabled);
+      
+      // Load AI usage stats
+      try {
+        const usage = await getUsageStats();
+        setAiUsage(usage);
+      } catch (err) {
+        console.error('[Settings] Failed to load AI usage:', err);
+      }
 
       setAuthUserState(storedUser);
 
@@ -378,6 +391,11 @@ export default function SettingsScreen({ navigation }) {
                   <Text style={styles.settingsItemTitle}>
                     {isPremium ? 'Premium Member' : 'Free Plan'}
                   </Text>
+                  {!isPremium && aiUsage.limit !== Infinity && (
+                    <Text style={styles.settingsItemSubtitle}>
+                      {aiUsage.used}/{aiUsage.limit} AI commands today
+                    </Text>
+                  )}
                 </View>
               </View>
               {!isPremium && (
@@ -398,6 +416,58 @@ export default function SettingsScreen({ navigation }) {
             </View>
           </GlassCard>
         </View>
+        
+        {/* Premium Features Card (Free users only) */}
+        {!isPremium && (
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>PREMIUM FEATURES</Text>
+            <GlassCard tint="dark" intensity={40} cornerRadius={20} contentStyle={{ padding: spacing.lg }} style={styles.groupCardOuter}>
+              <Text style={styles.premiumFeaturesTitle}>Unlock Full Access</Text>
+              <Text style={styles.premiumFeaturesDesc}>
+                Upgrade to Premium for unlimited AI voice commands, custom presets, voice reminders, and more.
+              </Text>
+              
+              <View style={styles.featuresList}>
+                <View style={styles.featureRow}>
+                  <CheckIcon size={16} color={colors.secondary} />
+                  <Text style={styles.featureText}>Unlimited AI voice commands</Text>
+                </View>
+                <View style={styles.featureRow}>
+                  <CheckIcon size={16} color={colors.secondary} />
+                  <Text style={styles.featureText}>Save custom presets</Text>
+                </View>
+                <View style={styles.featureRow}>
+                  <CheckIcon size={16} color={colors.secondary} />
+                  <Text style={styles.featureText}>Voice reminders</Text>
+                </View>
+                <View style={styles.featureRow}>
+                  <CheckIcon size={16} color={colors.secondary} />
+                  <Text style={styles.featureText}>Premium TTS voices</Text>
+                </View>
+                <View style={styles.featureRow}>
+                  <CheckIcon size={16} color={colors.secondary} />
+                  <Text style={styles.featureText}>Unlimited history</Text>
+                </View>
+              </View>
+              
+              <TouchableOpacity 
+                onPress={handlePremiumPress}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={['#8900f5', '#0072ff']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.premiumCTA}
+                >
+                  <CrownIcon size={20} color="#fff" />
+                  <Text style={styles.premiumCTAText}>Upgrade to Premium</Text>
+                  <Text style={styles.premiumCTAPrice}>$5.99/month</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </GlassCard>
+          </View>
+        )}
 
         {/* Permissions Section */}
         <View style={styles.section}>
@@ -1231,6 +1301,48 @@ const styles = StyleSheet.create({
     fontSize: typography.sm,
     fontWeight: typography.semibold,
     color: '#fff',
+  },
+  premiumFeaturesTitle: {
+    fontSize: typography.lg,
+    fontWeight: typography.bold,
+    color: colors.foreground,
+    marginBottom: spacing.xs,
+  },
+  premiumFeaturesDesc: {
+    fontSize: typography.sm,
+    color: colors.mutedForeground,
+    lineHeight: 20,
+    marginBottom: spacing.lg,
+  },
+  featuresList: {
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  featureText: {
+    fontSize: typography.sm,
+    color: colors.foreground,
+  },
+  premiumCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: radius.lg,
+  },
+  premiumCTAText: {
+    fontSize: typography.base,
+    fontWeight: typography.bold,
+    color: '#fff',
+  },
+  premiumCTAPrice: {
+    fontSize: typography.sm,
+    color: 'rgba(255,255,255,0.7)',
   },
   testFreeButton: {
     paddingHorizontal: spacing.md,

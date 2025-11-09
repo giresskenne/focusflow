@@ -9,7 +9,7 @@
     "scheme": "com.giress.focusflow-app",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon-small.png",
+      "image": "./assets/splash-icon-smallest.png",
       "resizeMode": "contain",
       "backgroundColor": "#8900f5"
     },
@@ -31,7 +31,7 @@
         "com.apple.developer.usernotifications.time-sensitive": true
       },
       "splash": {
-        "image": "./assets/splash-icon-small.png",
+        "image": "./assets/splash-icon-smallest.png",
         "resizeMode": "contain",
         "backgroundColor": "#8900f5"
       }

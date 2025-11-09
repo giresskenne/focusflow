@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, Modal, Alert } from 'react-native';
 import { useTheme } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import UIButton from '../components/Ui/Button';
@@ -11,6 +11,10 @@ import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { upsertAlias } from '../modules/ai/aliases/alias-store';
+import { canSavePreset } from '../lib/permissions/premium-gates';
+import PremiumModal from '../components/PremiumModal';
+import { performUpgrade } from '../lib/premiumUpgrade';
+import IAP from '../lib/iap';
 
 // Import react-native-device-activity for DeviceActivitySelectionView
 let DeviceActivity = null;
@@ -76,6 +80,9 @@ export default function FocusSessionScreen({ navigation, route }) {
   
   // Check if native picker is available
   const nativePickerAvailable = DeviceActivitySelectionView !== null;
+
+  // Premium modal state
+  const [showPremium, setShowPremium] = useState(false);
 
   // State for template metadata (counts and saved status)
   const [templateMetadata, setTemplateMetadata] = useState({
@@ -467,6 +474,9 @@ export default function FocusSessionScreen({ navigation, route }) {
           <View style={styles.subsectionHeaderContainer}>
             <Ionicons name="flash" size={16} color={colors.secondary} style={{ marginRight: spacing.sm, alignSelf: 'center' }} />
             <Text style={styles.subsectionHeader}>Quick Start Templates</Text>
+            <View style={styles.premiumBadge}>
+              <Ionicons name="diamond" size={10} color={colors.secondary} />
+            </View>
           </View>
           <View style={styles.templatesGrid}>
             {QUICK_TEMPLATES.map((template) => {
@@ -481,7 +491,23 @@ export default function FocusSessionScreen({ navigation, route }) {
                     shadows.md,
                     isSelected && styles.templateCardSelected,
                   ]}
-                  onPress={() => handleTemplateSelect(template.id)}
+                  onPress={async () => {
+                    // Hard gate: Check premium status BEFORE opening picker
+                    const isPremium = await IAP.hasPremiumEntitlement();
+                    
+                    if (!isPremium && !hasSavedSelection) {
+                      // Not premium - show modal (HARD GATE, no "try once")
+                      setShowPremium(true);
+                      
+                      if (__DEV__) {
+                        console.log('[Telemetry] Template gate shown (hard gate):', template.id);
+                      }
+                      return;
+                    }
+                    
+                    // Premium user OR already saved - proceed to picker
+                    handleTemplateSelect(template.id);
+                  }}
                   onLongPress={() => {
                     // Long press to edit any saved template
                     if (hasSavedSelection) {
@@ -491,18 +517,20 @@ export default function FocusSessionScreen({ navigation, route }) {
                 >
                   <View style={styles.templateCardHeader}>
                     <Ionicons name={template.iconName} size={32} color={template.color} />
-                    {hasSavedSelection && (
-                      <TouchableOpacity 
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handleClearTemplate(template.id);
-                        }}
-                        style={styles.templateClearButton}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
-                        <Ionicons name="close-circle" size={20} color={colors.mutedForeground} />
-                      </TouchableOpacity>
-                    )}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                      {hasSavedSelection && (
+                        <TouchableOpacity 
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleClearTemplate(template.id);
+                          }}
+                          style={styles.templateClearButton}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Ionicons name="close-circle" size={20} color={colors.mutedForeground} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
                   <Text style={styles.templateName}>{template.name}</Text>
                   <Text style={styles.templateDescription}>{template.description}</Text>
@@ -701,6 +729,9 @@ export default function FocusSessionScreen({ navigation, route }) {
                           // If this was triggered by a template, save it to that template
                           if (pendingTemplateId) {
                             console.log('[FocusSession] Saving selection to template:', pendingTemplateId);
+                            
+                            // No gate check needed - user already passed premium gate at template tap
+                            // Save template directly
                             await saveTemplate(pendingTemplateId, {
                               selectionToken: familyActivitySelection,
                               appCount: applicationCount || 0,
@@ -708,7 +739,29 @@ export default function FocusSessionScreen({ navigation, route }) {
                               webDomainCount: webDomainCount || 0,
                             });
                             
-                            // If voice mode, also save to alias store
+                            // Update local template metadata
+                            setTemplateMetadata(prev => ({
+                              ...prev,
+                              [pendingTemplateId]: {
+                                selectionToken: familyActivitySelection,
+                                appCount: applicationCount || 0,
+                                categoryCount: categoryCount || 0,
+                                webDomainCount: webDomainCount || 0,
+                                savedAt: Date.now(),
+                              },
+                            }));
+                            
+                            // Auto-select this template
+                            setSelectedTemplate(pendingTemplateId);
+                            
+                            // Set blockAllApps flag if this is the "all" template
+                            if (pendingTemplateId === 'all') {
+                              setBlockAllApps(true);
+                            } else {
+                              setBlockAllApps(false);
+                            }
+                            
+                            // If voice mode, also save to alias store (voice aliases don't require premium)
                             if (isVoiceMode && voiceAlias) {
                               console.log('[FocusSession] Voice mode: saving alias:', voiceAlias);
                               // Store the save promise so Done button can await it
@@ -731,28 +784,6 @@ export default function FocusSessionScreen({ navigation, route }) {
                                   console.error('[FocusSession] Failed to save alias:', e);
                                 }
                               })();
-                            }
-                            
-                            // Update local template metadata
-                            setTemplateMetadata(prev => ({
-                              ...prev,
-                              [pendingTemplateId]: {
-                                selectionToken: familyActivitySelection,
-                                appCount: applicationCount || 0,
-                                categoryCount: categoryCount || 0,
-                                webDomainCount: webDomainCount || 0,
-                                savedAt: Date.now(),
-                              },
-                            }));
-                            
-                            // Auto-select this template
-                            setSelectedTemplate(pendingTemplateId);
-                            
-                            // Set blockAllApps flag if this is the "all" template
-                            if (pendingTemplateId === 'all') {
-                              setBlockAllApps(true);
-                            } else {
-                              setBlockAllApps(false);
                             }
                           }
                           
@@ -852,6 +883,16 @@ export default function FocusSessionScreen({ navigation, route }) {
           </GlassCard>
         </View>
       </Modal>
+
+      {/* Premium Modal */}
+      <PremiumModal
+        visible={showPremium}
+        onClose={() => setShowPremium(false)}
+        onUpgrade={async () => {
+          setShowPremium(false);
+          await performUpgrade();
+        }}
+      />
     </GradientBackground>
   );
 }
@@ -1170,6 +1211,20 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     fontStyle: 'italic',
     opacity: 0.7,
+  },
+  premiumBadge: {
+    backgroundColor: 'rgba(255, 204, 0, 0.15)',
+    borderRadius: radius.full,
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  premiumHint: {
+    fontSize: typography.xs,
+    color: colors.secondary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    fontWeight: typography.medium,
   },
   modalOverlay: {
     flex: 1,

@@ -3,6 +3,7 @@
 
 import { parseIntent as parseLocalIntent } from './intent-parser';
 import { parseIntentWithAI, isAIParserAvailable } from './ai-intent-parser';
+import { getRemainingCloudCalls, incrementCloudUsage } from '../usage-tracker';
 
 function getEnv(name, fallback) {
   const v = process.env[name] ?? process.env[`EXPO_PUBLIC_${name}`];
@@ -107,10 +108,60 @@ export async function parseIntentHybrid(text, options = {}) {
 async function tryCloudFallback(text, options, localResult) {
   telemetry.cloudFallback++;
   
+  // Check usage limits before making cloud call
+  try {
+    const usage = await getRemainingCloudCalls();
+    
+    if (!usage.canUse) {
+      console.log('[HybridIntent] Daily cloud limit reached, using local result');
+      
+      if (__DEV__) {
+        console.log(`[Telemetry] Free user hit AI limit (${usage.used}/${usage.limit})`);
+      }
+      
+      // Return local result if available, otherwise null
+      if (localResult) {
+        return {
+          ...localResult,
+          metadata: {
+            source: 'local',
+            confidence: localResult.confidence ?? 0.5,
+            parseTime: 0,
+            note: 'cloud-limit-reached',
+          },
+        };
+      }
+      
+      return {
+        action: null,
+        error: 'You\'ve reached your daily AI limit. Upgrade to Premium for unlimited AI commands.',
+        metadata: {
+          source: 'none',
+          confidence: 0,
+          note: 'limit-reached-no-local-fallback',
+        },
+      };
+    }
+  } catch (error) {
+    console.error('[HybridIntent] Failed to check usage limits:', error);
+    // Continue with cloud call on error (fail open for premium users)
+  }
+  
   const cloudStart = Date.now();
   try {
     const cloudResult = await parseIntentWithAI(text);
     const cloudTime = Date.now() - cloudStart;
+
+    // Increment usage counter after successful cloud call
+    try {
+      await incrementCloudUsage();
+      if (__DEV__) {
+        const newUsage = await getRemainingCloudCalls();
+        console.log(`[HybridIntent] Cloud call used (${newUsage.used}/${newUsage.limit || '∞'} today)`);
+      }
+    } catch (usageError) {
+      console.error('[HybridIntent] Failed to increment usage:', usageError);
+    }
 
     // Update average cloud time
     telemetry.avgCloudTime = (telemetry.avgCloudTime * (telemetry.cloudFallback - 1) + cloudTime) / telemetry.cloudFallback;

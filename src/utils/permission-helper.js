@@ -1,6 +1,21 @@
 import { Alert, Linking } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { Audio } from 'expo-av';
+
+// Lazy import expo-av to avoid issues when native module isn't available
+let Audio = null;
+
+async function getAudio() {
+  if (!Audio) {
+    try {
+      const av = await import('expo-av');
+      Audio = av.Audio;
+    } catch (error) {
+      console.warn('[PermissionHelper] expo-av not available:', error.message);
+      return null;
+    }
+  }
+  return Audio;
+}
 
 /**
  * Permission Helper
@@ -16,7 +31,10 @@ import { Audio } from 'expo-av';
  */
 export async function checkMicrophonePermission() {
   try {
-    const { status } = await Audio.getPermissionsAsync();
+    const AudioModule = await getAudio();
+    if (!AudioModule) return 'undetermined';
+    
+    const { status } = await AudioModule.getPermissionsAsync();
     return status;
   } catch (error) {
     console.error('[PermissionHelper] Error checking mic permission:', error);
@@ -30,7 +48,10 @@ export async function checkMicrophonePermission() {
  */
 export async function requestMicrophonePermission() {
   try {
-    const { status } = await Audio.requestPermissionsAsync();
+    const AudioModule = await getAudio();
+    if (!AudioModule) return false;
+    
+    const { status } = await AudioModule.requestPermissionsAsync();
     return status === 'granted';
   } catch (error) {
     console.error('[PermissionHelper] Error requesting mic permission:', error);
