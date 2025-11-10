@@ -688,22 +688,24 @@ export default function SettingsScreen({ navigation }) {
 
             <View style={styles.divider} />
 
-            <View style={styles.settingsItem}>
+            <View style={[styles.settingsItem, styles.disabledItem]}>
               <View style={styles.settingsItemContent}>
                 <View style={[styles.iconCircle, { backgroundColor: 'rgba(137, 0, 245, 0.2)' }]}>
                   <BellIcon color="#0072ff" size={20} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.settingsItemTitle}>Motivation Messages</Text>
-                  <Text style={styles.settingsItemSubtitle}>Encouraging tips & insights</Text>
+                  <Text style={styles.settingsItemSubtitle}>Coming Soon</Text>
                 </View>
               </View>
               <Switch 
-                value={motivationMsgs} 
+                value={motivationMsgs}
+                disabled
                 onValueChange={(value) => {
+                  // Keep handler for parity with other switches, but disabled prevents toggling
                   setMotivationMsgs(value);
                   updateSetting('motivationMessages', value);
-                }} 
+                }}
               />
             </View>
           </GlassCard>
