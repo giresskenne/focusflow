@@ -1,315 +1,182 @@
 # Privacy Policy
 
-**Doovine** - Focus & Productivity App
+**Effective Date:** November 10, 2025  
 
-**Effective Date:** October 26, 2025  
-**Last Updated:** October 26, 2025
-
----
-
-## 1. Introduction
-
-Doovine ("we," "us," "our," or "Company") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and otherwise process your information in connection with our mobile application, Doovine (the "App"), and our services (collectively, the "Services").
-
-Please read this Privacy Policy carefully. By accessing or using Doovine, you acknowledge that you have read, understood, and agree to be bound by all of the terms of this Privacy Policy. If you do not agree with our practices, please do not use our Services.
+At **FocusFlow Pro**, protecting your privacy is central to our mission of helping you reclaim focus. This Privacy Policy explains how we collect, use, store, and share your personal information. By using the app, you agree to these practices.
 
 ---
 
-## 2. Company Information
+## 1. Who We Are
 
-**Company Name:** Giress Kenne Tsasse  
-**Address:** 7 - 198 Lavergne St, Vanier, ON K1L 5E5, Canada  
-**Email:** info@doovine.com  
-**Phone:** Available upon request
+FocusFlow Pro is operated from Ontario, Canada by a private founder‑led company. You can contact us anytime at **support@focusflow.cc** for questions about your data.
 
 ---
 
-## 3. Information We Collect
+## 2. Information We Collect
 
-### 3.1 Information You Provide Directly
+We only collect information necessary to provide and improve the Services.
 
-**Account Registration:**
-- Email address
-- Password (hashed and securely stored)
-- Name (optional)
-- Account preferences
+### 2.1 Information You Provide
+- **Account Data:** Email address, password (securely hashed), optional name or preferences.  
+- **Focus Sessions:** Duration, apps blocked, completion status, and notes.  
+- **Reminders:** Reminder text and schedule preferences.  
+- **Support Messages:** Emails, bug reports, or feedback you send us.  
 
-**Focus Session Data:**
-- Apps you select to block during focus sessions
-- Session duration and timing
-- Session completion status
-- Notes or goals associated with sessions
+### 2.2 Automatically Collected Information
+- Device model, OS version, and app build number  
+- Crash reports and diagnostic logs  
+- Aggregate usage statistics (e.g., total focus time)  
+- General location (country or region only)  
 
-**Reminder Configuration:**
-- Reminder text and scheduling preferences
-- Notification settings
-- Reminder recurrence patterns
+### 2.3 Voice and AI Features
+When you use the AI voice assistant feature:
+- **Voice Commands:** We collect and process your voice input to recognize commands (e.g., "start a focus session"). Voice data is processed locally on your device whenever possible.  
+- **Cloud Processing:** For complex commands, audio may be sent securely to OpenAI's API for intent parsing. OpenAI processes this data according to their privacy policy and does not store voice recordings.  
+- **Speech Recognition:** We use iOS speech recognition services to convert voice to text. This follows Apple's privacy standards.  
+- **Hybrid Processing:** Approximately 95% of voice commands are handled locally on your device. Only complex or ambiguous commands require cloud processing.
 
-**Analytics Data:**
-- Session statistics and duration
-- App blocking attempts and successes
-- Reminder frequency and engagement
-- Productivity patterns and scores
+### 2.4 App Blocking and Screen Time
+To provide unbreakable focus sessions:
+- **iOS Family Controls:** We access which apps you select to block during sessions using Apple's Screen Time API.  
+- **App Usage Monitoring:** We monitor blocked app launch attempts only during active sessions to maintain focus integrity.  
+- **No Personal Monitoring:** We do not track your overall app usage outside of active focus sessions.  
 
-**Communication:**
-- Feedback, bug reports, and support inquiries
-- Correspondence with our support team
-- Survey responses and user preferences
+We do not collect contact lists, photos, precise GPS information, or general microphone recordings outside of voice commands.
 
-### 3.2 Information Collected Automatically
-
-**Device Information:**
-- Device model and operating system
-- App version and build number
-- Device identifier (UUID)
-- Device storage and memory information
-
-**Usage Information:**
-- Interactions with the App (features used, button clicks, pages viewed)
-- Crash reports and error logs
-- Time spent in different sections
-- Feature engagement metrics
-
-**Location Information:**
-- General location (city/country level only, not precise location)
-- Used only with explicit user consent for location-based features
-
-**Cookies and Similar Technologies:**
-- Session tokens for authentication
-- Preferences stored locally on your device
-- Analytics identifiers for usage tracking
-
-### 3.3 Information from Third Parties
-
-**System-Level Data:**
-- Installed apps list (only when you explicitly grant permission)
-- Device activity data (only when you enable focus session blocking feature)
-- Accessibility service data (only if explicitly enabled for app blocking)
-
-**Third-Party Services:**
-- Authentication providers (if you sign in via third-party accounts)
-- Crash reporting services
-- Analytics platforms
+### 2.5 Third‑Party Sources
+If you sign in through a third‑party platform or make a purchase, we may receive limited data from those providers such as transaction status or user identifier.
 
 ---
 
-## 4. How We Use Your Information
+## 3. How We Use Information
 
-We use collected information for the following purposes:
+We use your information to:
+- Operate and maintain the app;  
+- Provide focus sessions, reminders, and analytics;  
+- Process voice commands through our AI assistant;  
+- Enable app blocking during unbreakable focus sessions;  
+- Process payments for premium subscriptions;  
+- Respond to support requests;  
+- Communicate product updates and important notices;  
+- Detect and prevent fraud or security threats; and  
+- Comply with legal obligations.
 
-### 4.1 Service Delivery
-- Create and manage your account
-- Deliver focus session, reminder, and blocking features
-- Generate analytics and insights about your productivity
-- Send reminder notifications
-- Process and execute transactions
-
-### 4.2 Communication
-- Send service notifications and updates
-- Respond to your inquiries and support requests
-- Share important information about changes to our Services
-- Send promotional communications (with your opt-in consent)
-
-### 4.3 Product Improvement
-- Analyze usage patterns to improve features and functionality
-- Identify and fix bugs or performance issues
-- Develop new features and services
-- Conduct user research and surveys
-- Personalize your user experience
-
-### 4.4 Legal Compliance
-- Comply with applicable laws, regulations, and legal processes
-- Enforce our Terms of Service and other agreements
-- Protect our rights, privacy, safety, or property
-- Establish, exercise, or defend legal claims
-
-### 4.5 Security and Fraud Prevention
-- Detect, investigate, and prevent fraudulent transactions and abuse
-- Protect against security threats and cyberattacks
-- Verify user identity and authenticate access
-- Monitor for suspicious activity
+We do not sell your personal data to anyone.
 
 ---
 
-## 5. Information Sharing and Disclosure
+## 4. Data Sharing and Disclosure
 
-### 5.1 Data We Do NOT Share
-- Your email address (except with authentication providers if applicable)
-- Your actual blocked apps list (unless you explicitly export it)
-- Your focus session content or notes
+We share data only with trusted partners who help us operate FocusFlow Pro, such as:
+- **Cloud hosting and database providers** (Supabase for cloud sync)  
+- **AI services** (OpenAI for voice intent parsing)  
+- **Analytics and crash‑reporting tools**  
+- **Payment processors** (App Store, Google Play, RevenueCat)  
 
-### 5.2 Data We May Share
+These partners are bound by confidentiality agreements and use your data only as needed to support our Services.
 
-**Service Providers:**
-We share information with third-party vendors who assist in operating the App and our Services, including:
-- Cloud storage and database providers
-- Authentication services
-- Analytics platforms
-- Crash reporting services
-- Payment processors (for premium features)
+**OpenAI Voice Processing:** When voice commands are sent to OpenAI for processing, they are not stored or used to train AI models. OpenAI processes requests according to their enterprise data processing agreements.
 
-**Legal Requirements:**
-We may disclose your information when required by law, court order, or governmental request, or when we believe in good faith that disclosure is necessary to:
-- Comply with legal obligations
-- Protect our legal rights
-- Enforce our Terms of Service
-- Prevent fraud or security incidents
+We may also share information if required by law or to protect rights, safety, or property. If FocusFlow Pro is ever merged or sold, your data may transfer under equivalent privacy commitments.
 
-**Business Transfers:**
-If we merge, acquire, or sell substantially all of our assets, your information may be transferred as part of that transaction. We will provide notice if such an event occurs.
+---
 
-**With Your Consent:**
-We may share your information with third parties when you explicitly consent to such sharing.
+## 5. Cookies and Tracking
+
+FocusFlow Pro uses local storage and analytics identifiers to remember preferences and understand app performance. You can disable analytics in settings or limit tracking through your device permissions.
 
 ---
 
 ## 6. Data Security
 
-### 6.1 Security Measures
-We implement industry-standard security measures to protect your information:
-- AES-256 encryption for data at rest
-- TLS/SSL encryption for data in transit
-- Secure authentication using tokens and secure storage
-- Regular security audits and vulnerability assessments
-- Access controls and least-privilege principles
-- Secure credential storage using Keychain (iOS) / Secure Enclave
+We apply industry‑standard security measures:
+- Encryption (TLS for transit, AES‑256 for storage)  
+- Secure authentication and session tokens  
+- Voice data encrypted during transmission to OpenAI  
+- Limited internal access based on role and need  
 
-### 6.2 Limitations
-While we strive to protect your information, no security system is impenetrable. We cannot guarantee absolute security of your data. Unauthorized access or use may occur despite our safeguards.
-
-### 6.3 Data Retention
-- Account data is retained as long as your account is active
-- Session analytics are retained for 12 months
-- Backup data is retained for 30 days
-- You can request deletion of your data (see Section 8: Your Rights)
+Despite our efforts, no system is 100 percent secure. If a data breach occurs, we will notify affected users promptly and take remedial steps.
 
 ---
 
-## 7. Your Privacy Rights
+## 7. Data Retention
 
-### 7.1 Access and Portability
-You have the right to request access to your personal information and receive it in a portable format.
+We keep your information for as long as your account is active. Backups are kept for 30 days for disaster recovery. When you delete your account, we erase personal data within 30 days unless law requires longer retention.
 
-### 7.2 Correction
-You can update, correct, or modify your account information at any time through your account settings.
-
-### 7.3 Deletion
-You can request deletion of your account and associated data. We will delete your information within 30 days, except where:
-- We are required to retain it by law
-- It is necessary for our legal defense
-- Aggregated or anonymized (cannot identify you)
-
-### 7.4 Opt-Out
-- **Marketing Communications:** Click "unsubscribe" in emails or disable in app settings
-- **Analytics:** Disable analytics tracking in app preferences
-- **Location Services:** Disable location permissions in device settings
-- **Notifications:** Manage notification preferences in app and device settings
-
-### 7.5 Do Not Track
-Some browsers include Do Not Track features. Currently, the App does not respond to Do Not Track signals. However, you can control data collection through app settings.
-
-### 7.6 California and Canada Residents
-If you are a resident of California or Canada, you may have additional rights under applicable privacy laws (CCPA, PIPEDA). Contact us at info@doovine.com for more information.
+**Voice Data:** Voice recordings are processed in real‑time and are not stored on our servers. When sent to OpenAI, they are deleted immediately after processing.
 
 ---
 
-## 8. Children's Privacy
+## 8. Your Rights and Choices
 
-Doovine is not intended for children under the age of 13 (or the applicable age of digital consent in your jurisdiction). We do not knowingly collect personal information from children under 13. If we become aware that we have collected information from a child under 13, we will take steps to delete such information promptly.
+You have the right to:
+- Access a copy of your data;  
+- Request correction of inaccuracies;  
+- Delete your account and associated information;  
+- Opt out of marketing emails or analytics;  
+- Disable voice assistant features in app settings;  
+- Withdraw consent where processing is based on consent.  
 
-If you believe we have collected information from a child under 13, please contact us at info@doovine.com.
-
----
-
-## 9. Third-Party Links and Services
-
-Doovine may contain links to third-party websites, applications, and services that are not operated by us. This Privacy Policy does not apply to third-party services, and we are not responsible for their privacy practices. We recommend reviewing the privacy policies of any third-party services before providing your information.
-
----
-
-## 10. International Data Transfers
-
-Doovine operates in Canada. If you access the App from outside Canada, your information will be transferred to, stored in, and processed in Canada. By using our Services, you consent to such transfers.
-
-If you are a resident of the European Union or other regions with data protection regulations, your information may be subject to different data protection standards. We will comply with applicable data protection laws.
+Residents of Canada and other jurisdictions may also exercise additional rights under PIPEDA or similar laws by emailing **support@focusflow.cc**.
 
 ---
 
-## 11. Cookies and Tracking Technologies
+## 9. International Transfers
 
-### 11.1 Types of Tracking
-- **Session Cookies:** For authentication and maintaining your session
-- **Preference Cookies:** To remember your settings and preferences
-- **Analytics Cookies:** To understand how you use the App
-- **Security Cookies:** To detect fraud and unauthorized access
+If you access FocusFlow Pro from outside Canada, your data may be processed in Canada or other countries with different data protection laws. We ensure adequate protections through contractual and technical safeguards.
 
-### 11.2 Managing Cookies
-You can control cookies through:
-- App settings (disable analytics, personalization)
-- Device settings (location, camera, microphone permissions)
-- Browser/OS-level privacy controls
+When using voice features, data may be processed by OpenAI in the United States under appropriate data transfer mechanisms.
 
 ---
 
-## 12. California Consumer Privacy Act (CCPA) Compliance
+## 10. Children's Privacy
 
-If you are a California resident, you have the following rights under CCPA:
-
-**Right to Know:** Request what personal information we collect, use, and share.  
-**Right to Delete:** Request deletion of your personal information (with exceptions).  
-**Right to Opt-Out:** Opt out of "sales" or "sharing" of your personal information.  
-**Right to Non-Discrimination:** We will not discriminate for exercising your CCPA rights.
-
-To exercise these rights, contact us at info@doovine.com with "CCPA Request" in the subject line.
+FocusFlow Pro is not intended for children under 13 (or the applicable age of digital consent). We do not knowingly collect personal information from children. If we learn that we have, we delete it immediately.
 
 ---
 
-## 13. Personal Information Protection and Electronic Documents Act (PIPEDA) Compliance
+## 11. Retention of Communications
 
-If you are a Canadian resident, you have the following rights under PIPEDA:
-
-**Right to Access:** Request access to your personal information.  
-**Right to Correction:** Request correction of inaccurate information.  
-**Right to Complaint:** File a complaint with the Privacy Commissioner of Canada.
-
-To exercise these rights, contact us at info@doovine.com with "PIPEDA Request" in the subject line.
+When you contact us, we may retain your emails and support correspondence to improve service quality and ensure follow‑up on open requests. You may request deletion of support threads at any time.
 
 ---
 
-## 14. Contact Us
+## 12. Legal Basis for Processing (EU and EEA Users)
 
-If you have questions, concerns, or requests regarding this Privacy Policy or our privacy practices, please contact us:
-
-**Email:** info@doovine.com  
-**Mailing Address:**  
-Giress Kenne Tsasse  
-7 - 198 Lavergne St  
-Vanier, ON K1L 5E5  
-Canada
-
-We will respond to your inquiry within 30 days of receipt.
+Where applicable law requires a legal basis for processing, we rely on:
+- **Performance of Contract:** To deliver the Services you requested.  
+- **Legitimate Interest:** To improve the app and ensure security.  
+- **Consent:** For optional analytics, voice features, or marketing emails.  
+- **Legal Obligation:** To comply with laws and regulations.  
 
 ---
 
-## 15. Changes to This Privacy Policy
+## 13. Data Access and Portability
 
-We may update this Privacy Policy from time to time to reflect changes in our practices, technology, legal requirements, or other factors. We will notify you of material changes by:
-- Posting the updated Privacy Policy in the App
-- Updating the "Last Updated" date
-- Sending you an email notification (for significant changes)
-
-Your continued use of the App after any modifications indicates your acceptance of the updated Privacy Policy.
+You can request an export of your personal data in a structured, machine‑readable format by contacting **support@focusflow.cc**. We will respond within 30 days.
 
 ---
 
-## 16. Dispute Resolution
+## 14. Changes to This Policy
 
-Any dispute regarding our privacy practices will be governed by the laws of Ontario, Canada, and subject to the jurisdiction of the courts located in Ontario.
-
----
-
-**End of Privacy Policy**
+We may update this Privacy Policy as our Services evolve. When we make significant changes, we will notify you via email or in‑app notice before they take effect. The "Effective Date" above reflects the latest version.
 
 ---
 
-*This Privacy Policy is provided as-is and is intended to inform users of Doovine's data handling practices. For legal advice specific to your situation, please consult with a legal professional.*
+## 15. Dispute Resolution and Governing Law
+
+This Policy and any disputes arising from it are governed by the laws of Ontario, Canada, except where local law provides otherwise. We encourage informal resolution by emailing **support@focusflow.cc** before initiating legal proceedings.
+
+---
+
+## 16. Contact Information
+
+For privacy questions or requests:  
+
+**Email:** support@focusflow.cc  
+
+We typically respond within 30 days. If you are in Canada and believe we have not addressed your concerns, you may contact the Office of the Privacy Commissioner of Canada for assistance.
+
+---
+
+Thank you for trusting FocusFlow Pro with your data and your focus.

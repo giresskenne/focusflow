@@ -1,412 +1,247 @@
 # Terms of Service
 
-**Doovine** - Focus & Productivity App
+**Effective Date:** November 10, 2025  
 
-**Effective Date:** October 26, 2025  
-**Last Updated:** October 26, 2025
+Welcome to **FocusFlow Pro** — the focus and productivity app that helps you protect your time and attention. These Terms of Service ("Terms") describe the agreement between you and FocusFlow Pro regarding your use of the mobile application and related services (collectively, the "Services").  
 
----
-
-## 1. Agreement to Terms
-
-By downloading, installing, accessing, or using the Doovine mobile application (the "App") and related services (collectively, the "Services"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, you may not use the App or Services.
-
-These Terms apply to all users of Doovine, including but not limited to:
-- Free tier users
-- Premium subscription holders
-- Developers integrating with our APIs
-- Users accessing the App through third-party platforms
+By accessing or using FocusFlow Pro, you confirm that you have read, understood, and agree to be bound by these Terms. If you do not agree, please discontinue use immediately.
 
 ---
 
-## 2. Company Information
+## 1. Overview
 
-**Company Name:** Giress Kenne Tsasse  
-**Business Address:** 7 - 198 Lavergne St, Vanier, ON K1L 5E5, Canada  
-**Contact Email:** info@doovine.com  
-**Jurisdiction:** Ontario, Canada
+FocusFlow Pro is a digital wellness app operated from Ontario, Canada by a founder‑led private company. The app offers tools that block distractions, track focus sessions, provide AI voice assistance, and offer gentle reminders. These Terms apply to all users, whether using the free or premium versions.
 
 ---
 
-## 3. Use License and Restrictions
+## 2. Acceptance of Terms and Updates
 
-### 3.1 Limited License
-We grant you a limited, non-exclusive, non-transferable, revocable license to:
-- Download and install Doovine on your compatible personal mobile device
-- Use Doovine for personal, non-commercial purposes in accordance with these Terms
-- Access features available under your subscription tier (Free or Premium)
-
-### 3.2 Prohibited Activities
-You agree NOT to:
-
-**Unlawful Use:**
-- Use the App for illegal purposes or in violation of applicable laws
-- Violate intellectual property rights, privacy rights, or other rights of third parties
-- Engage in harassment, threats, defamation, or hate speech
-- Create fake accounts or impersonate others
-
-**Technical Restrictions:**
-- Reverse engineer, decompile, disassemble, or attempt to derive source code
-- Modify, alter, translate, or create derivative works of the App
-- Remove, obscure, or alter any proprietary notices or labels
-- Attempt to bypass security measures or authentication systems
-- Hack, crack, or exploit vulnerabilities in the App or Services
-
-**Misuse:**
-- Use the App to spam, phish, or send malicious code
-- Engage in automated access without permission (bots, scrapers)
-- Resell, redistribute, or lease the App
-- Use the App to develop competing products or services
-- Excessively use resources that impact service availability
-
-**Privacy and Security:**
-- Collect personal information about other users without consent
-- Access or tamper with other users' accounts or data
-- Bypass security measures or access restricted features
-- Disclose security vulnerabilities publicly without responsible disclosure
-
-### 3.3 Device Requirements
-You are responsible for:
-- Maintaining compatible hardware and software to run Doovine
-- Maintaining internet connectivity necessary to use the Services
-- Paying any costs associated with device access and data plans
+When you use FocusFlow Pro, you agree to comply with these Terms and all applicable laws. We may revise or update these Terms occasionally. Any significant changes will be communicated in‑app or by email at least 30 days before they take effect. Continued use after such notice constitutes acceptance of the revised Terms.
 
 ---
 
-## 4. Account Registration and Security
+## 3. Eligibility
 
-### 4.1 Account Creation
-To use certain features of Doovine, you may need to create an account by providing:
-- Email address
-- Password
-- Optional personal information (name, preferences)
-
-### 4.2 Account Accuracy
-You agree to:
-- Provide accurate, current, and complete information
-- Keep your account information up to date
-- Not share your account credentials with others
-- Maintain the confidentiality of your password
-- Notify us immediately of unauthorized access
-
-### 4.3 Account Responsibility
-You are solely responsible for:
-- All activity that occurs under your account, including unauthorized access
-- All content uploaded or created through your account
-- Compliance with these Terms and all applicable laws
-- Protecting your login credentials
-
-### 4.4 Account Termination
-We reserve the right to suspend or terminate accounts that:
-- Violate these Terms
-- Engage in prohibited activities
-- Show signs of fraud or security risk
-- Have been inactive for 12+ months (notice will be provided)
+You must be at least 13 years old (or the age of digital consent in your jurisdiction) to use FocusFlow Pro. By using the Services, you represent that you meet this requirement and have the legal capacity to enter into this agreement.
 
 ---
 
-## 5. Subscription Tiers and Pricing
+## 4. License to Use the App
 
-### 5.1 Free Tier
-The Free tier includes:
-- Basic focus session functionality (3 apps per session)
-- Up to 5 sessions per day
-- Up to 5 reminders
-- Basic analytics dashboard
-- Limited to 1 active session at a time
+We grant you a limited, non‑exclusive, non‑transferable, revocable license to install and use FocusFlow Pro on your personal device for your own non‑commercial use. This license does not grant ownership of the app or its content. All rights not expressly granted remain with FocusFlow Pro.
 
-### 5.2 Premium Tier
-Premium subscription includes:
-- Unlimited apps per session
-- Unlimited sessions per day
-- Unlimited reminders
-- Advanced analytics with export
-- Priority customer support
-- No ads (if applicable)
-- Early access to new features
-
-### 5.3 Pricing and Billing
-- Premium pricing is displayed in the App and on our website
-- Pricing may vary based on region and promotional offers
-- All prices exclude applicable taxes, which will be calculated and billed separately
-- We reserve the right to modify pricing with 30 days' notice
-
-### 5.4 Auto-Renewal
-Premium subscriptions automatically renew unless canceled. By subscribing, you authorize automatic billing:
-- Billing occurs on the anniversary of your subscription start date
-- Charges will be applied to the payment method on file
-- You can cancel auto-renewal anytime through the App or your device settings
-
-### 5.5 Payment Processing
-- Payments are processed through secure third-party payment providers
-- We do not store full credit card information
-- You are responsible for providing valid payment information
-- All transactions are final unless otherwise stated
-- Failed payments may result in service interruption
-
-### 5.6 Refunds and Cancellation
-- Refund policies comply with App Store guidelines (Apple, Google)
-- You can cancel subscriptions anytime; cancellation takes effect at the end of the billing period
-- For refund requests, please contact info@doovine.com within 30 days of purchase
-- Refunds are at our sole discretion, except where required by law
+You agree not to:
+- Reverse engineer, decompile, or attempt to derive the source code;
+- Modify, distribute, or create derivative works of the app;
+- Circumvent any security or access control systems;
+- Use the app for unlawful, abusive, or misleading purposes;
+- Attempt to bypass or disable unbreakable focus sessions once started.
 
 ---
 
-## 6. Intellectual Property Rights
+## 5. Accounts and Security
 
-### 6.1 App Ownership
-- All content, design, code, and materials in Doovine are owned by Giress Kenne Tsasse or licensed from third parties
-- These materials are protected by copyright, trademark, and other intellectual property laws
-- You do not own the App; you own only the limited license granted herein
+Some features require an account. When creating an account, you must provide accurate and current information. You are responsible for maintaining the confidentiality of your credentials and for all activity under your account.
 
-### 6.2 User Content License
-To the extent you upload, create, or generate content through Doovine ("User Content"):
-- You retain ownership of your User Content
-- You grant us a worldwide, royalty-free, perpetual license to:
-  - Store, display, and process your User Content
-  - Improve our Services using anonymized insights from your content
-  - Back up and restore your data
-  - Analyze usage patterns and trends
-
-### 6.3 Restrictions
-You may not:
-- Use our trademarks, logos, or branding without permission
-- Claim ownership of the App or its content
-- Create derivative works or use the App to create competing products
-- Use copyrighted material within the App without proper licensing
+If you suspect unauthorized use, email us at **support@focusflow.cc**. We may suspend or terminate accounts involved in fraudulent or abusive activity.
 
 ---
 
-## 7. Limitation of Liability
+## 6. Subscriptions and Billing
 
-### 7.1 Disclaimer of Warranties
-THE APP AND SERVICES ARE PROVIDED ON AN "AS-IS" AND "AS-AVAILABLE" BASIS. WE MAKE NO WARRANTIES, EXPRESS OR IMPLIED, INCLUDING:
-- Implied warranties of merchantability, fitness for a particular purpose, or non-infringement
-- That the App will be uninterrupted, error-free, or secure
-- That defects will be corrected or that the App will operate as expected
-- That the App is free from viruses or malicious code
+FocusFlow Pro offers free and premium tiers.
 
-### 7.2 Limitation of Damages
-TO THE MAXIMUM EXTENT PERMITTED BY LAW, WE SHALL NOT BE LIABLE FOR:
-- Indirect, incidental, special, consequential, or punitive damages
-- Loss of profits, revenue, data, or business opportunities
-- Damages arising from unauthorized access or data breaches (except where we are negligent)
-- Any damages exceeding the total amount you paid for the App in the 12 months prior to the claim
+### 6.1 Free Tier
+Provides access to core focus and reminder tools with certain feature limits.
 
-### 7.3 Exceptions
-These limitations do not apply to:
-- Death or personal injury caused by our negligence
-- Fraudulent misrepresentation
-- Claims that cannot be limited under applicable law
+### 6.2 Premium Tier
+Paid subscriptions unlock advanced tools such as:
+- Unlimited focus sessions
+- AI voice assistant
+- Enhanced analytics and insights
+- Cloud sync across devices
+- Accountability features
 
----
+Subscriptions automatically renew unless canceled through your App Store account before the renewal date. Pricing is displayed within the app and may vary by region. Applicable taxes are added where required.
 
-## 8. Indemnification
+Payments are processed securely by the App Store and RevenueCat. FocusFlow Pro does not store full payment details.
 
-You agree to indemnify, defend, and hold harmless Giress Kenne Tsasse and its officers, directors, employees, and agents from any claims, damages, losses, or expenses (including attorney's fees) arising from:
-- Your use of the App or Services
-- Your violation of these Terms
-- Your violation of applicable laws
-- Your infringement of third-party intellectual property rights
-- Your User Content or data
-- Your negligence or willful misconduct
+### 6.3 Cancellation and Refunds
+You may cancel anytime via your device's subscription settings. Refund requests are handled under the App Store's policies. Contact **support@focusflow.cc** if you believe you qualify for a refund under applicable law.
 
 ---
 
-## 9. Third-Party Services and Links
+## 7. Content Ownership
 
-### 9.1 Third-Party Content
-The App may contain links to, or integrate with, third-party websites, applications, and services. We are not responsible for:
-- The availability, accuracy, or content of third-party services
-- Third-party privacy practices or terms of service
-- Any transactions or interactions with third parties
-- Any damage or loss caused by third-party services
+All app content—including design, code, text, and graphics—is owned or licensed by FocusFlow Pro and protected under intellectual property laws. You may not use our name, logo, or branding without written permission.
 
-### 9.2 Third-Party Payment Processors
-- Premium subscriptions are processed through Apple App Store, Google Play Store, or other payment processors
-- These processors have separate terms and privacy policies
-- We are not responsible for their practices or any issues with payment processing
+Content you create (for example, notes or reminders) remains yours. By using the app, you grant us a limited, worldwide license to store and process your content solely to operate and improve the Services.
 
 ---
 
-## 10. Data and Privacy
+## 8. Acceptable Use
 
-### 10.1 Data Handling
-- Your information is handled in accordance with our Privacy Policy
-- By using Doovine, you consent to our data practices as outlined in the Privacy Policy
-- You are responsible for maintaining backups of your data
+You agree not to misuse the Services. Specifically, you will not:
+- Upload or distribute unlawful or harmful material;
+- Harass or impersonate others;
+- Attempt unauthorized access to data or systems;
+- Interfere with or disrupt network operations;
+- Use automated tools to extract or scrape content;
+- Abuse voice features for spam or malicious purposes.
 
-### 10.2 Data Loss
-We are not liable for:
-- Loss of User Content or data
-- Corruption of data
-- Unauthorized access to your account (except where caused by our negligence)
-- Deletion of data due to account termination for violation of these Terms
-
-### 10.3 Data Export
-You may request to export your data in a standard format. Export requests should be submitted to info@doovine.com and will be processed within 30 days.
+We reserve the right to suspend or remove accounts that violate this policy.
 
 ---
 
-## 11. Availability and Service Interruptions
+## 9. Unbreakable Focus Sessions
 
-### 11.1 Service Availability
-We strive to maintain Doovine with 99% uptime but make no guarantees. The App may be unavailable due to:
-- Scheduled maintenance (we provide notice when possible)
-- Emergency maintenance or security issues
-- Third-party service interruptions
-- Natural disasters, acts of God, or other unforeseen events
+### 9.1 How It Works
+FocusFlow Pro uses Apple's Screen Time API to enforce unbreakable focus sessions. When you start a session, selected apps will be blocked until the session ends.
 
-### 11.2 Interruption Notice
-We will attempt to notify users of planned maintenance through in-app notifications or email. However, we may not always be able to provide advance notice.
+### 9.2 Important Warnings
+- **Sessions cannot be cancelled** once started without deleting the app entirely.
+- **Emergency access** is limited. Plan accordingly before starting sessions.
+- **iOS restrictions** mean that blocked apps cannot be accessed even if you restart your device.
+- You are responsible for selecting appropriate session durations and blocked apps.
 
-### 11.3 No Liability for Interruptions
-We are not liable for any damage, loss, or inconvenience caused by service interruptions, data loss, or unavailability of the App.
+### 9.3 User Responsibility
+By using unbreakable sessions, you acknowledge:
+- You understand the commitment required before starting a session.
+- You will not hold FocusFlow Pro liable for any consequences of being unable to access blocked apps during active sessions.
+- You accept that the feature is designed to be challenging and restrictive by nature.
 
----
-
-## 12. Acceptable Use Policy
-
-### 12.1 Content Standards
-User Content must not:
-- Contain illegal content or encourage illegal activity
-- Be defamatory, harassing, threatening, or abusive
-- Violate privacy or intellectual property rights
-- Contain personal information without consent
-- Be spam or misleading
-- Contain malware or malicious code
-
-### 12.2 Enforcement
-We reserve the right to:
-- Remove User Content that violates this policy
-- Suspend or terminate accounts engaging in prohibited activities
-- Report illegal activity to law enforcement
-- Take legal action to protect our rights and the rights of users
-
-### 12.3 No Obligation to Monitor
-While we may monitor for violations, we are not obligated to do so and are not liable for User Content posted by others.
+### 9.4 Limitations
+While we strive for reliability, iOS system limitations or device settings may occasionally affect blocking effectiveness. We cannot guarantee 100% blocking in all scenarios.
 
 ---
 
-## 13. Modification of Terms and Services
+## 10. AI Voice Assistant
 
-### 13.1 Changes to Terms
-We may modify these Terms at any time. Changes are effective:
-- Immediately upon posting to the App
-- With 30 days' notice for material changes (via email or in-app notification)
-- Your continued use of the App after changes indicates acceptance
+### 10.1 Feature Description
+The AI voice assistant allows hands‑free control through spoken commands. Voice processing uses a hybrid approach: most commands are handled locally on your device, while complex commands may be sent to OpenAI for processing.
 
-### 13.2 Changes to Services
-We may:
-- Add, modify, or remove features
-- Change pricing (with 30 days' notice)
-- Discontinue services or features (with 30 days' notice)
-- Implement new limitations or restrictions
+### 10.2 Accuracy and Limitations
+- Voice recognition accuracy may vary based on accent, background noise, or speech clarity.
+- The AI may occasionally misinterpret commands. Always verify important actions.
+- Voice features require microphone permission and active internet connection for cloud processing.
 
-### 13.3 Discontinuation
-If we discontinue Doovine:
-- We will provide 90 days' notice
-- We will refund any prepaid subscription amounts on a pro-rata basis
-- We will provide a reasonable opportunity to export your data
+### 10.3 Third‑Party AI Services
+Voice commands may be processed by OpenAI. By using voice features, you acknowledge that:
+- Audio data may be transmitted to OpenAI for intent parsing.
+- OpenAI processes data according to their privacy policy and enterprise agreements.
+- Voice recordings are not stored after processing.
+
+### 10.4 No Liability for Misinterpretation
+We are not liable for consequences resulting from misinterpreted voice commands or AI errors. You retain full responsibility for actions taken through voice commands.
 
 ---
 
-## 14. Governing Law and Dispute Resolution
+## 11. Privacy and Data Handling
 
-### 14.1 Governing Law
-These Terms and all disputes arising from or related to Doovine are governed by and construed in accordance with the laws of Ontario, Canada, without regard to its conflict of law principles.
+Your data is handled in accordance with our [Privacy Policy](privacy). By using FocusFlow Pro, you consent to our collection and processing of information as described there. We take privacy seriously and minimize the data we store.
 
-### 14.2 Jurisdiction and Venue
-You agree to submit to the exclusive jurisdiction of the courts located in Ontario, Canada for any legal proceedings.
-
-### 14.3 Dispute Resolution Process
-Before pursuing legal action, we encourage you to:
-1. Contact us at info@doovine.com to resolve the issue informally
-2. Allow 30 days for a response
-3. Attempt good-faith negotiation
-
-### 14.4 Class Action Waiver
-You agree that disputes will be resolved on an individual basis, not as part of a class action or representative proceeding, except where prohibited by law.
-
-### 14.5 Arbitration
-Certain disputes may be subject to binding arbitration. If arbitration applies, disputes will be:
-- Resolved by a single arbitrator
-- Conducted in English
-- Located in Ontario, Canada
-- Governed by Canadian arbitration rules
+**Voice Data:** When using voice features, you consent to voice data processing as outlined in the Privacy Policy. You can disable voice features at any time in app settings.
 
 ---
 
-## 15. Warranties and Representations
+## 12. Service Availability
 
-### 15.1 Your Representations
-By using Doovine, you represent and warrant that:
-- You are at least 13 years old (or the age of digital consent in your jurisdiction)
-- You have the legal authority to accept these Terms
-- You will comply with all applicable laws
-- Your use will not infringe third-party rights
-- The information you provide is accurate and truthful
+We aim for continuous availability but cannot guarantee uninterrupted access. Maintenance, updates, or external issues may occasionally cause downtime. We strive to provide notice of planned outages when possible.
+
+We are not liable for losses resulting from temporary unavailability, except where required by law.
 
 ---
 
-## 16. Severability
+## 13. Third‑Party Services
 
-If any provision of these Terms is found to be invalid or unenforceable:
-- That provision will be modified to the minimum extent necessary to make it enforceable
-- If modification is not possible, the provision will be severed
-- All other provisions remain in full force and effect
+FocusFlow Pro integrates with third‑party services including:
+- **Apple Screen Time API** for app blocking
+- **OpenAI** for voice command processing
+- **Supabase** for cloud sync
+- **RevenueCat** for subscription management
+- Analytics providers and payment processors
 
----
-
-## 17. Entire Agreement
-
-These Terms, together with our Privacy Policy, constitute the entire agreement between you and Giress Kenne Tsasse regarding Doovine and supersede all prior agreements, understandings, and negotiations.
+These third parties operate under their own terms and privacy policies, which we do not control. We are not responsible for third‑party services or content.
 
 ---
 
-## 18. Contact Information
+## 14. Disclaimers
 
-For questions, concerns, or support regarding these Terms or Doovine:
+The app is provided "as is" and "as available." We make no warranties of any kind, express or implied, including warranties of merchantability, fitness for a particular purpose, or non‑infringement. We do not guarantee that the Services will always be secure, error‑free, or that app blocking will be 100% effective.
 
-**Email:** info@doovine.com  
-**Mailing Address:**  
-Giress Kenne Tsasse  
-7 - 198 Lavergne St  
-Vanier, ON K1L 5E5  
-Canada
+**Voice Features:** We do not warrant that voice recognition will be accurate or error‑free. Voice commands may be misinterpreted.
 
-We will respond to inquiries within 30 days of receipt.
+**Blocking Features:** While designed to be unbreakable, iOS system limitations or user device configurations may affect blocking effectiveness.
 
 ---
 
-## 19. Interpretation
+## 15. Limitation of Liability
 
-### 19.1 Definitions
-- "App" means the Doovine mobile application and all associated services
-- "Content" means any text, images, data, or other materials
-- "User Content" means content you create, upload, or generate through the App
-- "We," "us," or "our" refers to Giress Kenne Tsasse
-- "You" or "your" refers to you, the user
+To the fullest extent permitted by law, FocusFlow Pro, its affiliates, and contributors shall not be liable for indirect, incidental, or consequential damages, loss of data, profits, or goodwill arising from:
+- Use of the Services
+- Inability to access blocked apps during sessions
+- Misinterpreted voice commands
+- Third‑party service failures
+- Data loss or synchronization issues
 
-### 19.2 Headings and Sections
-Headings are for reference only and do not define, modify, or affect the meaning of provisions.
+Our total liability for any claim shall not exceed the amount you paid to FocusFlow Pro in the 12 months preceding the event giving rise to the claim.
 
----
-
-## 20. Updates and Announcements
-
-We may send you:
-- Service announcements and updates about Doovine
-- Technical updates and security notices
-- Changes to these Terms or our Privacy Policy
-- Promotional information (which you can opt out of)
-
-You agree to receive these communications via email or in-app notification.
+These limits do not apply to liability that cannot be excluded under applicable law, including personal injury or fraud.
 
 ---
 
-**End of Terms of Service**
+## 16. Indemnification
+
+You agree to indemnify and hold harmless FocusFlow Pro and its team members against any claims, damages, or expenses (including reasonable legal fees) arising from:
+- Your misuse of the Services
+- Violation of these Terms
+- Consequences of being unable to access apps during unbreakable sessions
+- Your voice commands or content
 
 ---
 
-*These Terms of Service are provided as-is and are intended to establish the legal relationship between users and Doovine. For legal advice specific to your situation, please consult with a qualified legal professional licensed in your jurisdiction.*
+## 17. Suspension and Termination
+
+We may suspend or terminate your access if you breach these Terms or use the Services unlawfully. You may also terminate at any time by deleting your account. Upon termination, your license to use the app ends, and your data will be deleted per our Privacy Policy.
+
+**Note:** Deleting the app during an active unbreakable session may be required to regain access to blocked apps, but will result in loss of session data.
+
+---
+
+## 18. Changes to the Services
+
+We may modify, add, or remove features at any time to improve functionality or comply with platform rules. If we discontinue a major feature or the app itself, we'll give at least 30 days' notice and, where applicable, provide a prorated refund for prepaid subscriptions.
+
+---
+
+## 19. Governing Law and Dispute Resolution
+
+These Terms are governed by the laws of Ontario, Canada, except where otherwise required by local law.
+
+Before taking formal action, please contact **support@focusflow.cc** so we can try to resolve the issue informally. If a dispute cannot be settled amicably, it will be handled by the courts of Ontario, Canada, unless otherwise required by mandatory law.
+
+---
+
+## 20. Severability
+
+If any provision of these Terms is found invalid or unenforceable, that provision shall be limited or removed to the minimum extent necessary, and the remainder shall remain in full effect.
+
+---
+
+## 21. Entire Agreement
+
+These Terms, together with the Privacy Policy and any other referenced policies, constitute the entire agreement between you and FocusFlow Pro regarding your use of the Services and supersede any prior understandings.
+
+---
+
+## 22. Contact
+
+If you have questions about these Terms or the Services, reach us at:
+
+**Email:** support@focusflow.cc  
+
+We typically respond within 30 days.
+
+---
+
+Thank you for choosing FocusFlow Pro and supporting a more mindful digital life.
