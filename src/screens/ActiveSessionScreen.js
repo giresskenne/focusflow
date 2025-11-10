@@ -927,14 +927,14 @@ export default function ActiveSessionScreen({ navigation, route }) {
     const hasExpired = sessionEndAt && now >= sessionEndAt;
     
     if (__DEV__) {
-    console.log('[ActiveSession] Timer check:', { 
+      console.log('[ActiveSession] Timer check:', { 
+        safeSeconds, 
+        hasExpired, 
+        now, 
+        sessionEndAt,
+        diff: sessionEndAt - now 
+      });
     }
-      safeSeconds, 
-      hasExpired, 
-      now, 
-      sessionEndAt,
-      diff: sessionEndAt - now 
-    });
     
     if ((safeSeconds <= 0 || hasExpired) && mountedRef.current) {
       (async () => {
