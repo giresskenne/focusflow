@@ -111,11 +111,9 @@ export default function OnboardingScreen({ navigation, onComplete }) {
   // Debug helpers
   const onLayoutCard = (label) => (e) => {
     const { width, height } = e.nativeEvent.layout || {};
-    console.log(`[Onboarding] ${label} layout:`, { width, height });
   };
   const onLayoutContent = (label) => (e) => {
     const { width, height } = e.nativeEvent.layout || {};
-    console.log(`[Onboarding] ${label} content layout:`, { width, height });
   };
 
   return (

@@ -15,7 +15,9 @@ if (Platform.OS === 'ios') {
     const lib = require('react-native-device-activity');
     DeviceActivity = lib;
   } catch (error) {
+    if (__DEV__) {
     console.log('[FocusExecutor] react-native-device-activity not available:', error.message);
+    }
   }
 }
 
@@ -65,9 +67,13 @@ export async function applyPlan(plan) {
     if (DeviceActivity) {
       try {
         DeviceActivity.stopMonitoring(['focusSession']);
+        if (__DEV__) {
         console.log('[FocusExecutor] DeviceActivity monitoring stopped');
+        }
       } catch (e) {
+        if (__DEV__) {
         console.log('[FocusExecutor] Error stopping monitoring:', e);
+        }
       }
     }
     await AppBlocker.stopBlocking();
@@ -82,7 +88,9 @@ export async function applyPlan(plan) {
   
   // If plan needs ActiveSession navigation (opaque token), just prepare state
   if (plan.needsActiveSession && plan.opaqueToken) {
+    if (__DEV__) {
     console.log('[FocusExecutor] Preparing for ActiveSession navigation');
+    }
     // Create a stable selection id for this request and register it natively
   // Use the same fixed id as the manual flow so native code recognizes it consistently
   const selectionId = 'focusflow_selection';
@@ -93,10 +101,14 @@ export async function applyPlan(plan) {
           id: selectionId,
           familyActivitySelection: plan.opaqueToken,
         });
+        if (__DEV__) {
         console.log('[FocusExecutor] Registered selection id with DeviceActivity:', selectionId);
+        }
       }
     } catch (e) {
+      if (__DEV__) {
       console.log('[FocusExecutor] Failed to register selection id (continuing):', e?.message || e);
+      }
     }
 
     // Persist selection so ActiveSessionScreen can load it

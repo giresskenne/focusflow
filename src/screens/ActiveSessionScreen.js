@@ -926,7 +926,9 @@ export default function ActiveSessionScreen({ navigation, route }) {
     const now = Date.now();
     const hasExpired = sessionEndAt && now >= sessionEndAt;
     
+    if (__DEV__) {
     console.log('[ActiveSession] Timer check:', { 
+    }
       safeSeconds, 
       hasExpired, 
       now, 
@@ -1112,7 +1114,9 @@ export default function ActiveSessionScreen({ navigation, route }) {
     } catch {}
   };
 
+  if (__DEV__) {
   console.log('[ActiveSession] Rendering with seconds:', safeSeconds, 'progress:', safeProgress, 'endAt:', sessionEndAt);
+  }
   
   return (
     <GradientBackground>

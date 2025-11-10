@@ -2,7 +2,7 @@
 // Works with .storekit configuration files in Xcode for device/simulator testing.
 
 const ENABLE_STOREKIT_TEST = process.env.EXPO_PUBLIC_ENABLE_STOREKIT_TEST === 'true';
-const DEBUG = true;
+const DEBUG = false;
 const log = (...args) => { try { DEBUG && console.log('[StoreKitTest]', ...args); } catch {} };
 
 // Direct require so Metro includes the native module when installed

@@ -32,7 +32,6 @@ let avCheckDone = false;
 let avAvailable = false;
 export async function isAvailable() {
   const key = getEnv('EXPO_PUBLIC_OPENAI_API_KEY');
-  if (!key) { console.log('[OpenAI TTS] isAvailable: false (no API key)'); return false; }
   try {
     if (!avCheckDone) {
       try {
@@ -44,7 +43,6 @@ export async function isAvailable() {
       avCheckDone = true;
     }
   } catch {}
-  console.log('[OpenAI TTS] isAvailable:', !!key && avAvailable);
   return !!key && avAvailable;
 }
 
