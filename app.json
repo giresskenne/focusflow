@@ -25,7 +25,8 @@
       "infoPlist": {
         "NSFamilyControlsUsageDescription": "FocusFlow needs access to Screen Time to block distracting apps during your focus sessions.",
         "NSSpeechRecognitionUsageDescription": "FocusFlow uses voice commands to help you start focus sessions hands-free.",
-        "NSMicrophoneUsageDescription": "FocusFlow needs microphone access to recognize your voice commands."
+        "NSMicrophoneUsageDescription": "FocusFlow needs microphone access to recognize your voice commands.",
+        "NSPhotoLibraryUsageDescription": "FocusFlow does not access your photos. This permission is required by a third-party library but is not used by the app."
       },
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
