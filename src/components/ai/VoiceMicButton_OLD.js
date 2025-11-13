@@ -26,7 +26,9 @@ export default function VoiceMicButton({ style }) {
   const runText = async (utterance) => {
     if (!utterance?.trim()) return;
     lastUtteranceRef.current = utterance;
+    if (__DEV__) {
     console.log('[VoiceMicButton] Running utterance:', utterance);
+    }
     const res = await handleUtterance(utterance, { confirm: true });
     console.log('[VoiceMicButton] handleUtterance result:', res);
     
@@ -103,7 +105,9 @@ export default function VoiceMicButton({ style }) {
     const ready = await (STTService.ensureLoaded?.() ?? Promise.resolve(sttAvailable));
     if (ready) {
       try {
+  if (__DEV__) {
   console.log('[VoiceMicButton] Starting STT...');
+  }
   // Make sure TTS is not speaking to avoid echo into STT
   try { if (ttsEnabled && ttsAvailable()) ttsStop(); } catch {}
         setListening(true);

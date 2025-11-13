@@ -926,13 +926,15 @@ export default function ActiveSessionScreen({ navigation, route }) {
     const now = Date.now();
     const hasExpired = sessionEndAt && now >= sessionEndAt;
     
-    console.log('[ActiveSession] Timer check:', { 
-      safeSeconds, 
-      hasExpired, 
-      now, 
-      sessionEndAt,
-      diff: sessionEndAt - now 
-    });
+    if (__DEV__) {
+      console.log('[ActiveSession] Timer check:', { 
+        safeSeconds, 
+        hasExpired, 
+        now, 
+        sessionEndAt,
+        diff: sessionEndAt - now 
+      });
+    }
     
     if ((safeSeconds <= 0 || hasExpired) && mountedRef.current) {
       (async () => {
@@ -1112,7 +1114,9 @@ export default function ActiveSessionScreen({ navigation, route }) {
     } catch {}
   };
 
+  if (__DEV__) {
   console.log('[ActiveSession] Rendering with seconds:', safeSeconds, 'progress:', safeProgress, 'endAt:', sessionEndAt);
+  }
   
   return (
     <GradientBackground>

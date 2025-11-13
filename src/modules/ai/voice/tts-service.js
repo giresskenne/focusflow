@@ -6,7 +6,6 @@ import * as Speech from 'expo-speech';
 import { isAvailable as openaiAvailable, speak as openaiSpeak, stop as openaiStop, isSpeaking as openaiIsSpeaking } from './openai-tts-service';
 import { getVoiceSettings } from '../../../storage';
 
-console.log('[TTS] Module loaded. Speech.speak:', typeof Speech?.speak);
 
 function getEnv(name, fallback = undefined) {
   try {

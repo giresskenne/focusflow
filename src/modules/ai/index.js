@@ -19,13 +19,19 @@ export const FLAGS = {
 };
 
 export async function handleUtterance(text, { confirm = true } = {}) {
+  if (__DEV__) {
   console.log('[AI] handleUtterance called with:', text, 'confirm:', confirm);
+  }
   const intent = await parseIntent(text);
+  if (__DEV__) {
   console.log('[AI] parseIntent result:', intent);
+  }
   if (!intent) return { ok: false, reason: 'no-intent' };
   
   const plan = await planFromIntent(intent);
+  if (__DEV__) {
   console.log('[AI] planFromIntent result:', plan);
+  }
   if (!plan) return { ok: false, reason: 'no-plan' };
 
   // Handle noop case (alias not found)

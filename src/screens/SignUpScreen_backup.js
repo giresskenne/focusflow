@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, ScrollView, Platform, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, ScrollView, Platform, TouchableOpacity, Alert, Linking } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@react-navigation/native';
 // import UIButton from '../components/Ui/Button';
@@ -409,9 +409,9 @@ export default function SignUpScreen({ navigation }) {
                 </View>
                 <Text style={styles.termsText}>
                   I agree to the{' '}
-                  <Text style={styles.termsLink} onPress={() => navigation.navigate('Terms')}>Terms of Service</Text>
+                  <Text style={styles.termsLink} onPress={() => Linking.openURL('https://www.focusflow.cc/terms')}>Terms of Service</Text>
                   {' '}and{' '}
-                  <Text style={styles.termsLink} onPress={() => navigation.navigate('Privacy')}>Privacy Policy</Text>
+                  <Text style={styles.termsLink} onPress={() => Linking.openURL('https://www.focusflow.cc/privacy')}>Privacy Policy</Text>
                 </Text>
               </TouchableOpacity>
 

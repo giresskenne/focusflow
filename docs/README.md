@@ -1,155 +1,307 @@
-# Doovine - Policy & Compliance Documentation Index
+# FocusFlow Pro - Policy & Compliance Documentation Index# Doovine - Policy & Compliance Documentation Index
 
-Welcome to the Doovine policy and compliance documentation. This index guides you through all available resources.
 
----
 
-## 📋 Quick Navigation
+Welcome to the FocusFlow Pro policy and compliance documentation. This index guides you through all available resources.Welcome to the Doovine policy and compliance documentation. This index guides you through all available resources.
 
-### For End Users
-- **Privacy Policy**: [docs/PRIVACY_POLICY.md](./PRIVACY_POLICY.md)
-  - What data we collect, how we use it, and your rights
-  - Includes contact: info@doovine.com
-  - Accessible in-app via: Settings → Legal & Privacy → Privacy Policy
 
-- **Terms of Service**: [docs/TERMS_OF_SERVICE.md](./TERMS_OF_SERVICE.md)
-  - How to use the app and your responsibilities
-  - Legal terms, limitations, and warranties
-  - Accessible in-app via: Settings → Legal & Privacy → Terms of Service
 
-### For Developers
-- **Integration Guide**: [docs/POLICY_INTEGRATION_GUIDE.md](./POLICY_INTEGRATION_GUIDE.md)
-  - Step-by-step guide to integrate policies into your app
-  - Code examples and component usage
-  - Recommended for all developers working on Doovine
+------
+
+
+
+## 📋 Quick Navigation## 📋 Quick Navigation
+
+
+
+### For End Users### For End Users
+
+- **Privacy Policy**: [docs/PRIVACY_POLICY.md](./PRIVACY_POLICY.md)- **Privacy Policy**: [docs/PRIVACY_POLICY.md](./PRIVACY_POLICY.md)
+
+  - What data we collect, how we use it, and your rights  - What data we collect, how we use it, and your rights
+
+  - Includes contact: support@focusflow.cc  - Includes contact: info@doovine.com
+
+  - Accessible in-app via: Settings → Legal & Privacy → Privacy Policy  - Accessible in-app via: Settings → Legal & Privacy → Privacy Policy
+
+
+
+- **Terms of Service**: [docs/TERMS_OF_SERVICE.md](./TERMS_OF_SERVICE.md)- **Terms of Service**: [docs/TERMS_OF_SERVICE.md](./TERMS_OF_SERVICE.md)
+
+  - How to use the app and your responsibilities  - How to use the app and your responsibilities
+
+  - Legal terms, limitations, and warranties  - Legal terms, limitations, and warranties
+
+  - Accessible in-app via: Settings → Legal & Privacy → Terms of Service  - Accessible in-app via: Settings → Legal & Privacy → Terms of Service
+
+
+
+### For Developers### For Developers
+
+- **Architecture Documentation**: [docs/ARCHITECTURE.md](./ARCHITECTURE.md)- **Integration Guide**: [docs/POLICY_INTEGRATION_GUIDE.md](./POLICY_INTEGRATION_GUIDE.md)
+
+  - Complete system architecture overview  - Step-by-step guide to integrate policies into your app
+
+  - AI voice assistant implementation  - Code examples and component usage
+
+  - Unbreakable sessions and iOS Screen Time integration  - Recommended for all developers working on Doovine
+
+  - Premium features and cloud sync
 
 - **Compliance Summary**: [docs/COMPLIANCE_SUMMARY.md](./COMPLIANCE_SUMMARY.md)
-  - Checklist of regulatory compliance items
-  - CCPA and PIPEDA coverage details
-  - Verification procedures
+
+- **Technical Challenges**: [docs/TECHNICAL_CHALLENGES.md](./TECHNICAL_CHALLENGES.md)  - Checklist of regulatory compliance items
+
+  - Major issues encountered during development  - CCPA and PIPEDA coverage details
+
+  - Solutions and workarounds implemented  - Verification procedures
+
+  - iOS blocking, voice assistant, IAP, and Supabase challenges
 
 - **Integration Complete**: [docs/INTEGRATION_COMPLETE.md](./INTEGRATION_COMPLETE.md)
-  - Status report on policy integration
-  - All components and features listed
-  - Test results and architecture diagram
+
+- **Supabase Setup**: [SUPABASE_SETUP.md](../SUPABASE_SETUP.md)  - Status report on policy integration
+
+  - Database configuration and RLS policies  - All components and features listed
+
+  - Migration files and security setup  - Test results and architecture diagram
+
+  - Environment variable configuration
 
 ### For Product & Project Managers
-- **Deployment Package**: [docs/DEPLOYMENT_PACKAGE.md](./DEPLOYMENT_PACKAGE.md)
-  - Complete deployment package overview
-  - User flow diagrams and configuration details
-  - Production checklist and support information
 
----
+- **Production Sanitization**: [PRODUCTION_SANITIZATION_CHECKLIST.md](../PRODUCTION_SANITIZATION_CHECKLIST.md)- **Deployment Package**: [docs/DEPLOYMENT_PACKAGE.md](./DEPLOYMENT_PACKAGE.md)
 
-## 🎯 Getting Started
+  - Pre-launch checklist  - Complete deployment package overview
+
+  - Debug artifact removal guide  - User flow diagrams and configuration details
+
+  - Security and privacy verification  - Production checklist and support information
+
+
+
+### For Product & Project Managers---
+
+- **Product Requirements**: [docs/Product Requirements Document_ FocusFlow (Updated).md](./Product%20Requirements%20Document_%20FocusFlow%20(Updated).md)
+
+  - Complete PRD with v3.0 features## 🎯 Getting Started
+
+  - Implementation status (shipped vs roadmap)
+
+  - Technical architecture and user flows### If you're...
+
+
+
+- **Go-To-Market Strategy**: [docs/FocusFlow_ Comprehensive Go-To-Market (GTM) Strategy.md](./FocusFlow_%20Comprehensive%20Go-To-Market%20(GTM)%20Strategy.md)**A New Developer**
+
+  - Pre-launch, launch, and post-launch strategies1. Read: [POLICY_INTEGRATION_GUIDE.md](./POLICY_INTEGRATION_GUIDE.md)
+
+  - Organic growth tactics for solo founders2. Review: Component structure in `src/components/` and `src/lib/`
+
+  - Community engagement and ASO optimization3. Run: `npm test` to verify everything is working
+
+
+
+---**A Product Manager**
+
+1. Review: [DEPLOYMENT_PACKAGE.md](./DEPLOYMENT_PACKAGE.md) for overview
+
+## 🎯 Getting Started2. Check: [INTEGRATION_COMPLETE.md](./INTEGRATION_COMPLETE.md) for status
+
+3. Reference: [COMPLIANCE_SUMMARY.md](./COMPLIANCE_SUMMARY.md) for checklist
 
 ### If you're...
 
-**A New Developer**
-1. Read: [POLICY_INTEGRATION_GUIDE.md](./POLICY_INTEGRATION_GUIDE.md)
-2. Review: Component structure in `src/components/` and `src/lib/`
-3. Run: `npm test` to verify everything is working
-
-**A Product Manager**
-1. Review: [DEPLOYMENT_PACKAGE.md](./DEPLOYMENT_PACKAGE.md) for overview
-2. Check: [INTEGRATION_COMPLETE.md](./INTEGRATION_COMPLETE.md) for status
-3. Reference: [COMPLIANCE_SUMMARY.md](./COMPLIANCE_SUMMARY.md) for checklist
-
 **A User Support Representative**
-1. Reference: [PRIVACY_POLICY.md](./PRIVACY_POLICY.md) for privacy questions
-2. Reference: [TERMS_OF_SERVICE.md](./TERMS_OF_SERVICE.md) for usage questions
-3. Use: Contact email info@doovine.com for escalations
 
-**A Compliance Officer**
+**A New Developer**1. Reference: [PRIVACY_POLICY.md](./PRIVACY_POLICY.md) for privacy questions
+
+1. Read: [ARCHITECTURE.md](./ARCHITECTURE.md) to understand the system2. Reference: [TERMS_OF_SERVICE.md](./TERMS_OF_SERVICE.md) for usage questions
+
+2. Review: [TECHNICAL_CHALLENGES.md](./TECHNICAL_CHALLENGES.md) to learn from past issues3. Use: Contact email info@doovine.com for escalations
+
+3. Setup: Follow [SUPABASE_SETUP.md](../SUPABASE_SETUP.md) for database configuration
+
+4. Test: Review test files in `__tests__/` directory**A Compliance Officer**
+
 1. Review: [COMPLIANCE_SUMMARY.md](./COMPLIANCE_SUMMARY.md) for all items
-2. Check: Each policy document for jurisdiction-specific requirements
-3. Verify: [INTEGRATION_COMPLETE.md](./INTEGRATION_COMPLETE.md) for implementation
 
----
+**Preparing for Production**2. Check: Each policy document for jurisdiction-specific requirements
+
+1. Review: [PRODUCTION_SANITIZATION_CHECKLIST.md](../PRODUCTION_SANITIZATION_CHECKLIST.md)3. Verify: [INTEGRATION_COMPLETE.md](./INTEGRATION_COMPLETE.md) for implementation
+
+2. Run: `npm run audit:production` to check for debug artifacts
+
+3. Use: `npm run sanitize:production` to clean code (after reviewing dry-run)---
+
+4. Verify: All legal policies are accessible in-app
 
 ## 📊 Documentation Overview
 
-| Document | Size | Purpose | Audience |
-|----------|------|---------|----------|
-| **PRIVACY_POLICY.md** | 11 KB | Privacy & data protection terms | End Users, Support, Legal |
-| **TERMS_OF_SERVICE.md** | 15 KB | Service usage & legal terms | End Users, Support, Legal |
+**Managing Legal Compliance**
+
+1. Read: [PRIVACY_POLICY.md](./PRIVACY_POLICY.md) and [TERMS_OF_SERVICE.md](./TERMS_OF_SERVICE.md)| Document | Size | Purpose | Audience |
+
+2. Verify: Policies include all current features (AI voice, unbreakable sessions, cloud sync)|----------|------|---------|----------|
+
+3. Use: Contact email support@focusflow.cc for escalations| **PRIVACY_POLICY.md** | 11 KB | Privacy & data protection terms | End Users, Support, Legal |
+
+4. Update: Policies when adding new data collection or features| **TERMS_OF_SERVICE.md** | 15 KB | Service usage & legal terms | End Users, Support, Legal |
+
 | **POLICY_INTEGRATION_GUIDE.md** | 14 KB | Developer integration guide | Developers, Architects |
-| **COMPLIANCE_SUMMARY.md** | ~10 KB | Regulatory compliance checklist | Compliance Officers, Managers |
+
+---| **COMPLIANCE_SUMMARY.md** | ~10 KB | Regulatory compliance checklist | Compliance Officers, Managers |
+
 | **INTEGRATION_COMPLETE.md** | 5 KB | Integration status & summary | Project Managers, Tech Leads |
-| **DEPLOYMENT_PACKAGE.md** | 11 KB | Complete deployment overview | All Technical Staff |
 
----
+## 🔍 Feature Coverage in Legal Docs| **DEPLOYMENT_PACKAGE.md** | 11 KB | Complete deployment overview | All Technical Staff |
 
-## 🔑 Key Information
 
-### Company Details
-- **Product**: Doovine (Focus & Productivity App)
-- **Owner**: Giress Kenne Tsasse
-- **Email**: info@doovine.com
-- **Address**: 7-198 Lavergne St, Vanier, ON K1L 5E5, Canada
-- **Jurisdiction**: Ontario, Canada
 
-### Compliance Standards
-- ✅ **CCPA** - California Consumer Privacy Act
-- ✅ **PIPEDA** - Personal Information Protection & Electronic Documents Act
-- ✅ **Apple App Store** - Guidelines compliant
-- ✅ **Google Play Store** - Guidelines compliant
+Our legal documentation covers:---
 
-### Implementation Status
+
+
+### Privacy Policy## 🔑 Key Information
+
+- ✅ Account data and authentication
+
+- ✅ Focus session data and app blocking### Company Details
+
+- ✅ AI voice assistant (microphone, speech recognition, OpenAI processing)- **Product**: Doovine (Focus & Productivity App)
+
+- ✅ iOS Screen Time API usage- **Owner**: Giress Kenne Tsasse
+
+- ✅ Cloud sync with Supabase- **Email**: info@doovine.com
+
+- ✅ RevenueCat payment processing- **Address**: 7-198 Lavergne St, Vanier, ON K1L 5E5, Canada
+
+- ✅ Data retention and deletion rights- **Jurisdiction**: Ontario, Canada
+
+
+
+### Terms of Service### Compliance Standards
+
+- ✅ Free and premium tier features- ✅ **CCPA** - California Consumer Privacy Act
+
+- ✅ Unbreakable focus sessions (warnings and limitations)- ✅ **PIPEDA** - Personal Information Protection & Electronic Documents Act
+
+- ✅ AI voice assistant (accuracy limitations, third-party processing)- ✅ **Apple App Store** - Guidelines compliant
+
+- ✅ Subscription management and billing- ✅ **Google Play Store** - Guidelines compliant
+
+- ✅ User responsibilities and acceptable use
+
+- ✅ Liability limitations for blocking and AI features### Implementation Status
+
 - ✅ All policies implemented in-app
-- ✅ PolicyManager and acceptance flow integrated
+
+---- ✅ PolicyManager and acceptance flow integrated
+
 - ✅ Settings links added for policy viewing
-- ✅ All tests passing (40/40)
+
+## 📧 Contact Information- ✅ All tests passing (40/40)
+
 - ✅ Production-ready
 
----
+**Product**: FocusFlow Pro  
 
-## 🚀 User Experience Flow
+**Location**: Ontario, Canada  ---
 
-### First Launch
+**Email**: support@focusflow.cc  
+
+**Response Time**: Within 30 days## 🚀 User Experience Flow
+
+
+
+---### First Launch
+
 ```
-App Opens
+
+## 📝 Legal UpdatesApp Opens
+
   ↓
-Policies not yet accepted
-  ↓
+
+**Current Version**: November 10, 2025  Policies not yet accepted
+
+**Last Updated**: Added AI voice assistant and unbreakable sessions coverage  ↓
+
 PolicyAcceptanceFlow displayed (blocking UI)
-  ├─ Welcome screen with company info
-  ├─ Privacy Policy review
-  ├─ Terms of Service review
-  └─ Accept all policies
+
+### Recent Changes  ├─ Welcome screen with company info
+
+- **November 10, 2025**: Updated Privacy Policy and Terms of Service to include:  ├─ Privacy Policy review
+
+  - AI voice assistant data collection and OpenAI processing  ├─ Terms of Service review
+
+  - iOS Screen Time API and Family Controls usage  └─ Accept all policies
+
+  - Unbreakable focus sessions warnings and limitations    ↓
+
+  - Hybrid voice processing (95% local, 5% cloud)  Acceptance stored in device storage
+
     ↓
-  Acceptance stored in device storage
-  ↓
-  Normal app access
+
+- **October 30, 2025**: Initial version for production launch  Normal app access
+
 ```
+
+---
 
 ### Subsequent Usage
-```
+
+## 🧪 Verification Checklist```
+
 App Opens
-  ↓
+
+Before launching or updating:  ↓
+
 Policies already accepted
-  ↓
-Normal app navigation
-  ↓
-User can view policies anytime:
-  Settings → Legal & Privacy
-    ├─ Privacy Policy
-    └─ Terms of Service
-```
+
+- [ ] Privacy Policy is accessible in-app  ↓
+
+- [ ] Terms of Service is accessible in-appNormal app navigation
+
+- [ ] All new features are documented in legal policies  ↓
+
+- [ ] Contact email (support@focusflow.cc) is correct throughoutUser can view policies anytime:
+
+- [ ] Effective dates are current  Settings → Legal & Privacy
+
+- [ ] Data collection practices match implementation    ├─ Privacy Policy
+
+- [ ] Third-party services (OpenAI, Supabase, RevenueCat) are disclosed    └─ Terms of Service
+
+- [ ] iOS permissions match Privacy Policy disclosures```
+
+
+
+------
+
+
+
+## 📚 Additional Resources## 🔍 Compliance Highlights
+
+
+
+- **App Store Guidelines**: Ensure compliance with App Store Review Guidelines### Data Privacy
+
+- **iOS Privacy**: Follow Apple's privacy requirements for Screen Time and microphone access- ✅ Clear data collection policies
+
+- **OpenAI Terms**: Review OpenAI's enterprise data processing agreements- ✅ User rights to access, modify, delete data
+
+- **RevenueCat Docs**: Understand subscription management and receipt validation- ✅ Third-party service declarations
+
+- **Supabase Security**: Implement RLS policies and secure API keys- ✅ CCPA & PIPEDA specific provisions
+
+- ✅ Contact information for privacy questions
 
 ---
 
-## 🔍 Compliance Highlights
-
-### Data Privacy
-- ✅ Clear data collection policies
-- ✅ User rights to access, modify, delete data
-- ✅ Third-party service declarations
-- ✅ CCPA & PIPEDA specific provisions
-- ✅ Contact information for privacy questions
-
 ### Legal Protection
-- ✅ Limitation of liability clauses
+
+Thank you for maintaining FocusFlow Pro's commitment to transparency and user privacy.- ✅ Limitation of liability clauses
+
 - ✅ Warranty disclaimers
 - ✅ Governing law (Ontario)
 - ✅ Termination procedures
