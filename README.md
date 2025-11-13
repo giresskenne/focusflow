@@ -28,6 +28,8 @@ pnpm start
 
 Then open the project in Expo Go (device) or press `i` for iOS Simulator / `a` for Android Emulator.
 
+See `docs/RUNNING.md` for simulator vs device setup and recommended commands (including Tunnel mode and Dev Client builds).
+
 ## Smart Reminders
 
 Implemented using `expo-notifications`.
