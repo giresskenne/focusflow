@@ -4,8 +4,12 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
+    "start:clean": "expo start -c",
+    "start:tunnel": "expo start --tunnel",
     "android:expo": "expo start --android",
     "ios:expo": "expo start --ios",
+    "ios:dev": "expo start --ios",
+    "android:dev": "expo start --android",
     "web": "expo start --web",
     "test": "jest",
     "android": "expo run:android",
