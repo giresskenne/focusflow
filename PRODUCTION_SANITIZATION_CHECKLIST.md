@@ -9,18 +9,19 @@ This checklist ensures the app is ready for production deployment without debug 
 ## 🚨 Critical (Must Complete Before Production)
 
 ### iPad Support Decision
-- [ ] **URGENT: Fix Apple rejection** - Choose one:
-  - [ ] Option A (Recommended): Set `"supportsTablet": false` in `app.json` → iPhone-only app
+- [x] **URGENT: Fix Apple rejection** - Choose one:
+  - [x] Option A (Recommended): Set `"supportsTablet": false` in `app.json` → iPhone-only app
   - [ ] Option B: Fix iPad crash (requires crash log analysis + iPad testing)
-- [ ] Rebuild and resubmit to App Store
+- [x] Rebuild and resubmit to App Store
 
-### Environment Variables
-- [ ] Set `EXPO_PUBLIC_ENV=production` in production `.env`
-- [ ] Verify `EXPO_PUBLIC_ENABLE_IOS_BLOCKING_DEV=false`
-- [ ] Verify `EXPO_PUBLIC_ENABLE_STOREKIT_TEST=false`
-- [ ] Verify `EXPO_PUBLIC_ENABLE_MIGRATION_UPLOAD=false`
-- [ ] Set `EXPO_PUBLIC_ENABLE_IAP=true` with real RevenueCat key
-- [ ] Confirm `.env` is in `.gitignore` (don't commit keys)
+### Environment Variables & Secrets
+- [x] Set `EXPO_PUBLIC_ENV=production` in production `.env` (handled by eas.json)
+- [x] Verify `EXPO_PUBLIC_ENABLE_IOS_BLOCKING_DEV=false`
+- [x] Verify `EXPO_PUBLIC_ENABLE_STOREKIT_TEST=false`
+- [x] Verify `EXPO_PUBLIC_ENABLE_MIGRATION_UPLOAD=false`
+- [x] Set `EXPO_PUBLIC_ENABLE_IAP=true` with real RevenueCat key
+- [x] Confirm `.env` is in `.gitignore` (don't commit keys)
+- [x] Store secrets in EAS Secrets (EXPO_PUBLIC_OPENAI_API_KEY, EXPO_PUBLIC_REVENUECAT_IOS_API_KEY)
 
 ### Code Fixes
 - [ ] Change `DEBUG = true` to `DEBUG = false` in `src/lib/storekeittest.js`
