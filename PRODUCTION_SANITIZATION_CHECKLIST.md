@@ -8,6 +8,12 @@ This checklist ensures the app is ready for production deployment without debug 
 
 ## 🚨 Critical (Must Complete Before Production)
 
+### iPad Support Decision
+- [ ] **URGENT: Fix Apple rejection** - Choose one:
+  - [ ] Option A (Recommended): Set `"supportsTablet": false` in `app.json` → iPhone-only app
+  - [ ] Option B: Fix iPad crash (requires crash log analysis + iPad testing)
+- [ ] Rebuild and resubmit to App Store
+
 ### Environment Variables
 - [ ] Set `EXPO_PUBLIC_ENV=production` in production `.env`
 - [ ] Verify `EXPO_PUBLIC_ENABLE_IOS_BLOCKING_DEV=false`
