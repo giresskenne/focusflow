@@ -14,7 +14,7 @@
       "backgroundColor": "#8900f5"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.giress.focusflow-app",
       "deploymentTarget": "16.0",
       "appleTeamId": "ZTB4YDKG8V",
