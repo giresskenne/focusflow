@@ -16,6 +16,7 @@ import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
 import useSessionCountdown from '../hooks/useSessionCountdown';
 import * as Notifications from 'expo-notifications';
+import { safeDeviceActivityCall } from '../utils/deviceCompat';
 
 // Import react-native-device-activity for real blocking
 let DeviceActivity = null;
@@ -657,7 +658,7 @@ export default function ActiveSessionScreen({ navigation, route }) {
         if (blockingAvailable && DeviceActivity) {
           try {
             // Get current authorization status
-            const currentStatus = DeviceActivity.getAuthorizationStatus();
+            const currentStatus = await safeDeviceActivityCall(() => DeviceActivity.getAuthorizationStatus(), 'denied');
             console.log('[ActiveSession] Current authorization status:', currentStatus);
             setAuthStatus(currentStatus);
             
@@ -667,15 +668,15 @@ export default function ActiveSessionScreen({ navigation, route }) {
             // Request authorization if not already approved
             if (!isApproved) {
               console.log('[ActiveSession] Requesting authorization...');
-              await DeviceActivity.requestAuthorization();
+              await safeDeviceActivityCall(() => DeviceActivity.requestAuthorization(), null);
               // Check status again after request
-              const newStatus = DeviceActivity.getAuthorizationStatus();
+              const newStatus = await safeDeviceActivityCall(() => DeviceActivity.getAuthorizationStatus(), 'denied');
               console.log('[ActiveSession] Authorization status after request:', newStatus);
               setAuthStatus(newStatus);
             }
             
             // Get final status
-            const finalStatus = DeviceActivity.getAuthorizationStatus();
+            const finalStatus = await safeDeviceActivityCall(() => DeviceActivity.getAuthorizationStatus(), 'denied');
             const finalApproved = finalStatus === 2 || finalStatus === 'approved';
             
             // If authorized, start monitoring with the selected apps
@@ -764,22 +765,25 @@ export default function ActiveSessionScreen({ navigation, route }) {
                     if (totalBlocked === 0) {
                       console.log('[ActiveSession] Metadata is zero. Attempting best-effort immediate block anyway.');
                       // Best-effort 1: block by selection id (may succeed even if metadata read fails)
-                      try { DeviceActivity.blockSelection({ familyActivitySelectionId: selectionIdToUse }); console.log('[ActiveSession] blockSelection by id issued'); } catch {}
+                      await safeDeviceActivityCall(() => DeviceActivity.blockSelection({ familyActivitySelectionId: selectionIdToUse }), null);
+                      console.log('[ActiveSession] blockSelection by id issued');
                       // Best-effort 2: block with native selection token if present
                       if (map?.nativeFamilyActivitySelection) {
-                        try { DeviceActivity.blockSelection({ familyActivitySelection: map.nativeFamilyActivitySelection }); console.log('[ActiveSession] blockSelection by native selection issued'); } catch {}
+                        await safeDeviceActivityCall(() => DeviceActivity.blockSelection({ familyActivitySelection: map.nativeFamilyActivitySelection }), null);
+                        console.log('[ActiveSession] blockSelection by native selection issued');
                       }
                       // Best-effort 3: block with transient local selection built from legacy map
                       if (localSelectionFromApps) {
-                        try { DeviceActivity.blockSelection({ familyActivitySelection: localSelectionFromApps }); console.log('[ActiveSession] blockSelection by transient app selection issued'); } catch {}
+                        await safeDeviceActivityCall(() => DeviceActivity.blockSelection({ familyActivitySelection: localSelectionFromApps }), null);
+                        console.log('[ActiveSession] blockSelection by transient app selection issued');
                       }
                     } else {
                       console.log('[ActiveSession] Immediately blocking selection...');
-                      DeviceActivity.blockSelection({ familyActivitySelectionId: selectionIdToUse });
+                      await safeDeviceActivityCall(() => DeviceActivity.blockSelection({ familyActivitySelectionId: selectionIdToUse }), null);
                       console.log('[ActiveSession] Successfully blocked with selectionId');
                       if (map?.nativeFamilyActivitySelection) {
                         try { 
-                          DeviceActivity.blockSelection({ familyActivitySelection: map.nativeFamilyActivitySelection }); 
+                          await safeDeviceActivityCall(() => DeviceActivity.blockSelection({ familyActivitySelection: map.nativeFamilyActivitySelection }), null); 
                           console.log('[ActiveSession] Successfully blocked with native selection');
                         } catch (nativeError) {
                           console.log('[ActiveSession] Native block failed (continuing):', nativeError);

@@ -1,8 +1,13 @@
 // Unified TTS service with provider toggle.
-// Default provider: iOS native via expo-speech.
+// Text-to-speech service with multiple providers and safe loading
+// Default provider: iOS native via expo-speech (with crash protection).
+// Fallback: OpenAI TTS (when enabled).
+
+import { safeSpeech } from '../../../utils/safeSpeech';
 // Optional provider: OpenAI TTS (gpt-4o-mini-tts) via fetch + expo-av playback.
 
-import * as Speech from 'expo-speech';
+// DO NOT import expo-speech directly - it causes TurboModule crashes
+// Use safeSpeech wrapper instead
 import { isAvailable as openaiAvailable, speak as openaiSpeak, stop as openaiStop, isSpeaking as openaiIsSpeaking } from './openai-tts-service';
 import { getVoiceSettings } from '../../../storage';
 
@@ -24,22 +29,56 @@ function provider() {
 // Cache available voices to avoid async lookup on every speak call
 let voicesCache = null;
 let preferredVoiceId = null;
-(async () => {
+
+// Safe voice initialization that won't crash the app
+async function initializeVoices() {
+  if (voicesCache !== null) return; // Already initialized
+  
   try {
-    if (Speech?.getAvailableVoicesAsync) {
-      voicesCache = await Speech.getAvailableVoicesAsync();
-      // Try to choose an enhanced en-US voice if available
-      const enhanced = voicesCache?.find?.((v) => v?.identifier?.includes('en-US') && v?.quality === 'Enhanced');
-      preferredVoiceId = enhanced?.identifier || null;
-      console.log('[TTS] Prefetched voices:', Array.isArray(voicesCache) ? voicesCache.length : 0, 'preferred:', preferredVoiceId || '(none)');
+    // PRODUCTION SAFETY: Skip voice initialization in production
+    if (process.env.EXPO_PUBLIC_ENV === 'production') {
+      console.log('[TTS] Voice initialization skipped in production');
+      voicesCache = [];
+      preferredVoiceId = null;
+      return;
     }
-  } catch {}
-})();
+    
+    if (safeSpeech.isAvailable() && safeSpeech.initialize()) {
+      // Use predefined voices to avoid getAvailableVoicesAsync() crash
+      voicesCache = [
+        { identifier: 'com.apple.ttsbundle.Samantha-compact', name: 'Samantha', language: 'en-US', quality: 'Enhanced' },
+        { identifier: 'com.apple.ttsbundle.Alex-compact', name: 'Alex', language: 'en-US' }
+      ];
+      preferredVoiceId = 'com.apple.ttsbundle.Samantha-compact';
+      console.log('[TTS] Initialized with predefined voices to prevent crash');
+    } else {
+      voicesCache = [];
+      preferredVoiceId = null;
+      console.log('[TTS] Speech not available, no voices initialized');
+    }
+  } catch (error) {
+    console.warn('[TTS] Voice initialization failed:', error.message);
+    voicesCache = [];
+    preferredVoiceId = null;
+  }
+}
+
+// PRODUCTION SAFETY: Only initialize voices in development
+if (process.env.EXPO_PUBLIC_ENV !== 'production') {
+  initializeVoices().catch(() => {});
+}
 
 export function isAvailable() {
   const p = provider();
   if (p === 'openai') return openaiAvailable();
-  const available = !!(Speech && typeof Speech.speak === 'function');
+  
+  // PRODUCTION SAFETY: TTS disabled in production
+  if (process.env.EXPO_PUBLIC_ENV === 'production') {
+    console.log('[TTS] TTS disabled in production for stability');
+    return false;
+  }
+  
+  const available = safeSpeech.isAvailable();
   console.log('[TTS] isAvailable (ios):', available);
   return available;
 }
@@ -48,7 +87,7 @@ export async function isSpeaking() {
   try {
     const p = provider();
     if (p === 'openai') return await openaiIsSpeaking();
-    if (Speech?.isSpeakingAsync) return !!(await Speech.isSpeakingAsync());
+    return safeSpeech.isSpeaking();
   } catch {}
   return false;
 }
@@ -57,7 +96,7 @@ export function stop() {
   try {
     const p = provider();
     if (p === 'openai') { openaiStop(); return; }
-    if (Speech?.stop) Speech.stop();
+    safeSpeech.stop();
   } catch {}
 }
 
@@ -99,7 +138,7 @@ export function speak(text, opts = {}) {
         onError,
       } = opts || {};
       // Cancel any ongoing utterance to avoid overlap
-      if (Speech?.stop) Speech.stop();
+      safeSpeech.stop();
       // Determine a safe voice to use; if requested isn't available, fall back
       let voiceToUse = requestedVoiceId;
       try {
@@ -115,14 +154,14 @@ export function speak(text, opts = {}) {
       const speakOptions = { language, pitch, rate, onDone, onError, volume };
       if (voiceToUse) speakOptions.voice = voiceToUse;
       console.log('[TTS] iOS speak voice:', voiceToUse || '(default)', 'rate:', rate, 'pitch:', pitch, 'volume:', volume);
-      Speech.speak(String(text), speakOptions);
+      safeSpeech.speak(String(text), speakOptions);
     }).catch((err) => {
       console.warn('[TTS] Error loading voice settings:', err);
       // Fallback to default behavior if settings load fails
       const p = provider();
       if (!text || !isAvailable()) return;
-      if (Speech?.stop) Speech.stop();
-      Speech.speak(String(text), { language: 'en-US', pitch: 1.0, rate: 0.85, volume: 1.0 });
+      safeSpeech.stop();
+      safeSpeech.speak(String(text), { language: 'en-US', pitch: 1.0, rate: 0.85, volume: 1.0 });
     });
   } catch (e) {
     console.warn('[TTS] speak error:', e?.message);

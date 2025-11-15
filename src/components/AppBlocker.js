@@ -3,6 +3,7 @@
 // - Falls back to a simple in-memory stub when EXPO_PUBLIC_ENABLE_IOS_BLOCKING_DEV=true
 
 import { NativeModules, Platform } from 'react-native';
+import { safeTurboModuleCall, isIPad } from '../utils/deviceCompat';
 
 const ENABLE_IOS_BLOCKING_DEV = process.env.EXPO_PUBLIC_ENABLE_IOS_BLOCKING_DEV === 'true';
 const Native = NativeModules?.AppBlocker;
@@ -43,19 +44,23 @@ const DevStub = {
 const NativeWrapper = {
   isAvailable: true,
   async requestAuthorization() {
-    return Native.requestAuthorization?.();
+    return safeTurboModuleCall(() => Native.requestAuthorization?.(), false);
   },
   async selectApps() {
-    return Native.selectApps?.();
+    return safeTurboModuleCall(() => Native.selectApps?.(), []);
   },
   async startBlocking(bundleIds = []) {
-    return Native.startBlocking?.(bundleIds);
+    if (isIPad()) {
+      console.warn('[AppBlocker] Skipping startBlocking on iPad');
+      return { success: false, reason: 'iPad not supported' };
+    }
+    return safeTurboModuleCall(() => Native.startBlocking?.(bundleIds), { success: false });
   },
   async stopBlocking() {
-    return Native.stopBlocking?.();
+    return safeTurboModuleCall(() => Native.stopBlocking?.(), { success: true });
   },
   async isBlocking() {
-    return Native.isBlocking?.();
+    return safeTurboModuleCall(() => Native.isBlocking?.(), false);
   },
   async hasUsageAccess() {
     // iOS path doesn't use this; Android screens guard on Platform

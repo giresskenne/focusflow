@@ -25,6 +25,10 @@ import PremiumModal from '../PremiumModal';
 import { performUpgrade } from '../../lib/premiumUpgrade';
 
 // Import DeviceActivity for iOS blocking
+import { getSelectedApps, getCurrentFocusSession, setCurrentFocusSession } from '../../storage';
+import { safeDeviceActivityCall } from '../../utils/deviceCompat';
+
+// DeviceActivity import with iPad safety
 let DeviceActivity = null;
 if (Platform.OS === 'ios') {
   try {

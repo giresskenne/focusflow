@@ -8,6 +8,7 @@ import GradientBackground from '../components/GradientBackground';
 import GlassCard from '../components/Ui/GlassCard';
 import { BellIcon, ShieldIcon, CheckCircleIcon } from '../components/Icons';
 import { colors, spacing, radius, typography } from '../theme';
+import { safeDeviceActivityCall } from '../utils/deviceCompat';
 
 // Import DeviceActivity for iOS
 let DeviceActivity = null;
@@ -56,7 +57,7 @@ export default function OnboardingScreen({ navigation, onComplete }) {
 
     try {
       setIsLoading(true);
-      const currentStatus = DeviceActivity.getAuthorizationStatus();
+      const currentStatus = await safeDeviceActivityCall(() => DeviceActivity.getAuthorizationStatus(), 'denied');
       console.log('[Onboarding] Current Screen Time status:', currentStatus);
       
       if (currentStatus === 2 || currentStatus === 'approved') {
@@ -66,8 +67,8 @@ export default function OnboardingScreen({ navigation, onComplete }) {
       }
 
       // Request authorization
-      await DeviceActivity.requestAuthorization();
-      const newStatus = DeviceActivity.getAuthorizationStatus();
+      await safeDeviceActivityCall(() => DeviceActivity.requestAuthorization(), null);
+      const newStatus = await safeDeviceActivityCall(() => DeviceActivity.getAuthorizationStatus(), 'denied');
       const isApproved = newStatus === 2 || newStatus === 'approved';
       
       setScreenTimeStatus(isApproved ? 'approved' : 'denied');

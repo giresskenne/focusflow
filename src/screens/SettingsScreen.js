@@ -15,6 +15,7 @@ import IAP from '../lib/iap';
 import StoreKitTest from '../lib/storekeittest';
 import { performUpgrade } from '../lib/premiumUpgrade';
 import { getTelemetry, resetTelemetry } from '../modules/ai/nlu/hybrid-intent-service';
+import { safeDeviceActivityCall } from '../utils/deviceCompat';
 import {
   CrownIcon,
   BellIcon,
@@ -299,13 +300,13 @@ export default function SettingsScreen({ navigation }) {
     } catch {}
   };
 
-  const refreshScreenTime = () => {
+  const refreshScreenTime = async () => {
     try {
       if (Platform.OS !== 'ios') { setScreenTimePerm('not-available'); return; }
       let DeviceActivity = null;
       try { DeviceActivity = require('react-native-device-activity'); } catch {}
       if (!DeviceActivity) { setScreenTimePerm('not-available'); return; }
-      const s = DeviceActivity.getAuthorizationStatus();
+      const s = await safeDeviceActivityCall(() => DeviceActivity.getAuthorizationStatus(), 'unknown');
       setScreenTimePerm((s === 2 || s === 'approved') ? 'approved' : (s === 1 || s === 'denied') ? 'denied' : 'unknown');
     } catch {}
   };
@@ -316,9 +317,9 @@ export default function SettingsScreen({ navigation }) {
       let DeviceActivity = null;
       try { DeviceActivity = require('react-native-device-activity'); } catch {}
       if (!DeviceActivity) return;
-      await DeviceActivity.requestAuthorization();
-      refreshScreenTime();
-      const s = DeviceActivity.getAuthorizationStatus();
+      await safeDeviceActivityCall(() => DeviceActivity.requestAuthorization(), null);
+      await refreshScreenTime();
+      const s = await safeDeviceActivityCall(() => DeviceActivity.getAuthorizationStatus(), 'unknown');
       const ok = (s === 2 || s === 'approved');
       if (!ok) {
         Alert.alert(

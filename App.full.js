@@ -107,7 +107,7 @@ export default function App() {
     setupGlobalErrorHandling();
     logInitStep('GLOBAL_ERROR_SETUP_COMPLETE');
 
-  // Test native modules safely
+    // Test native modules safely
     logInitStep('NATIVE_MODULE_TESTS_START');
     
     // Test Notifications
@@ -128,32 +128,10 @@ export default function App() {
       return typeof SecureStore.getItemAsync === 'function';
     });
     
-    // Test Speech (this is the problematic module!)
-    const speechAvailable = testNativeModule('EXPO_SPEECH', () => {
-      if (process.env.EXPO_PUBLIC_AI_TTS_ENABLED !== 'true') {
-        return true; // Skip test if disabled
-      }
-      const Speech = require('expo-speech');
-      return typeof Speech.speak === 'function';
-    });
-    
-    // Test RevenueCat presence without invoking any native methods
-    const revenuecatPresent = testNativeModule('REVENUECAT', () => {
-      try {
-        const mod = require('react-native-purchases');
-        const Purchases = (mod && mod.default) ? mod.default : mod;
-        return !!Purchases;
-      } catch {
-        return false;
-      }
-    });
-
     logInitStep('NATIVE_MODULE_TESTS_COMPLETE', { 
       notifications: notificationsAvailable,
       storage: storageAvailable,
-      secureStore: secureStoreAvailable,
-      speech: speechAvailable,
-      revenuecat: revenuecatPresent
+      secureStore: secureStoreAvailable
     });
 
     // Request notification permissions early (required for iOS background notifications)
@@ -214,15 +192,11 @@ export default function App() {
       await manageSignInNudge(user);
       logInitStep('SIGNIN_NUDGE_MANAGED');
 
-      // Configure IAP when explicitly enabled for startup (to avoid native crashes at boot)
+      // Configure IAP when enabled
       try {
-        const IAP_STARTUP_INIT = process.env.EXPO_PUBLIC_IAP_STARTUP_INIT === 'true';
-        logInitStep('IAP_STARTUP_INIT_CHECK', { enabled: IAP_STARTUP_INIT });
-        if (IAP_STARTUP_INIT && IAP.isReady()) {
-          logInitStep('IAP_CONFIGURATION_START');
-          console.log('[App] IAP ready at startup?', IAP.isReady());
-          // Defer slightly to allow app to finish navigation setup
-          await new Promise((r) => setTimeout(r, 1500));
+        logInitStep('IAP_CONFIGURATION_START');
+        console.log('[App] IAP ready at startup?', IAP.isReady());
+        if (IAP.isReady()) {
           await IAP.configure(user?.id || null);
           const info = await IAP.getCustomerInfo();
           if (info != null) {
@@ -231,9 +205,7 @@ export default function App() {
             console.log('[App] IAP configured. Premium active?', !!active);
             logInitStep('IAP_CONFIGURED_SUCCESSFULLY', { premiumActive: !!active });
           }
-          logInitStep('IAP_CONFIGURATION_COMPLETE');
-        } else if (IAP_STARTUP_INIT && StoreKitTest.isReady()) {
-          logInitStep('STOREKIT_TEST_CONFIGURATION_START');
+        } else if (StoreKitTest.isReady()) {
           await StoreKitTest.initConnection();
           const purchases = await StoreKitTest.restorePurchases();
           const active = StoreKitTest.hasActivePurchase(purchases);
@@ -241,9 +213,9 @@ export default function App() {
           console.log('[App] StoreKitTest active?', !!active);
           logInitStep('STOREKIT_TEST_CONFIGURED', { active });
         } else {
-          // Skip startup IAP init; will initialize on demand during upgrade flow
-          logInitStep('IAP_STARTUP_INIT_SKIPPED');
+          logInitStep('IAP_NOT_AVAILABLE');
         }
+        logInitStep('IAP_CONFIGURATION_COMPLETE');
       } catch (iapError) {
         logInitStep('IAP_CONFIGURATION_ERROR', { error: iapError.message });
       }
@@ -288,11 +260,10 @@ export default function App() {
         }
       } catch {}
 
-      // Update IAP identity on auth changes (opt-in at startup to avoid native crashes on boot)
+      // Update IAP identity on auth changes
       try {
-        const IAP_STARTUP_INIT = process.env.EXPO_PUBLIC_IAP_STARTUP_INIT === 'true';
-        console.log('[Auth] IAP ready on auth change?', IAP.isReady(), 'user:', user?.id || null, 'startupInit:', IAP_STARTUP_INIT);
-        if (IAP_STARTUP_INIT && IAP.isReady()) {
+        console.log('[Auth] IAP ready on auth change?', IAP.isReady(), 'user:', user?.id || null);
+        if (IAP.isReady()) {
           await IAP.configure(user?.id || null);
           console.log('[Auth] IAP configure called for user');
         }

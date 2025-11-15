@@ -111,12 +111,12 @@ async function ensureAudioMode() {
 
 async function fallbackSpeakWithSpeech(text, opts) {
   try {
-    const Speech = await import('expo-speech');
+    const { safeSpeech } = await import('../../../utils/safeSpeech');
     const { language = 'en-US', pitch = 1.0, rate = 0.9, onDone, onError } = opts || {};
-    Speech?.stop?.();
-    Speech?.speak?.(String(text), { language, pitch, rate, onDone, onError });
+    safeSpeech.stop();
+    await safeSpeech.speak(String(text), { language, pitch, rate, onDone, onError });
   } catch (e) {
-    console.warn('[OpenAI TTS] fallback to expo-speech failed:', e?.message);
+    console.warn('[OpenAI TTS] fallback to safe speech failed:', e?.message);
   }
 }
 
